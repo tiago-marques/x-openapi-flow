@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://x-flow.dev/schema/flow-schema.json",
+  "title": "x-flow",
+  "description": "JSON Schema for the x-flow OpenAPI extension, defining payment lifecycle states and transitions.",
+  "type": "object",
+  "required": ["id", "current_state"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for this flow definition."
+    },
+    "current_state": {
+      "type": "string",
+      "description": "The state that the resource is in when this operation is invoked or returns."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this flow step."
+    },
+    "idempotency": {
+      "type": "object",
+      "description": "Idempotency configuration for the operation.",
+      "required": ["header"],
+      "properties": {
+        "header": {
+          "type": "string",
+          "description": "HTTP header name used to carry the idempotency key."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether the idempotency header is mandatory."
+        }
+      },
+      "additionalProperties": false
+    },
+    "transitions": {
+      "type": "array",
+      "description": "List of possible state transitions from current_state.",
+      "items": {
+        "type": "object",
+        "required": ["target_state", "trigger_type"],
+        "properties": {
+          "target_state": {
+            "type": "string",
+            "description": "The state the resource moves to after a successful transition."
+          },
+          "condition": {
+            "type": "string",
+            "description": "Human-readable condition under which this transition occurs."
+          },
+          "trigger_type": {
+            "type": "string",
+            "enum": ["synchronous", "webhook", "polling"],
+            "description": "Mechanism that triggers the state transition."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
