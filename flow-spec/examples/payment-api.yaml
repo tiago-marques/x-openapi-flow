@@ -1,0 +1,112 @@
+openapi: "3.0.3"
+info:
+  title: Payment API
+  version: "1.0.0"
+  description: >
+    Simple payment API demonstrating the x-flow extension for OpenAPI Spec.
+
+paths:
+  /payments:
+    post:
+      summary: Create and authorize a payment
+      operationId: createPayment
+      x-flow:
+        id: create-payment-flow
+        current_state: AUTHORIZED
+        description: A payment is created and immediately authorized.
+        idempotency:
+          header: Idempotency-Key
+          required: true
+        transitions:
+          - target_state: CAPTURED
+            condition: Merchant explicitly requests capture.
+            trigger_type: synchronous
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentRequest"
+      responses:
+        "201":
+          description: Payment created and authorized successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          description: Invalid request payload.
+        "422":
+          description: Payment authorization failed.
+
+  /payments/{id}/capture:
+    post:
+      summary: Capture an authorized payment
+      operationId: capturePayment
+      x-flow:
+        id: capture-payment-flow
+        current_state: CAPTURED
+        description: Captures a previously authorized payment, moving funds to the merchant.
+        idempotency:
+          header: Idempotency-Key
+          required: true
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the payment to capture.
+      responses:
+        "200":
+          description: Payment captured successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          description: Payment not found.
+        "409":
+          description: Payment is not in a capturable state.
+
+components:
+  schemas:
+    PaymentRequest:
+      type: object
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          description: Amount in the smallest currency unit (e.g. cents).
+          example: 1000
+        currency:
+          type: string
+          description: ISO 4217 currency code.
+          example: USD
+        description:
+          type: string
+          description: Human-readable description of the payment.
+          example: "Order #1234"
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the payment.
+          example: pay_abc123
+        amount:
+          type: integer
+          example: 1000
+        currency:
+          type: string
+          example: USD
+        state:
+          type: string
+          description: Current lifecycle state of the payment.
+          example: AUTHORIZED
+        created_at:
+          type: string
+          format: date-time

@@ -1,0 +1,21 @@
+{
+  "name": "x-flow",
+  "version": "1.0.0",
+  "description": "OpenAPI Spec extension for payment lifecycle management",
+  "main": "lib/validator.js",
+  "scripts": {
+    "test": "node lib/validator.js examples/payment-api.yaml"
+  },
+  "keywords": [
+    "openapi",
+    "oas",
+    "payment",
+    "lifecycle",
+    "x-flow"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "js-yaml": "^4.1.0"
+  }
+}
