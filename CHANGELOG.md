@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.2.3 - 2026-02-25
+
+### Added
+- `--in-place` option in `apply` to preserve legacy in-place output behavior when explicitly requested.
+
+### Changed
+- `apply` now writes to `{context}.flow.(json|yaml)` by default (for example: `openapi.flow.yaml`, `swagger.flow.json`).
+- Swagger UI plugin moved from `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js` to `flow-spec/lib/swagger-ui/x-openapi-flow-plugin.js`.
+- `example-project` now uses `swagger.flow.json` as default applied output with fallback to `swagger.json` in local Swagger UI server.
+- Documentation and local scripts updated for `.flow` output convention.
+
+### Fixed
+- Swagger UI plugin no longer applies UI enhancements when the loaded spec does not contain `x-openapi-flow` data.
+
 ## 1.2.2 - 2026-02-25
 
 ### Added
