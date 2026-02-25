@@ -1,6 +1,6 @@
 # Release Checklist
 
-## Version 1.1.2
+## Version 1.1.3
 
 - [ ] Confirm npm package name: `x-openapi-flow`.
 - [ ] Confirm product and DX changes in `CHANGELOG.md`.
@@ -15,5 +15,5 @@
   - [ ] `npx x-openapi-flow init /tmp/x-openapi-flow-release-check.yaml`
   - [ ] `npx x-openapi-flow validate /tmp/x-openapi-flow-release-check.yaml --profile strict`
 - [ ] Ensure CI workflow is active in `.github/workflows/x-openapi-flow-validate.yml`.
-- [ ] Create release tag (e.g., `v1.1.2`).
+- [ ] Create release tag (e.g., `v1.1.3`).
 - [ ] Publish release notes based on `CHANGELOG.md`.

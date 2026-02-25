@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.3 - 2026-02-25
+
+### Added
+- Optional transition operation guidance fields:
+	- `next_operation_id`
+	- `prerequisite_operation_ids`
+- Mermaid graph labels now include transition guidance fields when present.
+- Graph image example added to README and wiki docs.
+
+### Changed
+- Validator now checks referenced operationIds from transition guidance fields and reports missing references in quality checks.
+- README and wiki expanded with practical developer UX and complete real-world examples.
+
 ## 1.1.2 - 2026-02-25
 
 ### Added
