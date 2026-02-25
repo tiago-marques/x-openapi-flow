@@ -1,0 +1,52 @@
+name: Publish to GitHub Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+          scope: '@t-marques'
+
+      - name: Install dependencies
+        working-directory: flow-spec
+        run: npm ci
+
+      - name: Run tests
+        working-directory: flow-spec
+        run: npm test
+
+      - name: Prepare scoped name for GitHub Packages mirror
+        working-directory: flow-spec
+        run: npm pkg set name=@t-marques/x-openapi-flow
+
+      - name: Validate GitHub Packages token
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "Missing GH_PACKAGES_TOKEN secret."
+            echo "Create a PAT with write:packages (and read:packages) and save as GH_PACKAGES_TOKEN."
+            exit 1
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+      - name: Publish to GitHub Packages
+        working-directory: flow-spec
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

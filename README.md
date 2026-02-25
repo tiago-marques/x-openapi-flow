@@ -112,6 +112,21 @@ Package installation:
 npm install x-openapi-flow
 ```
 
+Optional mirror on GitHub Packages (default usage remains unscoped on npm):
+
+```bash
+npm config set @t-marques:registry https://npm.pkg.github.com
+npm install @t-marques/x-openapi-flow
+```
+
+When authentication is required, add this to your `.npmrc`:
+
+```ini
+//npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}
+```
+
+Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
+
 Try instantly with npx:
 
 ```bash
