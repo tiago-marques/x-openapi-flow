@@ -67,6 +67,12 @@ Create `x-openapi-flow.config.json` in your project directory:
 - For UI interpretation of `x-openapi-flow`, use `showExtensions: true` plus the example plugin at `examples/swagger-ui/x-openapi-flow-plugin.js`.
 - A ready HTML example is available at `examples/swagger-ui/index.html`.
 
+## Graph Output Example
+
+`x-openapi-flow graph` includes transition guidance labels in Mermaid output when present (`next_operation_id`, `prerequisite_operation_ids`).
+
+![Guided graph example](../docs/assets/graph-order-guided.svg)
+
 ## Repository and Full Documentation
 
 - Repository: https://github.com/tiago-marques/x-openapi-flow

@@ -39,3 +39,12 @@ x-openapi-flow:
 - `core`: schema + orphan checks
 - `relaxed`: advanced checks as warnings
 - `strict`: advanced checks as errors
+
+## Mermaid Graph with Operation Guidance
+
+When you run `x-openapi-flow graph`, Mermaid edges include labels from:
+
+- `next_operation_id`
+- `prerequisite_operation_ids`
+
+![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/graph-order-guided.svg)

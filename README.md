@@ -194,12 +194,17 @@ By default, quality checks produce **warnings**. Use `--strict-quality` to treat
 ## Graph Visualization
 
 `x-openapi-flow graph` generates Mermaid (or JSON) output for the state flow, helping review between developers and architecture teams.
+When transitions include `next_operation_id` and `prerequisite_operation_ids`, Mermaid edges include those values as labels.
 
 Example:
 
 ```bash
 x-openapi-flow graph examples/order-api.yaml
 ```
+
+Example graph image:
+
+![Guided graph example](docs/assets/graph-order-guided.svg)
 
 ## Swagger UI Integration
 

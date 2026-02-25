@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155" />
+    </marker>
+    <style>
+      .state { fill:#f8fafc; stroke:#334155; stroke-width:2; rx:10; }
+      .label { font: 700 16px Arial, sans-serif; fill:#0f172a; }
+      .edge { stroke:#334155; stroke-width:2.5; fill:none; marker-end:url(#arrow); }
+      .edge-text { font: 13px Arial, sans-serif; fill:#1e293b; }
+      .title { font: 700 20px Arial, sans-serif; fill:#0f172a; }
+      .subtitle { font: 13px Arial, sans-serif; fill:#475569; }
+    </style>
+  </defs>
+
+  <text x="24" y="34" class="title">x-openapi-flow graph (Mermaid output example)</text>
+  <text x="24" y="56" class="subtitle">State transitions with operation guidance labels: next_operation_id and prerequisite_operation_ids</text>
+
+  <rect x="70" y="130" width="180" height="64" class="state" />
+  <text x="125" y="168" class="label">CREATED</text>
+
+  <rect x="360" y="130" width="180" height="64" class="state" />
+  <text x="404" y="168" class="label">CONFIRMED</text>
+
+  <rect x="660" y="130" width="180" height="64" class="state" />
+  <text x="726" y="168" class="label">SHIPPED</text>
+
+  <rect x="950" y="130" width="180" height="64" class="state" />
+  <text x="1005" y="168" class="label">DELIVERED</text>
+
+  <path d="M250 162 L360 162" class="edge" />
+  <text x="255" y="122" class="edge-text">next:confirmOrder</text>
+
+  <path d="M540 162 L660 162" class="edge" />
+  <text x="548" y="112" class="edge-text">next:shipOrder | requires:createOrder</text>
+
+  <path d="M840 162 L950 162" class="edge" />
+  <text x="846" y="112" class="edge-text">next:deliverOrder | requires:confirmOrder</text>
+</svg>

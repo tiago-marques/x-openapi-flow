@@ -230,3 +230,7 @@ paths:
 ```bash
 npx x-openapi-flow validate openapi.yaml --profile strict
 ```
+
+## Mermaid graph example
+
+![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/graph-order-guided.svg)

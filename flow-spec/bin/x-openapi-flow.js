@@ -8,7 +8,6 @@ const {
   run,
   loadApi,
   extractFlows,
-  buildStateGraph,
 } = require("../lib/validator");
 
 const DEFAULT_CONFIG_NAME = "x-openapi-flow.config.json";
@@ -702,25 +701,61 @@ function runDoctor(parsed) {
 function buildMermaidGraph(filePath) {
   const api = loadApi(filePath);
   const flows = extractFlows(api);
-  const graph = buildStateGraph(flows);
   const lines = ["stateDiagram-v2"];
+  const nodes = new Set();
+  const edges = [];
+  const edgeSeen = new Set();
 
-  for (const state of graph.nodes) {
-    lines.push(`  state ${state}`);
+  for (const { flow } of flows) {
+    nodes.add(flow.current_state);
+
+    const transitions = flow.transitions || [];
+    for (const transition of transitions) {
+      const from = flow.current_state;
+      const to = transition.target_state;
+      if (!to) {
+        continue;
+      }
+
+      nodes.add(to);
+
+      const labelParts = [];
+      if (transition.next_operation_id) {
+        labelParts.push(`next:${transition.next_operation_id}`);
+      }
+      if (
+        Array.isArray(transition.prerequisite_operation_ids) &&
+        transition.prerequisite_operation_ids.length > 0
+      ) {
+        labelParts.push(`requires:${transition.prerequisite_operation_ids.join(",")}`);
+      }
+
+      const label = labelParts.join(" | ");
+      const edgeKey = `${from}::${to}::${label}`;
+      if (edgeSeen.has(edgeKey)) {
+        continue;
+      }
+
+      edgeSeen.add(edgeKey);
+      edges.push({
+        from,
+        to,
+        next_operation_id: transition.next_operation_id,
+        prerequisite_operation_ids: transition.prerequisite_operation_ids || [],
+      });
+
+      lines.push(`  ${from} --> ${to}${label ? `: ${label}` : ""}`);
+    }
   }
 
-  for (const [from, targets] of graph.adjacency.entries()) {
-    for (const to of targets) {
-      lines.push(`  ${from} --> ${to}`);
-    }
+  for (const state of nodes) {
+    lines.splice(1, 0, `  state ${state}`);
   }
 
   return {
     flowCount: flows.length,
-    nodes: [...graph.nodes],
-    edges: [...graph.adjacency.entries()].flatMap(([from, targets]) =>
-      [...targets].map((to) => ({ from, to }))
-    ),
+    nodes: [...nodes],
+    edges,
     mermaid: lines.join("\n"),
   };
 }
