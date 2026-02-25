@@ -1,19 +1,21 @@
 # Changelog
 
+All notable changes to this project are documented in this file.
+
 ## 1.2.0 - 2026-02-25
 
 ### Added
 - Local integration playground in `example-project/` with:
 	- OpenAPI sample (`openapi.yaml`)
 	- Swagger UI server (`server.js`)
-	- local package wiring (`x-openapi-flow: file:../flow-spec`)
+	- Local package wiring (`x-openapi-flow: file:../flow-spec`)
 - GitHub Packages publish workflow in `.github/workflows/publish-github-packages.yml`.
 - Structured `x-openapi-flow` rendering in Swagger UI plugin (metadata, transitions, operation-level graph lines).
 - DOM-based fallback enhancer in the Swagger UI plugin for `swagger-ui-express` and other late-load environments.
 
 ### Changed
 - `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js` now provides richer native visualization of `x-openapi-flow` content.
-- Root and package README files now document GitHub Packages as an optional scoped mirror while keeping npm unscoped usage as default.
+- Root and package README files now document GitHub Packages as an optional scoped mirror while keeping unscoped npm usage as the default.
 
 ### Fixed
 - GitHub Packages publish scope aligned with repository owner namespace (`@tiago-marques`).
@@ -28,7 +30,7 @@
 - Graph image example added to README and wiki docs.
 
 ### Changed
-- Validator now checks referenced operationIds from transition guidance fields and reports missing references in quality checks.
+- Validator now checks referenced `operationId` values from transition guidance fields and reports missing references in quality checks.
 - README and wiki expanded with practical developer UX and complete real-world examples.
 
 ## 1.1.2 - 2026-02-25
@@ -39,7 +41,7 @@
 
 ### Changed
 - OpenAPI extension key renamed from `x-flow` to `x-openapi-flow` across validator, CLI sidecar apply flow, tests, fixtures, examples, and docs.
-- JSON Schema metadata updated to `x-openapi-flow` naming (`$id`, title, descriptions).
+- JSON Schema metadata updated to `x-openapi-flow` naming (`$id`, `title`, and `description` fields).
 
 ## 1.1.1 - 2026-02-25
 

@@ -8,51 +8,55 @@
 [![open issues](https://img.shields.io/github/issues/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/issues)
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
 
-## Developer UX (Start Here)
+`x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
 
-Run `init` on your existing OpenAPI file:
+It adds explicit state-machine metadata (`x-openapi-flow`) to operations and validates both schema and lifecycle graph consistency.
+
+## Why It Exists
+
+Most teams document endpoints but not lifecycle behavior. State transitions become implicit, inconsistent, and hard to validate in CI.
+
+## Quick Start
+
+Initialize on an existing OpenAPI file:
 
 ```bash
 npx x-openapi-flow init openapi.yaml
 ```
 
-What this does in your repository:
+Validate a spec:
+
+```bash
+x-openapi-flow validate examples/order-api.yaml
+```
+
+Generate a graph:
+
+```bash
+x-openapi-flow graph examples/order-api.yaml
+```
+
+## Initialization Behavior
+
+Running `init` will:
 
 - Auto-detects OpenAPI files (such as `openapi.yaml`, `openapi.json`, `swagger.yaml`)
 - Creates/synchronizes `x-openapi-flow.flows.yaml` (sidecar with your lifecycle definitions)
 - Re-applies existing `x-openapi-flow` blocks into your OpenAPI file
 
-How to work with project files:
+Project file roles:
 
 - Source of truth for API shape: your generated OpenAPI file (`openapi.yaml`)
 - Source of truth for lifecycle metadata: `x-openapi-flow.flows.yaml`
 - CLI/config: `x-openapi-flow.config.json` (optional)
 
-How to keep everything updated:
+Recommended update loop:
 
 1. Regenerate/update your OpenAPI file with your framework tool.
 2. Run `x-openapi-flow apply openapi.yaml` to inject sidecar lifecycle data.
 3. Run `x-openapi-flow validate openapi.yaml --profile strict` to enforce consistency.
 
-## Why? What? How?
-
-**Why?**
-
-Most teams document endpoints but not lifecycle behavior. State transitions become implicit, inconsistent, and hard to validate in CI.
-
-**What?**
-
-`x-openapi-flow` is a CLI and extension contract that adds explicit state-machine metadata to OpenAPI operations and validates it.
-
-**How?**
-
-It defines a vendor extension (`x-openapi-flow`), validates it with schema + graph rules, and supports a sidecar workflow (`init` + `apply`) so lifecycle data survives OpenAPI regeneration.
-
-`x-openapi-flow` is the package/CLI used to validate the OpenAPI `x-openapi-flow` extension and describe resource lifecycle workflows (not limited to payments).
-
-It allows documenting, per operation, the current state (`current_state`) and possible transitions (`transitions`) with explicit triggers.
-
-## Quickstart (3 commands)
+## Quickstart (Local Development)
 
 ```bash
 cd flow-spec
@@ -60,7 +64,7 @@ npm install
 node bin/x-openapi-flow.js validate examples/order-api.yaml
 ```
 
-## Structure
+## Repository Structure
 
 - `flow-spec/schema/flow-schema.json`: extension JSON Schema contract.
 - `flow-spec/lib/validator.js`: validation engine (schema + graph consistency).
@@ -68,13 +72,19 @@ node bin/x-openapi-flow.js validate examples/order-api.yaml
 - `flow-spec/examples/*.yaml`: OpenAPI examples with `x-openapi-flow`.
 - `.github/workflows/x-openapi-flow-validate.yml`: CI validation workflow example.
 
-## Minimum Contract (`x-openapi-flow`)
+## Extension Contract
+
+`x-openapi-flow` allows documenting, per operation, the current lifecycle state (`current_state`) and allowed transitions (`transitions`) with explicit triggers.
+
+### Minimum Required Fields
 
 Each `x-openapi-flow` block must include:
 
 - `version`: extension contract version (`"1.0"`)
 - `id`: unique identifier of the flow step
 - `current_state`: state represented by the operation
+
+### Optional Transition Guidance
 
 Optional transition guidance fields:
 
@@ -83,33 +93,39 @@ Optional transition guidance fields:
 - `prerequisite_field_refs`: required field references before a transition
 - `propagated_field_refs`: field references reused in downstream flows
 
+### Field Reference Format
+
 Field reference format:
 
 - `operationId:request.body.field`
 - `operationId:response.<status>.body.field` (example: `createPayment:response.201.body.id`)
 
-## How to Run
-
-```bash
-cd flow-spec
-npm install
-npm test
-```
-
-## CLI
-
-```bash
-x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
-x-openapi-flow init [openapi-file] [--flows path]
-x-openapi-flow apply [openapi-file] [--flows path] [--out path]
-x-openapi-flow graph <openapi-file> [--format mermaid|json]
-x-openapi-flow doctor [--config path]
-```
+## Install and Run
 
 Package installation:
 
 ```bash
 npm install x-openapi-flow
+```
+
+Try instantly with npx:
+
+```bash
+npx x-openapi-flow init
+```
+
+Installed global command:
+
+```bash
+x-openapi-flow
+```
+
+Run tests locally:
+
+```bash
+cd flow-spec
+npm install
+npm test
 ```
 
 Optional mirror on GitHub Packages (default usage remains unscoped on npm):
@@ -127,19 +143,19 @@ When authentication is required, add this to your `.npmrc`:
 
 Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
 
-Try instantly with npx:
+## CLI Reference
+
+### Commands
 
 ```bash
-npx x-openapi-flow init
+x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
+x-openapi-flow init [openapi-file] [--flows path]
+x-openapi-flow apply [openapi-file] [--flows path] [--out path]
+x-openapi-flow graph <openapi-file> [--format mermaid|json]
+x-openapi-flow doctor [--config path]
 ```
 
-Installed global command:
-
-```bash
-x-openapi-flow
-```
-
-Common commands (short):
+### Common Commands
 
 ```bash
 x-openapi-flow validate examples/payment-api.yaml
@@ -149,7 +165,7 @@ x-openapi-flow graph examples/order-api.yaml
 x-openapi-flow doctor
 ```
 
-Advanced options:
+### Advanced Options
 
 ```bash
 x-openapi-flow validate examples/order-api.yaml --profile relaxed
@@ -163,7 +179,7 @@ x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
 Use `apply` after regenerating your OpenAPI file to re-inject persisted `x-openapi-flow` blocks from the sidecar.
 If no OpenAPI/Swagger file exists yet, create one with your framework's official OpenAPI/Swagger generator first.
 
-## Regeneration Workflow (Recommended)
+## Regeneration Workflow
 
 ```bash
 # 1) generate/open your OpenAPI file (framework-specific)
@@ -177,13 +193,15 @@ x-openapi-flow init openapi.yaml
 x-openapi-flow apply openapi.yaml
 ```
 
-## Validation Profiles
+## Validation
+
+### Profiles
 
 - `strict` (default): schema + advanced graph checks as errors; quality as warnings (or errors with `--strict-quality`).
 - `relaxed`: schema and orphan checks as errors; advanced/quality checks as warnings.
 - `core`: validates only schema and orphan states.
 
-## File-Based Configuration
+### File-Based Configuration
 
 You can use `x-openapi-flow.config.json` in the current directory (or pass it via `--config`):
 
@@ -197,7 +215,7 @@ You can use `x-openapi-flow.config.json` in the current directory (or pass it vi
 
 Example file: `flow-spec/x-openapi-flow.config.example.json`.
 
-## What Gets Validated
+### What Gets Validated
 
 1. **Schema validation**: enforces shape and required fields of `x-openapi-flow`.
 2. **Graph validation**: detects orphan `target_state` entries (without matching `current_state` in any operation).
@@ -214,7 +232,9 @@ Example file: `flow-spec/x-openapi-flow.config.example.json`.
 
 By default, quality checks produce **warnings**. Use `--strict-quality` to treat them as errors (exit code 1).
 
-## Graph Visualization
+## Visualization
+
+### Graph Output
 
 `x-openapi-flow graph` generates Mermaid (or JSON) output for the state flow, helping review between developers and architecture teams.
 When transitions include `next_operation_id` and `prerequisite_operation_ids`, Mermaid edges include those values as labels.
@@ -229,7 +249,7 @@ Example graph image:
 
 ![Guided graph example](docs/assets/graph-order-guided.svg)
 
-## Swagger UI Integration
+### Swagger UI Integration
 
 Current automated tests in this repository use only CLI execution (`node:test`) and do not use Swagger UI, ReDoc, or RapiDoc.
 
@@ -246,15 +266,10 @@ Example result image:
 
 ![Swagger UI integration result](docs/assets/swagger-ui-integration-result-v2.svg)
 
-## Ready-to-Use CI
+## CI Integration
 
 There is a ready-to-use workflow in `.github/workflows/x-openapi-flow-validate.yml`.
 To adapt it to your real OpenAPI files, update the paths in the `Validate x-openapi-flow examples` step.
-
-## Changelog
-
-Version history is tracked in `CHANGELOG.md`.
-Release notes are available in `RELEASE_NOTES_v1.2.0.md`.
 
 ## Included Examples
 
@@ -263,6 +278,11 @@ Release notes are available in `RELEASE_NOTES_v1.2.0.md`.
 - `ticket-api.yaml` (support)
 - `quality-warning-api.yaml` (demonstrates quality warnings)
 - `non-terminating-api.yaml` (demonstrates `non_terminating_states`)
+
+## Changelog
+
+Version history is tracked in `CHANGELOG.md`.
+Release notes are available in `RELEASE_NOTES_v1.2.0.md`.
 
 ## Documentation Language Policy
 
