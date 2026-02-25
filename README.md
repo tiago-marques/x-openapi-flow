@@ -72,23 +72,23 @@ Installed global command:
 x-openapi-flow
 ```
 
-Examples:
+Common commands (short):
 
 ```bash
 x-openapi-flow validate examples/payment-api.yaml
-x-openapi-flow validate examples/order-api.yaml
-x-openapi-flow validate examples/order-api.yaml --profile relaxed
-x-openapi-flow validate examples/order-api.yaml --strict-quality
-x-openapi-flow validate examples/ticket-api.yaml --format json
-x-openapi-flow validate examples/quality-warning-api.yaml
-x-openapi-flow validate examples/quality-warning-api.yaml --strict-quality
-x-openapi-flow validate examples/non-terminating-api.yaml --format json
 x-openapi-flow init openapi.yaml
-x-openapi-flow init
 x-openapi-flow apply openapi.yaml
-x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
 x-openapi-flow graph examples/order-api.yaml
 x-openapi-flow doctor
+```
+
+Advanced options:
+
+```bash
+x-openapi-flow validate examples/order-api.yaml --profile relaxed
+x-openapi-flow validate examples/quality-warning-api.yaml --strict-quality
+x-openapi-flow validate examples/ticket-api.yaml --format json
+x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
 ```
 
 `init` works on an existing OpenAPI file in your repository. It auto-discovers common names (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.) when no path is provided.
