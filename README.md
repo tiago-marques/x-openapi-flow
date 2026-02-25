@@ -229,7 +229,7 @@ It can also render a graph image if `graph_image_url` is present in `x-openapi-f
 
 Example result image:
 
-![Swagger UI integration result](docs/assets/swagger-ui-integration-result.svg)
+![Swagger UI integration result](docs/assets/swagger-ui-integration-result-v2.svg)
 
 ## Ready-to-Use CI
 

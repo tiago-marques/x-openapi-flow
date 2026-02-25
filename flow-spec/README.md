@@ -74,7 +74,7 @@ Field reference format:
 - For UI interpretation of `x-openapi-flow`, use `showExtensions: true` plus the example plugin at `examples/swagger-ui/x-openapi-flow-plugin.js`.
 - A ready HTML example is available at `examples/swagger-ui/index.html`.
 
-![Swagger UI integration result](../docs/assets/swagger-ui-integration-result.svg)
+![Swagger UI integration result](../docs/assets/swagger-ui-integration-result-v2.svg)
 
 ## Graph Output Example
 
