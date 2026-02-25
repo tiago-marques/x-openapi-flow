@@ -20,6 +20,7 @@ paths:
         transitions:
           - target_state: CAPTURED
             trigger_type: synchronous
+            next_operation_id: capturePayment
       responses:
         "201":
           description: Created
@@ -60,8 +61,10 @@ paths:
         transitions:
           - target_state: CONFIRMED
             trigger_type: synchronous
+            next_operation_id: confirmOrder
           - target_state: CANCELLED
             trigger_type: synchronous
+            next_operation_id: cancelOrder
       responses:
         "201":
           description: Created
@@ -76,6 +79,9 @@ paths:
         transitions:
           - target_state: SHIPPED
             trigger_type: webhook
+            next_operation_id: shipOrder
+            prerequisite_operation_ids:
+              - createOrder
       parameters:
         - name: id
           in: path
@@ -96,6 +102,9 @@ paths:
         transitions:
           - target_state: DELIVERED
             trigger_type: webhook
+            next_operation_id: deliverOrder
+            prerequisite_operation_ids:
+              - confirmOrder
       parameters:
         - name: id
           in: path
@@ -142,8 +151,10 @@ paths:
         transitions:
           - target_state: ACTIVE
             trigger_type: synchronous
+            next_operation_id: activateSubscription
           - target_state: CANCELLED
             trigger_type: synchronous
+            next_operation_id: cancelSubscription
       responses:
         "201":
           description: Created
@@ -158,8 +169,10 @@ paths:
         transitions:
           - target_state: SUSPENDED
             trigger_type: webhook
+            next_operation_id: suspendSubscription
           - target_state: CANCELLED
             trigger_type: synchronous
+            next_operation_id: cancelSubscription
       parameters:
         - name: id
           in: path
@@ -180,8 +193,10 @@ paths:
         transitions:
           - target_state: ACTIVE
             trigger_type: synchronous
+            next_operation_id: activateSubscription
           - target_state: CANCELLED
             trigger_type: synchronous
+            next_operation_id: cancelSubscription
       parameters:
         - name: id
           in: path

@@ -10,6 +10,9 @@ x-openapi-flow:
   transitions:
     - target_state: CONFIRMED
       trigger_type: synchronous
+      next_operation_id: confirmOrder
+      prerequisite_operation_ids:
+        - createOrder
 ```
 
 ## Core fields
@@ -18,6 +21,8 @@ x-openapi-flow:
 - `id`: unique step identifier
 - `current_state`: state represented by the operation
 - `transitions[]`: allowed transitions from the current state
+- `transitions[].next_operation_id` (optional): operationId usually called next
+- `transitions[].prerequisite_operation_ids` (optional): operationIds expected before a transition
 
 ## Validated rules (summary)
 

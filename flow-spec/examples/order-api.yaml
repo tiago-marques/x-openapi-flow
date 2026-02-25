@@ -19,9 +19,11 @@ paths:
           - target_state: CONFIRMED
             condition: Stock and payment checks pass.
             trigger_type: synchronous
+            next_operation_id: confirmOrder
           - target_state: CANCELLED
             condition: Validation fails before confirmation.
             trigger_type: synchronous
+            next_operation_id: cancelOrder
       responses:
         "201":
           description: Order created successfully.
@@ -39,6 +41,9 @@ paths:
           - target_state: SHIPPED
             condition: Warehouse dispatches package.
             trigger_type: webhook
+            next_operation_id: shipOrder
+            prerequisite_operation_ids:
+              - createOrder
       parameters:
         - name: id
           in: path
@@ -62,6 +67,9 @@ paths:
           - target_state: DELIVERED
             condition: Carrier confirms delivery.
             trigger_type: webhook
+            next_operation_id: deliverOrder
+            prerequisite_operation_ids:
+              - confirmOrder
       parameters:
         - name: id
           in: path

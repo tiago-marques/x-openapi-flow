@@ -76,6 +76,11 @@ Each `x-openapi-flow` block must include:
 - `id`: unique identifier of the flow step
 - `current_state`: state represented by the operation
 
+Optional transition guidance fields:
+
+- `next_operation_id`: operationId typically called for the next transition
+- `prerequisite_operation_ids`: operationIds expected before a transition
+
 ## How to Run
 
 ```bash

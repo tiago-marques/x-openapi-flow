@@ -58,6 +58,17 @@
             "type": "string",
             "enum": ["synchronous", "webhook", "polling"],
             "description": "Mechanism that triggers the state transition."
+          },
+          "next_operation_id": {
+            "type": "string",
+            "description": "operationId usually called to apply the next state transition."
+          },
+          "prerequisite_operation_ids": {
+            "type": "array",
+            "description": "operationIds that are expected to have happened before this transition.",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false

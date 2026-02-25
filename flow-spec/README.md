@@ -56,6 +56,11 @@ Create `x-openapi-flow.config.json` in your project directory:
 - OpenAPI input in `.yaml`, `.yml`, and `.json`
 - Validation processes OAS content with the `x-openapi-flow` extension
 
+### Optional Transition Guidance Fields
+
+- `next_operation_id`: operationId usually called for the next state transition
+- `prerequisite_operation_ids`: operationIds expected before a transition
+
 ## Swagger UI
 
 - There is no Swagger UI-based automated test in this repo today (tests are CLI-only).

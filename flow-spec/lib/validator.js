@@ -40,7 +40,7 @@ function loadApi(filePath) {
 /**
  * Extract every x-openapi-flow object found in the `paths` section of an OAS document.
  * @param {object} api - Parsed OAS document.
- * @returns {{ endpoint: string, flow: object }[]}
+ * @returns {{ endpoint: string, operation_id?: string, flow: object }[]}
  */
 function extractFlows(api) {
   const entries = [];
@@ -62,6 +62,7 @@ function extractFlows(api) {
       if (operation && operation["x-openapi-flow"]) {
         entries.push({
           endpoint: `${method.toUpperCase()} ${pathKey}`,
+          operation_id: operation.operationId,
           flow: operation["x-openapi-flow"],
         });
       }
@@ -147,9 +148,53 @@ function defaultResult(pathValue, ok = true) {
       multiple_initial_states: [],
       duplicate_transitions: [],
       non_terminating_states: [],
+      invalid_operation_references: [],
       warnings: [],
     },
   };
+}
+
+/**
+ * Detect invalid operationId references declared in transitions.
+ * @param {{ endpoint: string, operation_id?: string, flow: object }[]} flows
+ * @returns {{ type: string, operation_id: string, declared_in: string }[]}
+ */
+function detectInvalidOperationReferences(flows) {
+  const knownOperationIds = new Set(
+    flows.map(({ operation_id }) => operation_id).filter(Boolean)
+  );
+
+  const invalidReferences = [];
+
+  for (const { endpoint, flow } of flows) {
+    const transitions = flow.transitions || [];
+
+    for (const transition of transitions) {
+      if (transition.next_operation_id && !knownOperationIds.has(transition.next_operation_id)) {
+        invalidReferences.push({
+          type: "next_operation_id",
+          operation_id: transition.next_operation_id,
+          declared_in: endpoint,
+        });
+      }
+
+      const prerequisites = Array.isArray(transition.prerequisite_operation_ids)
+        ? transition.prerequisite_operation_ids
+        : [];
+
+      for (const prerequisiteOperationId of prerequisites) {
+        if (!knownOperationIds.has(prerequisiteOperationId)) {
+          invalidReferences.push({
+            type: "prerequisite_operation_ids",
+            operation_id: prerequisiteOperationId,
+            declared_in: endpoint,
+          });
+        }
+      }
+    }
+  }
+
+  return invalidReferences;
 }
 
 /**
@@ -554,6 +599,7 @@ function run(apiPath, options = {}) {
   const cycle = detectCycle(graph);
   const duplicateTransitions = detectDuplicateTransitions(flows);
   const terminalCoverage = detectTerminalCoverage(graph);
+  const invalidOperationReferences = detectInvalidOperationReferences(flows);
   const multipleInitialStates = initialStates.length > 1 ? initialStates : [];
 
   if (profileConfig.runAdvanced) {
@@ -587,6 +633,15 @@ function run(apiPath, options = {}) {
   if (profileConfig.runQuality && terminalCoverage.non_terminating_states.length > 0) {
     qualityWarnings.push(
       `States without path to terminal: ${terminalCoverage.non_terminating_states.join(", ")}`
+    );
+  }
+
+  if (profileConfig.runQuality && invalidOperationReferences.length > 0) {
+    const invalidOperationIds = [
+      ...new Set(invalidOperationReferences.map((item) => item.operation_id)),
+    ];
+    qualityWarnings.push(
+      `Transition operation references not found: ${invalidOperationIds.join(", ")}`
     );
   }
 
@@ -678,6 +733,7 @@ function run(apiPath, options = {}) {
       multiple_initial_states: multipleInitialStates,
       duplicate_transitions: duplicateTransitions,
       non_terminating_states: terminalCoverage.non_terminating_states,
+      invalid_operation_references: invalidOperationReferences,
       warnings: qualityWarnings,
     },
   };
