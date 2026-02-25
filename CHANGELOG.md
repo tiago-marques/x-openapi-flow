@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.2.2 - 2026-02-25
+
+### Added
+- Sidecar graph support in `graph` command for `{context}-openapi-flow.(json|yaml)` files.
+- Swagger UI global Flow Overview (Mermaid-based) while preserving operation-level cards.
+- Copilot prompt template in root README for sidecar authoring workflow.
+
+### Changed
+- Root and package docs simplified to emphasize minimal adoption flow: `npx x-openapi-flow init` + `npx x-openapi-flow apply`.
+- Wiki quickstart updated to sidecar contextual naming and optional validation/graph steps.
+- Example sidecar guidance expanded with `prerequisite_field_refs` and `propagated_field_refs` usage.
+
+### Fixed
+- Swagger UI plugin global graph rendering stabilized (debounce/guard) to prevent UI stalls.
+
 ## 1.2.1 - 2026-02-25
 
 ### Added

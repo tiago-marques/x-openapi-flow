@@ -331,6 +331,8 @@ window.XOpenApiFlowPlugin = function () {
   }
 
   let overviewRenderedHash = null;
+  let overviewRenderInProgress = false;
+  let overviewPendingHash = null;
   async function renderOverview() {
     const spec = getSpecFromUi();
     const flows = extractFlowsFromSpec(spec);
@@ -339,6 +341,7 @@ window.XOpenApiFlowPlugin = function () {
     const mermaid = buildOverviewMermaid(flows);
     const currentHash = `${flows.length}:${mermaid}`;
     if (overviewRenderedHash === currentHash) return;
+    if (overviewRenderInProgress && overviewPendingHash === currentHash) return;
 
     const infoContainer = document.querySelector('.swagger-ui .information-container');
     if (!infoContainer) return;
@@ -352,6 +355,8 @@ window.XOpenApiFlowPlugin = function () {
     }
 
     holder.innerHTML = '<div class="xof-title">x-openapi-flow — Flow Overview</div><div class="xof-empty">Rendering Mermaid graph...</div>';
+    overviewRenderInProgress = true;
+    overviewPendingHash = currentHash;
 
     try {
       const mermaidLib = await ensureMermaid();
@@ -374,6 +379,8 @@ window.XOpenApiFlowPlugin = function () {
         <div class="xof-empty">Could not render Mermaid image in this environment.</div>
         <div class="xof-overview-code">${mermaid.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
       `;
+    } finally {
+      overviewRenderInProgress = false;
     }
 
     overviewRenderedHash = currentHash;
@@ -413,15 +420,27 @@ window.XOpenApiFlowPlugin = function () {
     injectStyles();
     const opblocks = document.querySelectorAll('.opblock');
     opblocks.forEach((opblock) => enhanceOperation(opblock));
-    renderOverview();
+    renderOverview().catch(() => {
+      // keep plugin resilient in environments where async rendering fails
+    });
+  }
+
+  let enhanceScheduled = false;
+  function scheduleEnhance() {
+    if (enhanceScheduled) return;
+    enhanceScheduled = true;
+    window.requestAnimationFrame(() => {
+      enhanceScheduled = false;
+      enhanceAll();
+    });
   }
 
   const observer = new MutationObserver(() => {
-    enhanceAll();
+    scheduleEnhance();
   });
 
   window.addEventListener('load', () => {
-    enhanceAll();
+    scheduleEnhance();
     observer.observe(document.body, { childList: true, subtree: true });
   });
 })();

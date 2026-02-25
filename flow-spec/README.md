@@ -36,9 +36,15 @@ Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
 ## Quick Start
 
 ```bash
-x-openapi-flow validate openapi.yaml
-x-openapi-flow graph openapi.yaml
-x-openapi-flow doctor
+npx x-openapi-flow init openapi.yaml
+npx x-openapi-flow apply openapi.yaml
+```
+
+Optional checks:
+
+```bash
+npx x-openapi-flow validate openapi.yaml --profile strict
+npx x-openapi-flow graph openapi.yaml
 ```
 
 ## CLI Commands

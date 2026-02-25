@@ -19,23 +19,14 @@ Most teams document endpoints but not lifecycle behavior. State transitions beco
 
 ## Quick Start
 
-Initialize on an existing OpenAPI file:
+From your API project root:
 
 ```bash
 npx x-openapi-flow init openapi.yaml
+npx x-openapi-flow apply openapi.yaml
 ```
 
-Validate a spec:
-
-```bash
-x-openapi-flow validate examples/order-api.yaml
-```
-
-Generate a graph:
-
-```bash
-x-openapi-flow graph examples/order-api.yaml
-```
+That is the default adoption path.
 
 ## Initialization Behavior
 
@@ -55,7 +46,10 @@ Recommended update loop:
 
 1. Regenerate/update your OpenAPI file with your framework tool.
 2. Run `x-openapi-flow apply openapi.yaml` to inject sidecar lifecycle data.
-3. Run `x-openapi-flow validate openapi.yaml --profile strict` to enforce consistency.
+
+Optional quality gate:
+
+- Run `npx x-openapi-flow validate openapi.yaml --profile strict`.
 
 ## Quickstart (Local Development)
 
@@ -103,22 +97,10 @@ Field reference format:
 
 ## Install and Run
 
-Package installation:
-
-```bash
-npm install x-openapi-flow
-```
-
-Try instantly with npx:
+Use with npx (recommended):
 
 ```bash
 npx x-openapi-flow init
-```
-
-Installed global command:
-
-```bash
-x-openapi-flow
 ```
 
 Run tests locally:
@@ -204,7 +186,7 @@ Recommended AI-assisted flow:
 1. Run `x-openapi-flow init openapi.yaml`.
 2. Ask your AI assistant to fill `{context}-openapi-flow.(json|yaml)` using `llm.txt`.
 3. Run `x-openapi-flow apply openapi.yaml`.
-4. Run `x-openapi-flow validate openapi.yaml --profile strict`.
+4. Run `x-openapi-flow apply openapi.yaml` again after AI updates (if needed).
 
 The `llm.txt` guide covers required fields, transition modeling, field reference formats, and a quality checklist.
 
