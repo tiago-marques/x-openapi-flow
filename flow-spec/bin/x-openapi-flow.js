@@ -44,7 +44,7 @@ function printHelp() {
 Usage:
   x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
   x-openapi-flow init [openapi-file] [--flows path]
-  x-openapi-flow apply [openapi-file] [--flows path] [--out path]
+  x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
   x-openapi-flow graph <openapi-file> [--format mermaid|json]
   x-openapi-flow doctor [--config path]
   x-openapi-flow --help
@@ -56,10 +56,17 @@ Examples:
   x-openapi-flow init openapi.yaml --flows openapi-openapi-flow.yaml
   x-openapi-flow init
   x-openapi-flow apply openapi.yaml
+  x-openapi-flow apply openapi.yaml --in-place
   x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
   x-openapi-flow graph examples/order-api.yaml
   x-openapi-flow doctor
 `);
+}
+
+function deriveFlowOutputPath(openApiFile) {
+  const parsed = path.parse(openApiFile);
+  const extension = parsed.ext || ".yaml";
+  return path.join(parsed.dir, `${parsed.name}.flow${extension}`);
 }
 
 function getOptionValue(args, optionName) {
@@ -199,7 +206,7 @@ function parseInitArgs(args) {
 }
 
 function parseApplyArgs(args) {
-  const unknown = findUnknownOptions(args, ["--flows", "--out"], []);
+  const unknown = findUnknownOptions(args, ["--flows", "--out"], ["--in-place"]);
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
   }
@@ -214,8 +221,13 @@ function parseApplyArgs(args) {
     return { error: outOpt.error };
   }
 
+  const inPlace = args.includes("--in-place");
+  if (inPlace && outOpt.found) {
+    return { error: "Options --in-place and --out cannot be used together." };
+  }
+
   const positional = args.filter((token, index) => {
-    if (token === "--flows" || token === "--out") {
+    if (token === "--flows" || token === "--out" || token === "--in-place") {
       return false;
     }
     if (index > 0 && (args[index - 1] === "--flows" || args[index - 1] === "--out")) {
@@ -232,6 +244,7 @@ function parseApplyArgs(args) {
     openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
     flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
     outPath: outOpt.found ? path.resolve(outOpt.value) : undefined,
+    inPlace,
   };
 }
 
@@ -656,7 +669,9 @@ function runApply(parsed) {
   }
 
   const appliedCount = applyFlowsToOpenApi(api, flowsDoc);
-  const outputPath = parsed.outPath || targetOpenApiFile;
+  const outputPath = parsed.inPlace
+    ? targetOpenApiFile
+    : (parsed.outPath || deriveFlowOutputPath(targetOpenApiFile));
   saveOpenApi(outputPath, api);
 
   console.log(`OpenAPI source: ${targetOpenApiFile}`);

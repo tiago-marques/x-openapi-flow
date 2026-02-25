@@ -264,7 +264,7 @@ Current automated tests in this repository use only CLI execution (`node:test`) 
 To visualize and interpret `x-openapi-flow` in Swagger UI:
 
 1. Enable vendor extension rendering with `showExtensions: true`.
-2. Use the example plugin in `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js`.
+2. Use the plugin in `flow-spec/lib/swagger-ui/x-openapi-flow-plugin.js`.
 3. Open `flow-spec/examples/swagger-ui/index.html` and point it to your OpenAPI file.
 
 This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.

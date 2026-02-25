@@ -7,16 +7,16 @@ const app = express();
 const port = process.env.PORT || 3000;
 const specUrl = process.env.SWAGGER_SPEC_URL || '/swagger.json';
 const baseSpecPath = path.join(__dirname, 'swagger.json');
-const generatedSpecPath = path.join(__dirname, 'swagger.generated.json');
+const flowSpecPath = path.join(__dirname, 'swagger.flow.json');
 const configuredSpecFile = process.env.SWAGGER_SPEC_FILE;
 const defaultSpecPath = configuredSpecFile
   ? path.join(__dirname, configuredSpecFile)
-  : (fs.existsSync(generatedSpecPath) ? generatedSpecPath : baseSpecPath);
+  : (fs.existsSync(flowSpecPath) ? flowSpecPath : baseSpecPath);
 const nativePluginPath = path.join(
   __dirname,
   'node_modules',
   'x-openapi-flow',
-  'examples',
+  'lib',
   'swagger-ui',
   'x-openapi-flow-plugin.js'
 );

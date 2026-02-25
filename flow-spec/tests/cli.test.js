@@ -180,10 +180,14 @@ test("init preserves sidecar x-openapi-flow and apply injects into regenerated O
     const apply = runCli(["apply", openapiPath]);
     assert.equal(apply.status, 0);
     assert.match(apply.stdout, /Applied x-openapi-flow entries: 1/);
+    assert.match(apply.stdout, /Output written to:/);
 
-    const updatedOpenApi = fs.readFileSync(openapiPath, "utf8");
+    const updatedOpenApi = fs.readFileSync(path.join(tempDir, "openapi.flow.yaml"), "utf8");
     assert.match(updatedOpenApi, /x-openapi-flow:/);
     assert.match(updatedOpenApi, /id: getOrderFlow/);
+
+    const sourceOpenApi = fs.readFileSync(openapiPath, "utf8");
+    assert.doesNotMatch(sourceOpenApi, /x-openapi-flow:/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -243,6 +247,39 @@ test("apply injects flow for operation without operationId using fallback operat
     );
 
     const apply = runCli(["apply", openapiPath]);
+    assert.equal(apply.status, 0);
+    assert.match(apply.stdout, /Applied x-openapi-flow entries: 1/);
+
+    const updatedOpenApi = fs.readFileSync(path.join(tempDir, "openapi.flow.yaml"), "utf8");
+    assert.match(updatedOpenApi, /x-openapi-flow:/);
+    assert.match(updatedOpenApi, /id: healthFlow/);
+
+    const sourceOpenApi = fs.readFileSync(openapiPath, "utf8");
+    assert.doesNotMatch(sourceOpenApi, /x-openapi-flow:/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("apply supports --in-place to preserve legacy behavior", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-apply-in-place-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: In Place API\n  version: "1.0.0"\npaths:\n  /health:\n    get:\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: get_health\n    x-openapi-flow:\n      version: '1.0'\n      id: healthFlow\n      current_state: READY\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const apply = runCli(["apply", openapiPath, "--in-place"]);
     assert.equal(apply.status, 0);
     assert.match(apply.stdout, /Applied x-openapi-flow entries: 1/);
 

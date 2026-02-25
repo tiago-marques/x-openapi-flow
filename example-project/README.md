@@ -47,7 +47,7 @@ Open:
 
 - http://localhost:3000/docs
 
-By default, this server loads `swagger.generated.json` when it exists; otherwise it falls back to `swagger.json`.
+By default, this server loads `swagger.flow.json` when it exists; otherwise it falls back to `swagger.json`.
 You can force a specific local file with `SWAGGER_SPEC_FILE` (example: `SWAGGER_SPEC_FILE=swagger.json npm start`).
 
 ### 3) Sidecar workflow
@@ -64,8 +64,8 @@ npm run doctor
 Workflow summary:
 
 - `init`: reads `swagger.json` and creates `swagger-openapi-flow.json` sidecar by default.
-- `apply`: merges sidecar data into `swagger.generated.json` (keeps `swagger.json` clean).
-- `validate` and `graph`: run on `swagger.generated.json` after apply.
+- `apply`: merges sidecar data into `swagger.flow.json` (keeps `swagger.json` clean).
+- `validate` and `graph`: run on `swagger.flow.json` after apply.
 
 ## Development Notes
 

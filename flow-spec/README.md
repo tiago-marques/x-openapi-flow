@@ -106,7 +106,7 @@ Field reference format:
 ### Swagger UI
 
 - There is no Swagger UI-based automated test in this repo today (tests are CLI-only).
-- For UI interpretation of `x-openapi-flow`, use `showExtensions: true` plus the example plugin at `examples/swagger-ui/x-openapi-flow-plugin.js`.
+- For UI interpretation of `x-openapi-flow`, use `showExtensions: true` plus the plugin at `lib/swagger-ui/x-openapi-flow-plugin.js`.
 - A ready HTML example is available at `examples/swagger-ui/index.html`.
 - The plugin renders a global **Flow Overview** (Mermaid image) near the top of the docs, plus operation-level flow cards.
 
