@@ -16,7 +16,7 @@ cd flow-spec
 python3 -m http.server 8080
 ```
 
-Abra:
+Open:
 
 `http://localhost:8080/examples/swagger-ui/index.html`
 
@@ -26,6 +26,10 @@ Abra:
 - Custom plugin adds a panel in operation summary with:
   - `version`
   - `current_state`
+
+## Example result image
+
+![Swagger UI integration result](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/swagger-ui-integration-result.svg)
 
 ## Tip
 

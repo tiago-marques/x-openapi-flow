@@ -74,6 +74,8 @@ Field reference format:
 - For UI interpretation of `x-openapi-flow`, use `showExtensions: true` plus the example plugin at `examples/swagger-ui/x-openapi-flow-plugin.js`.
 - A ready HTML example is available at `examples/swagger-ui/index.html`.
 
+![Swagger UI integration result](../docs/assets/swagger-ui-integration-result.svg)
+
 ## Graph Output Example
 
 `x-openapi-flow graph` includes transition guidance labels in Mermaid output when present (`next_operation_id`, `prerequisite_operation_ids`).

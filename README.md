@@ -226,6 +226,10 @@ To visualize and interpret `x-openapi-flow` in Swagger UI:
 
 This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.
 
+Example result image:
+
+![Swagger UI integration result](docs/assets/swagger-ui-integration-result.svg)
+
 ## Ready-to-Use CI
 
 There is a ready-to-use workflow in `.github/workflows/x-openapi-flow-validate.yml`.
