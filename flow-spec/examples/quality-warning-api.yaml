@@ -1,0 +1,66 @@
+openapi: "3.0.3"
+info:
+  title: Quality Warning API
+  version: "1.0.0"
+  description: >
+    Example API intentionally crafted to trigger quality warnings.
+
+paths:
+  /a/start:
+    post:
+      summary: Start flow A
+      operationId: startA
+      x-flow:
+        version: "1.0"
+        id: start-a-flow
+        current_state: A_START
+        transitions:
+          - target_state: A_DONE
+            condition: Flow A completes.
+            trigger_type: synchronous
+          - target_state: A_DONE
+            condition: Duplicate transition used for quality warning demo.
+            trigger_type: synchronous
+      responses:
+        "200":
+          description: Started flow A.
+
+  /a/done:
+    post:
+      summary: Complete flow A
+      operationId: doneA
+      x-flow:
+        version: "1.0"
+        id: done-a-flow
+        current_state: A_DONE
+      responses:
+        "200":
+          description: Flow A finished.
+
+  /b/start:
+    post:
+      summary: Start flow B
+      operationId: startB
+      x-flow:
+        version: "1.0"
+        id: start-b-flow
+        current_state: B_START
+        transitions:
+          - target_state: B_DONE
+            condition: Flow B completes.
+            trigger_type: webhook
+      responses:
+        "200":
+          description: Started flow B.
+
+  /b/done:
+    post:
+      summary: Complete flow B
+      operationId: doneB
+      x-flow:
+        version: "1.0"
+        id: done-b-flow
+        current_state: B_DONE
+      responses:
+        "200":
+          description: Flow B finished.

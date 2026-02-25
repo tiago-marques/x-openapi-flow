@@ -1,0 +1,34 @@
+name: x-openapi-flow validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-openapi:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flow-spec
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: flow-spec/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate x-flow examples
+        run: |
+          node bin/x-openapi-flow.js validate examples/payment-api.yaml --profile strict --strict-quality
+          node bin/x-openapi-flow.js validate examples/order-api.yaml --profile strict --strict-quality
+          node bin/x-openapi-flow.js validate examples/ticket-api.yaml --profile strict --strict-quality

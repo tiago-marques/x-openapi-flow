@@ -11,6 +11,7 @@ paths:
       summary: Create and authorize a payment
       operationId: createPayment
       x-flow:
+        version: "1.0"
         id: create-payment-flow
         current_state: AUTHORIZED
         description: A payment is created and immediately authorized.
@@ -44,6 +45,7 @@ paths:
       summary: Capture an authorized payment
       operationId: capturePayment
       x-flow:
+        version: "1.0"
         id: capture-payment-flow
         current_state: CAPTURED
         description: Captures a previously authorized payment, moving funds to the merchant.

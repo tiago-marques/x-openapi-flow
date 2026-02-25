@@ -1,0 +1,70 @@
+openapi: "3.0.3"
+info:
+  title: Non-Terminating States API
+  version: "1.0.0"
+  description: >
+    Example API crafted to demonstrate non_terminating_states detection.
+
+paths:
+  /flows/start:
+    post:
+      summary: Start flow
+      operationId: startFlow
+      x-flow:
+        version: "1.0"
+        id: start-flow
+        current_state: START
+        transitions:
+          - target_state: LOOP_A
+            condition: Branch goes to cyclic subflow.
+            trigger_type: synchronous
+          - target_state: DONE
+            condition: Happy path reaches terminal state.
+            trigger_type: synchronous
+      responses:
+        "200":
+          description: Flow started.
+
+  /flows/loop-a:
+    post:
+      summary: Loop A
+      operationId: loopA
+      x-flow:
+        version: "1.0"
+        id: loop-a-flow
+        current_state: LOOP_A
+        transitions:
+          - target_state: LOOP_B
+            condition: Internal loop transition.
+            trigger_type: webhook
+      responses:
+        "200":
+          description: Loop A handled.
+
+  /flows/loop-b:
+    post:
+      summary: Loop B
+      operationId: loopB
+      x-flow:
+        version: "1.0"
+        id: loop-b-flow
+        current_state: LOOP_B
+        transitions:
+          - target_state: LOOP_A
+            condition: Cycles back to Loop A.
+            trigger_type: polling
+      responses:
+        "200":
+          description: Loop B handled.
+
+  /flows/done:
+    post:
+      summary: Done
+      operationId: doneFlow
+      x-flow:
+        version: "1.0"
+        id: done-flow
+        current_state: DONE
+      responses:
+        "200":
+          description: Terminal state.

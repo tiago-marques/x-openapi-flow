@@ -1,0 +1,115 @@
+openapi: "3.0.3"
+info:
+  title: Support Ticket API
+  version: "1.0.0"
+  description: >
+    Example API demonstrating x-flow for support ticket lifecycle.
+
+paths:
+  /tickets:
+    post:
+      summary: Open a support ticket
+      operationId: openTicket
+      x-flow:
+        version: "1.0"
+        id: open-ticket-flow
+        current_state: OPEN
+        description: Ticket has been opened by a customer.
+        transitions:
+          - target_state: IN_PROGRESS
+            condition: Agent starts handling the ticket.
+            trigger_type: synchronous
+      responses:
+        "201":
+          description: Ticket created.
+
+  /tickets/{id}/start:
+    post:
+      summary: Start ticket handling
+      operationId: startTicket
+      x-flow:
+        version: "1.0"
+        id: start-ticket-flow
+        current_state: IN_PROGRESS
+        description: Ticket is actively being worked on.
+        transitions:
+          - target_state: WAITING_CUSTOMER
+            condition: Agent needs more information from customer.
+            trigger_type: synchronous
+          - target_state: RESOLVED
+            condition: Issue fixed by agent.
+            trigger_type: synchronous
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticket moved to in-progress.
+
+  /tickets/{id}/wait-customer:
+    post:
+      summary: Wait for customer response
+      operationId: waitCustomer
+      x-flow:
+        version: "1.0"
+        id: wait-customer-flow
+        current_state: WAITING_CUSTOMER
+        description: System is waiting for customer follow-up.
+        transitions:
+          - target_state: RESOLVED
+            condition: Customer provides requested information and agent confirms resolution.
+            trigger_type: webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticket moved to waiting customer.
+
+  /tickets/{id}/resolve:
+    post:
+      summary: Resolve ticket
+      operationId: resolveTicket
+      x-flow:
+        version: "1.0"
+        id: resolve-ticket-flow
+        current_state: RESOLVED
+        description: Ticket has a proposed solution.
+        transitions:
+          - target_state: CLOSED
+            condition: Customer confirms issue is solved.
+            trigger_type: polling
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticket resolved.
+
+  /tickets/{id}/close:
+    post:
+      summary: Close ticket
+      operationId: closeTicket
+      x-flow:
+        version: "1.0"
+        id: close-ticket-flow
+        current_state: CLOSED
+        description: Terminal state for the support flow.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ticket closed.

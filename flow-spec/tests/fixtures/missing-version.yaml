@@ -1,0 +1,14 @@
+openapi: "3.0.3"
+info:
+  title: Invalid Missing Version API
+  version: "1.0.0"
+paths:
+  /resources:
+    post:
+      operationId: createResource
+      x-flow:
+        id: create-resource-flow
+        current_state: CREATED
+      responses:
+        "200":
+          description: ok

@@ -1,0 +1,111 @@
+openapi: "3.0.3"
+info:
+  title: Order API
+  version: "1.0.0"
+  description: >
+    Example API demonstrating x-flow for order lifecycle orchestration.
+
+paths:
+  /orders:
+    post:
+      summary: Create a new order
+      operationId: createOrder
+      x-flow:
+        version: "1.0"
+        id: create-order-flow
+        current_state: CREATED
+        description: A new order is accepted and created.
+        transitions:
+          - target_state: CONFIRMED
+            condition: Stock and payment checks pass.
+            trigger_type: synchronous
+          - target_state: CANCELLED
+            condition: Validation fails before confirmation.
+            trigger_type: synchronous
+      responses:
+        "201":
+          description: Order created successfully.
+
+  /orders/{id}/confirm:
+    post:
+      summary: Confirm an order
+      operationId: confirmOrder
+      x-flow:
+        version: "1.0"
+        id: confirm-order-flow
+        current_state: CONFIRMED
+        description: Order was confirmed and handed to fulfillment.
+        transitions:
+          - target_state: SHIPPED
+            condition: Warehouse dispatches package.
+            trigger_type: webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order confirmed.
+
+  /orders/{id}/ship:
+    post:
+      summary: Mark order as shipped
+      operationId: shipOrder
+      x-flow:
+        version: "1.0"
+        id: ship-order-flow
+        current_state: SHIPPED
+        description: Package leaves warehouse.
+        transitions:
+          - target_state: DELIVERED
+            condition: Carrier confirms delivery.
+            trigger_type: webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order shipped.
+
+  /orders/{id}/deliver:
+    post:
+      summary: Mark order as delivered
+      operationId: deliverOrder
+      x-flow:
+        version: "1.0"
+        id: deliver-order-flow
+        current_state: DELIVERED
+        description: Final state after customer receives package.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order delivered.
+
+  /orders/{id}/cancel:
+    post:
+      summary: Cancel an order
+      operationId: cancelOrder
+      x-flow:
+        version: "1.0"
+        id: cancel-order-flow
+        current_state: CANCELLED
+        description: Terminal cancellation state.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order canceled.

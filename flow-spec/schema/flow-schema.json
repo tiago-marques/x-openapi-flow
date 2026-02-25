@@ -2,10 +2,15 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://x-flow.dev/schema/flow-schema.json",
   "title": "x-flow",
-  "description": "JSON Schema for the x-flow OpenAPI extension, defining payment lifecycle states and transitions.",
+  "description": "JSON Schema for the x-flow OpenAPI extension, defining resource lifecycle states and transitions.",
   "type": "object",
-  "required": ["id", "current_state"],
+  "required": ["version", "id", "current_state"],
   "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1.0"],
+      "description": "Version of the x-flow schema contract used by this definition."
+    },
     "id": {
       "type": "string",
       "description": "Unique identifier for this flow definition."
