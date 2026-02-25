@@ -185,3 +185,15 @@ Release notes are available in `RELEASE_NOTES_v1.1.2.md`.
 - `ticket-api.yaml` (support)
 - `quality-warning-api.yaml` (demonstrates quality warnings)
 - `non-terminating-api.yaml` (demonstrates `non_terminating_states`)
+
+## Documentation Language Policy
+
+All project documentation must be written in English.
+
+This includes:
+
+- Repository Markdown files (`*.md`)
+- GitHub Wiki pages
+- Release notes and changelog entries
+
+If a contribution includes non-English documentation content, it should be translated to English before merge.
