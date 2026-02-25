@@ -254,7 +254,7 @@ To adapt it to your real OpenAPI files, update the paths in the `Validate x-open
 ## Changelog
 
 Version history is tracked in `CHANGELOG.md`.
-Release notes are available in `RELEASE_NOTES_v1.1.3.md`.
+Release notes are available in `RELEASE_NOTES_v1.2.0.md`.
 
 ## Included Examples
 

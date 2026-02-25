@@ -1,0 +1,22 @@
+{
+  "name": "x-openapi-flow-local-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local playground to test x-openapi-flow with OpenAPI + Swagger UI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "validate": "x-openapi-flow validate openapi.yaml --profile strict",
+    "graph": "x-openapi-flow graph openapi.yaml",
+    "doctor": "x-openapi-flow doctor",
+    "init": "x-openapi-flow init openapi.yaml",
+    "apply": "x-openapi-flow apply openapi.yaml"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "js-yaml": "^4.1.0",
+    "swagger-ui-express": "^5.0.1",
+    "x-openapi-flow": "file:../flow-spec"
+  }
+}
