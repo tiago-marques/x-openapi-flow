@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.2.1 - 2026-02-25
+
+### Added
+- `llm.txt` guide for AI-assisted sidecar authoring.
+- Copilot-ready documentation section and badge in root README.
+- Wiki page: `docs/wiki/AI-Sidecar-Authoring.md`.
+- Sidecar JSON example in `example-project/examples/order-openapi-flow.json`.
+- `apply:yaml-example` and `apply:json-example` scripts in `example-project`.
+
+### Changed
+- `init` sidecar scaffold now creates complete `x-openapi-flow` placeholders instead of `null`.
+- `init` and `apply` now support fallback operationId generation when an operation does not define `operationId`.
+- `graph` command now accepts sidecar files (`{context}-openapi-flow.(json|yaml)`) in addition to full OpenAPI files.
+- Swagger UI plugin now renders a global Flow Overview (Mermaid image) while keeping operation-level cards.
+- `example-project` workflow aligned to sidecar-first usage (`apply` default in ad hoc mode).
+
+### Fixed
+- `example-project` default Swagger UI loading behavior hardened for zero-config local startup.
+
 ## 1.2.0 - 2026-02-25
 
 ### Added

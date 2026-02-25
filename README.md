@@ -208,6 +208,17 @@ Recommended AI-assisted flow:
 
 The `llm.txt` guide covers required fields, transition modeling, field reference formats, and a quality checklist.
 
+Prompt template (copy/paste):
+
+```text
+Use llm.txt from this repository as authoring rules.
+Read my OpenAPI file and populate {context}-openapi-flow.(json|yaml) only.
+Do not change endpoint paths or HTTP methods.
+Generate x-openapi-flow per operationId with coherent states/transitions,
+including next_operation_id, prerequisite_field_refs, and propagated_field_refs when applicable.
+Then run: init -> apply -> validate --profile strict.
+```
+
 ## Validation
 
 ### Profiles

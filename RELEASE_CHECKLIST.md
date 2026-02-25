@@ -1,6 +1,6 @@
 # Release Checklist
 
-## Version 1.2.0
+## Version 1.2.1
 
 - [ ] Confirm npm package name: `x-openapi-flow`.
 - [ ] Confirm optional GitHub Packages mirror target: `@tiago-marques/x-openapi-flow`.
@@ -18,5 +18,5 @@
 - [ ] Ensure CI workflow is active in `.github/workflows/x-openapi-flow-validate.yml`.
 - [ ] Validate local integration example:
   - [ ] `cd example-project && npm install && npm run validate`
-- [ ] Create release tag (e.g., `v1.2.0`).
+- [ ] Create release tag (e.g., `v1.2.1`).
 - [ ] Publish release notes based on `CHANGELOG.md`.
