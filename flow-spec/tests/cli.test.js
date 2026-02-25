@@ -75,6 +75,26 @@ test("graph command prints mermaid output", () => {
   assert.match(result.stdout, /CREATED --> CONFIRMED/);
 });
 
+test("graph command accepts sidecar file", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-graph-sidecar-"));
+  const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
+
+  try {
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: createOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: create-order\n      current_state: CREATED\n      transitions:\n        - trigger_type: synchronous\n          condition: ok\n          target_state: PAID\n          next_operation_id: payOrder\n`,
+      "utf8"
+    );
+
+    const result = runCli(["graph", sidecarPath]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /^stateDiagram-v2/m);
+    assert.match(result.stdout, /CREATED --> PAID/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("doctor command runs successfully", () => {
   const result = runCli(["doctor"]);
 
@@ -176,6 +196,59 @@ test("init fails when no OpenAPI file exists", () => {
     const result = runCli(["init"], { cwd: tempDir });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Could not find an existing OpenAPI file/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init creates fallback operationId for operations without operationId", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-fallback-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Fallback API\n  version: "1.0.0"\npaths:\n  /health:\n    get:\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath]);
+    assert.equal(result.status, 0);
+
+    const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
+    const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
+    assert.match(sidecarContent, /operationId: get_health/);
+    assert.match(sidecarContent, /id: get_health_FLOW_ID/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("apply injects flow for operation without operationId using fallback operationId", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-apply-fallback-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Fallback Apply API\n  version: "1.0.0"\npaths:\n  /health:\n    get:\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: get_health\n    x-openapi-flow:\n      version: '1.0'\n      id: healthFlow\n      current_state: READY\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const apply = runCli(["apply", openapiPath]);
+    assert.equal(apply.status, 0);
+    assert.match(apply.stdout, /Applied x-openapi-flow entries: 1/);
+
+    const updatedOpenApi = fs.readFileSync(openapiPath, "utf8");
+    assert.match(updatedOpenApi, /x-openapi-flow:/);
+    assert.match(updatedOpenApi, /id: healthFlow/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

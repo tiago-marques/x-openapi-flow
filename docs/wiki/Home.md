@@ -15,6 +15,7 @@ With `x-openapi-flow`, current states and transitions become explicit per operat
 - Sidecar workflow for regenerated OpenAPI files (`init` + `apply`)
 - Graph export (`mermaid`/`json`)
 - Swagger UI integration example
+- AI-oriented sidecar authoring guidance (`llm.txt`)
 
 ## Quick start
 
@@ -29,6 +30,7 @@ npx x-openapi-flow validate openapi.yaml --profile strict
 - [Quickstart](Quickstart)
 - [CLI Reference](CLI-Reference)
 - [Flow Model](Flow-Model)
+- [AI Sidecar Authoring](AI-Sidecar-Authoring)
 - [Real-World Complete Examples](Real-Examples)
 - [Swagger-UI Integration](Swagger-UI-Integration)
 - [FAQ](FAQ)

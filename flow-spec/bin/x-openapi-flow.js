@@ -409,6 +409,15 @@ function saveOpenApi(filePath, api) {
   fs.writeFileSync(filePath, content, "utf8");
 }
 
+function buildFallbackOperationId(method, pathKey) {
+  const raw = `${method}_${pathKey}`.toLowerCase();
+  const sanitized = raw
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return sanitized || "operation";
+}
+
 function extractOperationEntries(api) {
   const entries = [];
   const paths = (api && api.paths) || {};
@@ -422,11 +431,13 @@ function extractOperationEntries(api) {
       }
 
       const operationId = operation.operationId;
+      const resolvedOperationId = operationId || buildFallbackOperationId(method, pathKey);
       const key = operationId ? `operationId:${operationId}` : `${method.toUpperCase()} ${pathKey}`;
 
       entries.push({
         key,
         operationId,
+        resolvedOperationId,
         method,
         path: pathKey,
         operation,
@@ -466,6 +477,16 @@ function writeFlowsFile(flowsPath, flowsDoc) {
   fs.writeFileSync(flowsPath, content, "utf8");
 }
 
+function buildFlowTemplate(operationId) {
+  const safeOperationId = operationId || "operation";
+  return {
+    version: "1.0",
+    id: `${safeOperationId}_FLOW_ID`,
+    current_state: `${safeOperationId}_STATE`,
+    transitions: [],
+  };
+}
+
 function buildOperationLookup(api) {
   const lookupByKey = new Map();
   const lookupByOperationId = new Map();
@@ -473,8 +494,8 @@ function buildOperationLookup(api) {
 
   for (const entry of entries) {
     lookupByKey.set(entry.key, entry);
-    if (entry.operationId) {
-      lookupByOperationId.set(entry.operationId, entry);
+    if (entry.resolvedOperationId) {
+      lookupByOperationId.set(entry.resolvedOperationId, entry);
     }
   }
 
@@ -500,7 +521,7 @@ function mergeFlowsWithOpenApi(api, flowsDoc) {
   const mergedOperations = [];
 
   for (const op of entries) {
-    const existing = (op.operationId && existingByOperationId.get(op.operationId))
+    const existing = (op.resolvedOperationId && existingByOperationId.get(op.resolvedOperationId))
       || existingByKey.get(op.key);
 
     const openApiFlow =
@@ -513,13 +534,9 @@ function mergeFlowsWithOpenApi(api, flowsDoc) {
         ? existing["x-openapi-flow"]
         : null;
 
-    if (!op.operationId) {
-      continue;
-    }
-
     mergedOperations.push({
-      operationId: op.operationId,
-      "x-openapi-flow": sidecarFlow || openApiFlow || null,
+      operationId: op.resolvedOperationId,
+      "x-openapi-flow": sidecarFlow || openApiFlow || buildFlowTemplate(op.resolvedOperationId),
     });
   }
 
@@ -692,8 +709,11 @@ function runDoctor(parsed) {
 }
 
 function buildMermaidGraph(filePath) {
-  const api = loadApi(filePath);
-  const flows = extractFlows(api);
+  const flows = extractFlowsForGraph(filePath);
+  if (flows.length === 0) {
+    throw new Error("No x-openapi-flow definitions found in OpenAPI or sidecar file");
+  }
+
   const lines = ["stateDiagram-v2"];
   const nodes = new Set();
   const edges = [];
@@ -751,6 +771,51 @@ function buildMermaidGraph(filePath) {
     edges,
     mermaid: lines.join("\n"),
   };
+}
+
+function extractFlowsForGraph(filePath) {
+  let flows = [];
+
+  try {
+    const api = loadApi(filePath);
+    flows = extractFlows(api);
+  } catch (_err) {
+    flows = [];
+  }
+
+  if (flows.length > 0) {
+    return flows;
+  }
+
+  const content = fs.readFileSync(filePath, "utf8");
+  const parsed = yaml.load(content);
+
+  if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.operations)) {
+    return [];
+  }
+
+  const sidecarFlows = [];
+  for (const operationEntry of parsed.operations) {
+    if (!operationEntry || typeof operationEntry !== "object") {
+      continue;
+    }
+
+    const flow = operationEntry["x-openapi-flow"];
+    if (!flow || typeof flow !== "object") {
+      continue;
+    }
+
+    if (!flow.current_state) {
+      continue;
+    }
+
+    sidecarFlows.push({
+      endpoint: operationEntry.operationId || operationEntry.key || "sidecar-operation",
+      flow,
+    });
+  }
+
+  return sidecarFlows;
 }
 
 function runGraph(parsed) {

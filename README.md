@@ -7,6 +7,7 @@
 [![CI](https://github.com/tiago-marques/x-openapi-flow/actions/workflows/x-openapi-flow-validate.yml/badge.svg)](https://github.com/tiago-marques/x-openapi-flow/actions/workflows/x-openapi-flow-validate.yml)
 [![open issues](https://img.shields.io/github/issues/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/issues)
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
+![copilot ready](https://img.shields.io/badge/Copilot-Ready-00BFA5?logo=githubcopilot&logoColor=white)
 
 `x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
 
@@ -192,6 +193,20 @@ x-openapi-flow init openapi.yaml
 # 4) whenever OpenAPI is regenerated, re-apply flows
 x-openapi-flow apply openapi.yaml
 ```
+
+## Copilot Ready (AI Sidecar Authoring)
+
+The most sensitive part of adoption is usually authoring lifecycle data in the sidecar.
+This repository includes an AI authoring guide at `llm.txt` to help assistants populate sidecar files with higher consistency.
+
+Recommended AI-assisted flow:
+
+1. Run `x-openapi-flow init openapi.yaml`.
+2. Ask your AI assistant to fill `{context}-openapi-flow.(json|yaml)` using `llm.txt`.
+3. Run `x-openapi-flow apply openapi.yaml`.
+4. Run `x-openapi-flow validate openapi.yaml --profile strict`.
+
+The `llm.txt` guide covers required fields, transition modeling, field reference formats, and a quality checklist.
 
 ## Validation
 

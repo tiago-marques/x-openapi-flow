@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "operations": [
+    {
+      "operationId": "createOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "create-order",
+        "current_state": "created",
+        "transitions": [
+          {
+            "trigger_type": "synchronous",
+            "condition": "Payment is confirmed",
+            "target_state": "paid",
+            "next_operation_id": "payOrder",
+            "prerequisite_field_refs": [
+              "createOrder:request.body.customer_id",
+              "createOrder:request.body.amount"
+            ],
+            "propagated_field_refs": [
+              "createOrder:response.201.body.order_id"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "payOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "pay-order",
+        "current_state": "paid",
+        "transitions": [
+          {
+            "trigger_type": "synchronous",
+            "condition": "Fulfillment is completed",
+            "target_state": "fulfilled",
+            "next_operation_id": "fulfillOrder",
+            "prerequisite_field_refs": [
+              "createOrder:response.201.body.order_id",
+              "payOrder:response.200.body.order_id"
+            ],
+            "propagated_field_refs": [
+              "payOrder:response.200.body.order_id"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "fulfillOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "fulfill-order",
+        "current_state": "fulfilled",
+        "transitions": []
+      }
+    }
+  ]
+}

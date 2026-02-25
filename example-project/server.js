@@ -1,10 +1,12 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 const port = process.env.PORT || 3000;
 const specUrl = process.env.SWAGGER_SPEC_URL || '/swagger.json';
+const defaultSpecPath = path.join(__dirname, 'swagger.json');
 const nativePluginPath = path.join(
   __dirname,
   'node_modules',
@@ -24,17 +26,33 @@ app.get('/', (_req, res) => {
   res.send('x-openapi-flow local example is running. Open /docs');
 });
 
+app.get('/swagger.json', (_req, res) => {
+  res.sendFile(defaultSpecPath);
+});
+
+const swaggerUiBaseOptions = {
+  customJs: '/x-openapi-flow-plugin.js',
+  explorer: true,
+  swaggerOptions: {
+    showExtensions: true,
+  }
+};
+
+const useExternalUrl = Boolean(process.env.SWAGGER_SPEC_URL);
+const swaggerUiSetup = useExternalUrl
+  ? swaggerUi.setup(null, {
+      ...swaggerUiBaseOptions,
+      swaggerOptions: {
+        ...swaggerUiBaseOptions.swaggerOptions,
+        url: specUrl,
+      },
+    })
+  : swaggerUi.setup(JSON.parse(fs.readFileSync(defaultSpecPath, 'utf8')), swaggerUiBaseOptions);
+
 app.use(
   '/docs',
   swaggerUi.serve,
-  swaggerUi.setup(null, {
-    customJs: '/x-openapi-flow-plugin.js',
-    explorer: true,
-    swaggerOptions: {
-      showExtensions: true,
-      url: specUrl
-    }
-  })
+  swaggerUiSetup
 );
 
 app.listen(port, () => {

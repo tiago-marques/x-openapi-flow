@@ -160,6 +160,9 @@ window.XOpenApiFlowPlugin = function () {
       .xof-graph-title { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
       .xof-edge { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
       .xof-empty { opacity: 0.85; font-style: italic; }
+      .xof-overview { margin: 10px 0 16px; }
+      .xof-overview img { width: 100%; max-width: 760px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; background: #fff; }
+      .xof-overview-code { margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size: 11px; opacity: 0.9; white-space: pre-wrap; }
     `;
 
     document.head.appendChild(style);
@@ -215,6 +218,167 @@ window.XOpenApiFlowPlugin = function () {
     `;
   }
 
+  function getSpecFromUi() {
+    try {
+      if (!window.ui || !window.ui.specSelectors || !window.ui.specSelectors.specJson) {
+        return null;
+      }
+
+      const spec = window.ui.specSelectors.specJson();
+      return spec && spec.toJS ? spec.toJS() : spec;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function extractFlowsFromSpec(spec) {
+    const result = [];
+    const paths = (spec && spec.paths) || {};
+    const methods = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
+
+    Object.entries(paths).forEach(([pathKey, pathItem]) => {
+      if (!pathItem || typeof pathItem !== 'object') return;
+
+      methods.forEach((method) => {
+        const operation = pathItem[method];
+        if (!operation || typeof operation !== 'object') return;
+
+        const flow = operation['x-openapi-flow'];
+        if (!flow || typeof flow !== 'object' || !flow.current_state) return;
+
+        result.push({
+          operationId: operation.operationId || `${method}_${pathKey}`,
+          flow,
+        });
+      });
+    });
+
+    return result;
+  }
+
+  function buildOverviewMermaid(flows) {
+    const lines = ['stateDiagram-v2'];
+    const states = new Set();
+    const seen = new Set();
+
+    flows.forEach(({ flow }) => {
+      const current = flow.current_state;
+      if (!current) return;
+
+      states.add(current);
+      const transitions = Array.isArray(flow.transitions) ? flow.transitions : [];
+      transitions.forEach((transition) => {
+        const target = transition.target_state;
+        if (!target) return;
+        states.add(target);
+
+        const labelParts = [];
+        if (transition.next_operation_id) {
+          labelParts.push(`next:${text(transition.next_operation_id)}`);
+        }
+        if (Array.isArray(transition.prerequisite_operation_ids) && transition.prerequisite_operation_ids.length) {
+          labelParts.push(`requires:${transition.prerequisite_operation_ids.join(',')}`);
+        }
+        const label = labelParts.join(' | ');
+        const key = `${current}::${target}::${label}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        lines.push(`  ${current} --> ${target}${label ? `: ${label}` : ''}`);
+      });
+    });
+
+    Array.from(states)
+      .sort()
+      .forEach((state) => {
+        lines.splice(1, 0, `  state ${state}`);
+      });
+
+    return lines.join('\n');
+  }
+
+  let mermaidLoaderPromise = null;
+  function ensureMermaid() {
+    if (window.mermaid) {
+      return Promise.resolve(window.mermaid);
+    }
+
+    if (mermaidLoaderPromise) {
+      return mermaidLoaderPromise;
+    }
+
+    mermaidLoaderPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+      script.async = true;
+      script.onload = () => {
+        if (window.mermaid) {
+          window.mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+          resolve(window.mermaid);
+        } else {
+          reject(new Error('Mermaid library not available after load'));
+        }
+      };
+      script.onerror = () => reject(new Error('Could not load Mermaid library'));
+      document.head.appendChild(script);
+    });
+
+    return mermaidLoaderPromise;
+  }
+
+  function svgToDataUri(svg) {
+    const encoded = window.btoa(unescape(encodeURIComponent(svg)));
+    return `data:image/svg+xml;base64,${encoded}`;
+  }
+
+  let overviewRenderedHash = null;
+  async function renderOverview() {
+    const spec = getSpecFromUi();
+    const flows = extractFlowsFromSpec(spec);
+    if (!flows.length) return;
+
+    const mermaid = buildOverviewMermaid(flows);
+    const currentHash = `${flows.length}:${mermaid}`;
+    if (overviewRenderedHash === currentHash) return;
+
+    const infoContainer = document.querySelector('.swagger-ui .information-container');
+    if (!infoContainer) return;
+
+    let holder = document.getElementById('xof-overview-holder');
+    if (!holder) {
+      holder = document.createElement('div');
+      holder.id = 'xof-overview-holder';
+      holder.className = 'xof-overview xof-card';
+      infoContainer.parentNode.insertBefore(holder, infoContainer.nextSibling);
+    }
+
+    holder.innerHTML = '<div class="xof-title">x-openapi-flow — Flow Overview</div><div class="xof-empty">Rendering Mermaid graph...</div>';
+
+    try {
+      const mermaidLib = await ensureMermaid();
+      const renderId = `xof-overview-${Date.now()}`;
+      const renderResult = await mermaidLib.render(renderId, mermaid);
+      const svg = renderResult && renderResult.svg ? renderResult.svg : renderResult;
+      const dataUri = svgToDataUri(svg);
+
+      holder.innerHTML = `
+        <div class="xof-title">x-openapi-flow — Flow Overview</div>
+        <img src="${dataUri}" alt="x-openapi-flow overview graph" />
+        <details style="margin-top:8px;">
+          <summary style="cursor:pointer;">Mermaid source</summary>
+          <div class="xof-overview-code">${mermaid.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        </details>
+      `;
+    } catch (_error) {
+      holder.innerHTML = `
+        <div class="xof-title">x-openapi-flow — Flow Overview</div>
+        <div class="xof-empty">Could not render Mermaid image in this environment.</div>
+        <div class="xof-overview-code">${mermaid.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+      `;
+    }
+
+    overviewRenderedHash = currentHash;
+  }
+
   function findXOpenApiFlowValueCell(opblock) {
     const rows = opblock.querySelectorAll('tr');
     for (const row of rows) {
@@ -249,6 +413,7 @@ window.XOpenApiFlowPlugin = function () {
     injectStyles();
     const opblocks = document.querySelectorAll('.opblock');
     opblocks.forEach((opblock) => enhanceOperation(opblock));
+    renderOverview();
   }
 
   const observer = new MutationObserver(() => {

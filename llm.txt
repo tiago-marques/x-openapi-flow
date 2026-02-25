@@ -1,0 +1,64 @@
+x-openapi-flow — LLM Authoring Guide
+
+Purpose
+- Help an AI assistant populate `{context}-openapi-flow.(json|yaml)` accurately and consistently.
+- The sidecar must contain only lifecycle metadata (`x-openapi-flow`) per operation.
+
+Input files
+- Base OpenAPI: `openapi.yaml|yml|json` or `swagger.yaml|yml|json`
+- Sidecar: `{context}-openapi-flow.(json|yaml)`
+
+Expected sidecar shape
+- `version: "1.0"`
+- `operations: []`
+- For each operation entry:
+  - `operationId` (required)
+  - `x-openapi-flow` object (required)
+
+Minimum required `x-openapi-flow` fields
+- `version` = "1.0"
+- `id` = stable flow step id (kebab-case recommended)
+- `current_state` = canonical state name (uppercase snake case recommended)
+- `transitions` = array (can be empty for terminal state)
+
+Transition authoring rules
+- Each transition should include:
+  - `trigger_type`
+  - `target_state`
+- Prefer also including:
+  - `condition` (short business condition)
+  - `next_operation_id` (the operation usually called next)
+  - `prerequisite_operation_ids` when prior operations are required
+  - `prerequisite_field_refs` for required data before transition
+  - `propagated_field_refs` for data carried forward
+
+Field reference format
+- `operationId:request.body.field`
+- `operationId:response.<status>.body.field`
+- Example: `createOrder:response.201.body.order_id`
+
+How to infer flow from OpenAPI
+1) Enumerate operations by `operationId`.
+2) Infer lifecycle states from business outcomes and status progression.
+3) Map transition edges from one operation outcome to next operation intent.
+4) Derive field refs from request/response schemas and common identifiers (`id`, `order_id`, `payment_id`, etc.).
+
+Quality checklist before saving sidecar
+- No missing required fields in any `x-openapi-flow` block.
+- States form a coherent directed graph.
+- At least one initial state and one terminal state when possible.
+- No duplicate transitions (`from + to + trigger_type`).
+- `next_operation_id` and `prerequisite_operation_ids` refer to real operationIds.
+- Field refs point to valid request/response fields.
+
+Suggested workflow
+1) `npx x-openapi-flow init`
+2) AI populates sidecar using this guide.
+3) `npx x-openapi-flow apply`
+4) `npx x-openapi-flow validate <openapi-file> --profile strict`
+5) Iterate until validation and quality checks are clean.
+
+Do not
+- Do not modify endpoint paths/methods in base OpenAPI when task is sidecar authoring.
+- Do not invent operationIds not present in OpenAPI.
+- Do not remove existing valid flow entries unless explicitly requested.

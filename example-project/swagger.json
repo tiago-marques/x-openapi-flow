@@ -38,8 +38,32 @@
         },
         "responses": {
           "201": {
-            "description": "Order created"
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "created"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "createOrder_FLOW_ID",
+          "current_state": "createOrder_STATE",
+          "transitions": []
         }
       }
     },
@@ -59,8 +83,32 @@
         ],
         "responses": {
           "200": {
-            "description": "Order paid"
+            "description": "Order paid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "paid"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "payOrder_FLOW_ID",
+          "current_state": "payOrder_STATE",
+          "transitions": []
         }
       }
     },
@@ -80,8 +128,32 @@
         ],
         "responses": {
           "200": {
-            "description": "Order fulfilled"
+            "description": "Order fulfilled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "fulfilled"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
           }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "fulfillOrder_FLOW_ID",
+          "current_state": "fulfillOrder_STATE",
+          "transitions": []
         }
       }
     }

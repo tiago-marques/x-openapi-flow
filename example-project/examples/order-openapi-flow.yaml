@@ -10,6 +10,11 @@ operations:
           condition: Payment is confirmed
           target_state: paid
           next_operation_id: payOrder
+          prerequisite_field_refs:
+            - createOrder:request.body.customer_id
+            - createOrder:request.body.amount
+          propagated_field_refs:
+            - createOrder:response.201.body.order_id
 
   - operationId: payOrder
     x-openapi-flow:
@@ -21,6 +26,11 @@ operations:
           condition: Fulfillment is completed
           target_state: fulfilled
           next_operation_id: fulfillOrder
+          prerequisite_field_refs:
+            - createOrder:response.201.body.order_id
+            - payOrder:response.200.body.order_id
+          propagated_field_refs:
+            - payOrder:response.200.body.order_id
 
   - operationId: fulfillOrder
     x-openapi-flow:
