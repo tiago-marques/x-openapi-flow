@@ -21,6 +21,11 @@ paths:
           - target_state: CAPTURED
             trigger_type: synchronous
             next_operation_id: capturePayment
+            prerequisite_field_refs:
+              - createPayment:response.201.body.id
+            propagated_field_refs:
+              - createPayment:request.body.amount
+              - createPayment:request.body.currency
       responses:
         "201":
           description: Created

@@ -13,6 +13,10 @@ x-openapi-flow:
       next_operation_id: confirmOrder
       prerequisite_operation_ids:
         - createOrder
+      prerequisite_field_refs:
+        - createOrder:response.201.body.id
+      propagated_field_refs:
+        - createOrder:request.body.customer_id
 ```
 
 ## Core fields
@@ -23,6 +27,13 @@ x-openapi-flow:
 - `transitions[]`: allowed transitions from the current state
 - `transitions[].next_operation_id` (optional): operationId usually called next
 - `transitions[].prerequisite_operation_ids` (optional): operationIds expected before a transition
+- `transitions[].prerequisite_field_refs` (optional): required field references before transition
+- `transitions[].propagated_field_refs` (optional): field references reused in downstream flows
+
+Field reference format:
+
+- `operationId:request.body.field`
+- `operationId:response.<status>.body.field`
 
 ## Validated rules (summary)
 

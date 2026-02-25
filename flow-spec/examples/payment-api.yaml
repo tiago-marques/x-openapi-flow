@@ -22,6 +22,12 @@ paths:
           - target_state: CAPTURED
             condition: Merchant explicitly requests capture.
             trigger_type: synchronous
+            next_operation_id: capturePayment
+            prerequisite_field_refs:
+              - createPayment:response.201.body.id
+            propagated_field_refs:
+              - createPayment:request.body.amount
+              - createPayment:request.body.currency
       requestBody:
         required: true
         content:

@@ -60,6 +60,13 @@ Create `x-openapi-flow.config.json` in your project directory:
 
 - `next_operation_id`: operationId usually called for the next state transition
 - `prerequisite_operation_ids`: operationIds expected before a transition
+- `prerequisite_field_refs`: required field refs before transition
+- `propagated_field_refs`: field refs used by downstream flows
+
+Field reference format:
+
+- `operationId:request.body.field`
+- `operationId:response.<status>.body.field`
 
 ## Swagger UI
 

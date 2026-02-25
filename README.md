@@ -80,6 +80,13 @@ Optional transition guidance fields:
 
 - `next_operation_id`: operationId typically called for the next transition
 - `prerequisite_operation_ids`: operationIds expected before a transition
+- `prerequisite_field_refs`: required field references before a transition
+- `propagated_field_refs`: field references reused in downstream flows
+
+Field reference format:
+
+- `operationId:request.body.field`
+- `operationId:response.<status>.body.field` (example: `createPayment:response.201.body.id`)
 
 ## How to Run
 
@@ -188,6 +195,7 @@ Example file: `flow-spec/x-openapi-flow.config.example.json`.
 	- warns when there are multiple initial states
 	- warns about duplicate transitions (`from + to + trigger_type`)
 	- warns about states with no path to any terminal state
+	- warns about invalid operation and field references in transitions
 
 By default, quality checks produce **warnings**. Use `--strict-quality` to treat them as errors (exit code 1).
 

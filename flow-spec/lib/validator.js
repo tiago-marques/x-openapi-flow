@@ -149,20 +149,42 @@ function defaultResult(pathValue, ok = true) {
       duplicate_transitions: [],
       non_terminating_states: [],
       invalid_operation_references: [],
+      invalid_field_references: [],
       warnings: [],
     },
   };
 }
 
+function getOperationsById(api) {
+  const operationsById = new Map();
+  const paths = (api && api.paths) || {};
+  const methods = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
+
+  for (const [pathKey, pathItem] of Object.entries(paths)) {
+    for (const method of methods) {
+      const operation = pathItem[method];
+      if (!operation || !operation.operationId) {
+        continue;
+      }
+
+      operationsById.set(operation.operationId, {
+        operation,
+        endpoint: `${method.toUpperCase()} ${pathKey}`,
+      });
+    }
+  }
+
+  return operationsById;
+}
+
 /**
  * Detect invalid operationId references declared in transitions.
+ * @param {Map<string, { operation: object, endpoint: string }>} operationsById
  * @param {{ endpoint: string, operation_id?: string, flow: object }[]} flows
  * @returns {{ type: string, operation_id: string, declared_in: string }[]}
  */
-function detectInvalidOperationReferences(flows) {
-  const knownOperationIds = new Set(
-    flows.map(({ operation_id }) => operation_id).filter(Boolean)
-  );
+function detectInvalidOperationReferences(operationsById, flows) {
+  const knownOperationIds = new Set(operationsById.keys());
 
   const invalidReferences = [];
 
@@ -195,6 +217,196 @@ function detectInvalidOperationReferences(flows) {
   }
 
   return invalidReferences;
+}
+
+function parseFieldReference(refValue) {
+  if (typeof refValue !== "string") {
+    return null;
+  }
+
+  const match = refValue.match(/^([^:]+):(request\.body|response\.(\d{3}|default)\.body)\.(.+)$/);
+  if (!match) {
+    return null;
+  }
+
+  const operationId = match[1];
+  const scope = match[2];
+  const responseCode = match[3];
+  const fieldPath = match[4];
+
+  return {
+    operation_id: operationId,
+    scope,
+    response_code: responseCode,
+    field_path: fieldPath,
+  };
+}
+
+function resolveSchema(api, schema, depth = 0) {
+  if (!schema || typeof schema !== "object") {
+    return null;
+  }
+
+  if (depth > 10) {
+    return null;
+  }
+
+  if (schema.$ref && typeof schema.$ref === "string") {
+    const ref = schema.$ref;
+    if (!ref.startsWith("#/")) {
+      return null;
+    }
+
+    const tokens = ref.slice(2).split("/");
+    let target = api;
+    for (const token of tokens) {
+      if (!target || typeof target !== "object") {
+        return null;
+      }
+      target = target[token];
+    }
+
+    return resolveSchema(api, target, depth + 1);
+  }
+
+  return schema;
+}
+
+function hasFieldPath(api, schema, pathTokens) {
+  const resolved = resolveSchema(api, schema);
+  if (!resolved) {
+    return false;
+  }
+
+  if (pathTokens.length === 0) {
+    return true;
+  }
+
+  const [currentToken, ...rest] = pathTokens;
+
+  if (Array.isArray(resolved.anyOf)) {
+    return resolved.anyOf.some((item) => hasFieldPath(api, item, pathTokens));
+  }
+  if (Array.isArray(resolved.oneOf)) {
+    return resolved.oneOf.some((item) => hasFieldPath(api, item, pathTokens));
+  }
+  if (Array.isArray(resolved.allOf)) {
+    return resolved.allOf.some((item) => hasFieldPath(api, item, pathTokens));
+  }
+
+  if (resolved.type === "array" && resolved.items) {
+    return hasFieldPath(api, resolved.items, pathTokens);
+  }
+
+  if (resolved.properties && typeof resolved.properties === "object") {
+    if (!(currentToken in resolved.properties)) {
+      return false;
+    }
+    return hasFieldPath(api, resolved.properties[currentToken], rest);
+  }
+
+  if (resolved.additionalProperties && typeof resolved.additionalProperties === "object") {
+    return hasFieldPath(api, resolved.additionalProperties, rest);
+  }
+
+  return false;
+}
+
+function resolveFieldReferenceSchema(api, operationsById, parsedRef) {
+  const operationInfo = operationsById.get(parsedRef.operation_id);
+  if (!operationInfo) {
+    return { error: "operation_not_found" };
+  }
+
+  const operation = operationInfo.operation;
+  if (parsedRef.scope === "request.body") {
+    const requestSchema = operation.requestBody
+      && operation.requestBody.content
+      && operation.requestBody.content["application/json"]
+      && operation.requestBody.content["application/json"].schema;
+
+    if (!requestSchema) {
+      return { error: "request_schema_not_found" };
+    }
+
+    return { schema: requestSchema };
+  }
+
+  const responseCode = parsedRef.response_code;
+  const responseSchema = operation.responses
+    && operation.responses[responseCode]
+    && operation.responses[responseCode].content
+    && operation.responses[responseCode].content["application/json"]
+    && operation.responses[responseCode].content["application/json"].schema;
+
+  if (!responseSchema) {
+    return { error: "response_schema_not_found" };
+  }
+
+  return { schema: responseSchema };
+}
+
+function detectInvalidFieldReferences(api, operationsById, flows) {
+  const invalidFieldReferences = [];
+
+  for (const { endpoint, flow } of flows) {
+    const transitions = flow.transitions || [];
+
+    for (const transition of transitions) {
+      const referenceGroups = [
+        {
+          type: "prerequisite_field_refs",
+          refs: Array.isArray(transition.prerequisite_field_refs)
+            ? transition.prerequisite_field_refs
+            : [],
+        },
+        {
+          type: "propagated_field_refs",
+          refs: Array.isArray(transition.propagated_field_refs)
+            ? transition.propagated_field_refs
+            : [],
+        },
+      ];
+
+      for (const group of referenceGroups) {
+        for (const refValue of group.refs) {
+          const parsedRef = parseFieldReference(refValue);
+          if (!parsedRef) {
+            invalidFieldReferences.push({
+              type: group.type,
+              reference: refValue,
+              reason: "invalid_format",
+              declared_in: endpoint,
+            });
+            continue;
+          }
+
+          const resolvedSchema = resolveFieldReferenceSchema(api, operationsById, parsedRef);
+          if (resolvedSchema.error) {
+            invalidFieldReferences.push({
+              type: group.type,
+              reference: refValue,
+              reason: resolvedSchema.error,
+              declared_in: endpoint,
+            });
+            continue;
+          }
+
+          const pathTokens = parsedRef.field_path.split(".").filter(Boolean);
+          if (!hasFieldPath(api, resolvedSchema.schema, pathTokens)) {
+            invalidFieldReferences.push({
+              type: group.type,
+              reference: refValue,
+              reason: "field_not_found",
+              declared_in: endpoint,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return invalidFieldReferences;
 }
 
 /**
@@ -588,6 +800,7 @@ function run(apiPath, options = {}) {
   }
 
   // 5. Advanced graph checks
+  const operationsById = getOperationsById(api);
   const graph = buildStateGraph(flows);
   const initialStates = [...graph.nodes].filter(
     (state) => graph.indegree.get(state) === 0
@@ -599,7 +812,8 @@ function run(apiPath, options = {}) {
   const cycle = detectCycle(graph);
   const duplicateTransitions = detectDuplicateTransitions(flows);
   const terminalCoverage = detectTerminalCoverage(graph);
-  const invalidOperationReferences = detectInvalidOperationReferences(flows);
+  const invalidOperationReferences = detectInvalidOperationReferences(operationsById, flows);
+  const invalidFieldReferences = detectInvalidFieldReferences(api, operationsById, flows);
   const multipleInitialStates = initialStates.length > 1 ? initialStates : [];
 
   if (profileConfig.runAdvanced) {
@@ -642,6 +856,12 @@ function run(apiPath, options = {}) {
     ];
     qualityWarnings.push(
       `Transition operation references not found: ${invalidOperationIds.join(", ")}`
+    );
+  }
+
+  if (profileConfig.runQuality && invalidFieldReferences.length > 0) {
+    qualityWarnings.push(
+      `Transition field references not found/invalid: ${invalidFieldReferences.length}`
     );
   }
 
@@ -734,6 +954,7 @@ function run(apiPath, options = {}) {
       duplicate_transitions: duplicateTransitions,
       non_terminating_states: terminalCoverage.non_terminating_states,
       invalid_operation_references: invalidOperationReferences,
+      invalid_field_references: invalidFieldReferences,
       warnings: qualityWarnings,
     },
   };
