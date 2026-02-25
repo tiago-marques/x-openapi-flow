@@ -9,11 +9,24 @@
       "url": "http://localhost:3000"
     }
   ],
+  "tags": [
+    {
+      "name": "Orders",
+      "description": "Order lifecycle operations"
+    },
+    {
+      "name": "Refunds",
+      "description": "Refund lifecycle operations"
+    }
+  ],
   "paths": {
     "/orders": {
       "post": {
         "operationId": "createOrder",
         "summary": "Create order",
+        "tags": [
+          "Orders"
+        ],
         "parameters": [
           {
             "in": "header",
@@ -76,6 +89,9 @@
       "post": {
         "operationId": "payOrder",
         "summary": "Pay order",
+        "tags": [
+          "Orders"
+        ],
         "parameters": [
           {
             "in": "header",
@@ -128,6 +144,9 @@
       "post": {
         "operationId": "fulfillOrder",
         "summary": "Fulfill order",
+        "tags": [
+          "Orders"
+        ],
         "parameters": [
           {
             "in": "header",
@@ -164,6 +183,167 @@
                     "delivery_date": {
                       "type": "string",
                       "format": "date"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "operationId": "getOrder",
+        "summary": "Get order by id",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "order_id",
+                    "status",
+                    "amount"
+                  ],
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "created",
+                        "paid",
+                        "fulfilled"
+                      ]
+                    },
+                    "amount": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refunds": {
+      "post": {
+        "operationId": "createRefund",
+        "summary": "Create refund request",
+        "tags": [
+          "Refunds"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "order_id",
+                  "amount",
+                  "reason"
+                ],
+                "properties": {
+                  "order_id": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Refund request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "refund_id",
+                    "status"
+                  ],
+                  "properties": {
+                    "refund_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requested",
+                        "approved"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/refunds/{id}/approve": {
+      "post": {
+        "operationId": "approveRefund",
+        "summary": "Approve refund",
+        "tags": [
+          "Refunds"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "refund_id",
+                    "status"
+                  ],
+                  "properties": {
+                    "refund_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "approved"
+                      ]
                     }
                   }
                 }

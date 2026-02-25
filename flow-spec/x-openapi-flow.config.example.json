@@ -1,5 +1,13 @@
 {
   "profile": "strict",
   "format": "pretty",
-  "strictQuality": false
+  "strictQuality": false,
+  "lint": {
+    "rules": {
+      "next_operation_id_exists": true,
+      "prerequisite_operation_ids_exist": true,
+      "duplicate_transitions": true,
+      "terminal_path": true
+    }
+  }
 }

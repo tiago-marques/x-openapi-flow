@@ -12,7 +12,7 @@ With `x-openapi-flow`, current states and transitions become explicit per operat
 - Schema validation for the `x-openapi-flow` extension
 - Graph consistency checks (orphans, reachability, cycles, terminal states)
 - Validation profiles (`core`, `relaxed`, `strict`)
-- Sidecar workflow for regenerated OpenAPI files (`init` + `apply`)
+- Sidecar workflow for regenerated OpenAPI source files (`init` + `apply`)
 - Graph export (`mermaid`/`json`)
 - Swagger UI integration example
 - AI-oriented sidecar authoring guidance (`llm.txt`)
@@ -21,15 +21,17 @@ With `x-openapi-flow`, current states and transitions become explicit per operat
 
 ```bash
 npm install x-openapi-flow
-npx x-openapi-flow init openapi.yaml
+npx x-openapi-flow init
 npx x-openapi-flow validate openapi.yaml --profile strict
 ```
 
 ## Wiki pages
 
 - [Quickstart](Quickstart)
+- [Adoption Playbook](Adoption-Playbook)
 - [Sidecar Contract](Sidecar-Contract)
 - [CLI Reference](CLI-Reference)
+- [Troubleshooting](Troubleshooting)
 - [Flow Model](Flow-Model)
 - [AI Sidecar Authoring](AI-Sidecar-Authoring)
 - [Real-World Complete Examples](Real-Examples)

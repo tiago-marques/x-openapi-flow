@@ -1,0 +1,7 @@
+OpenAPI source: <TMP>/openapi.yaml
+Flows sidecar: <TMP>/openapi.x.yaml (not found; treated as empty)
+Tracked operations: 1
+Sidecar diff -> added: 1, changed: 0, removed: 0
+Added operationIds: listItems
+Changed operationIds: -
+Removed operationIds: -

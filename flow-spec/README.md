@@ -1,5 +1,7 @@
 # x-openapi-flow
 
+![x-openapi-flow logo](../docs/assets/x-openapi-flow-logo.svg)
+
 CLI and extension contract for documenting and validating resource lifecycle workflows in OpenAPI using `x-openapi-flow`.
 
 ## Overview
@@ -10,7 +12,7 @@ CLI and extension contract for documenting and validating resource lifecycle wor
 - Lifecycle graph consistency
 - Optional quality checks for transitions and references
 
-It also supports a sidecar workflow (`init` + `apply`) to preserve lifecycle metadata when OpenAPI files are regenerated.
+It also supports a sidecar workflow (`init` + `apply`) so lifecycle metadata stays preserved when OpenAPI source files are regenerated.
 
 ## Installation
 
@@ -36,7 +38,7 @@ Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
 ## Quick Start
 
 ```bash
-npx x-openapi-flow init openapi.yaml
+npx x-openapi-flow init
 npx x-openapi-flow apply openapi.yaml
 ```
 
@@ -44,35 +46,153 @@ Optional checks:
 
 ```bash
 npx x-openapi-flow validate openapi.yaml --profile strict
+npx x-openapi-flow lint openapi.yaml
 npx x-openapi-flow graph openapi.yaml
 ```
 
 ## CLI Commands
 
 ```bash
-x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
-x-openapi-flow init [openapi-file] [--flows path]
-x-openapi-flow apply [openapi-file] [--flows path] [--out path]
-x-openapi-flow graph <openapi-file> [--format mermaid|json]
-x-openapi-flow doctor [--config path]
+npx x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
+npx x-openapi-flow init [--flows path] [--force] [--dry-run]
+npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
+npx x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
+npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
+npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
+npx x-openapi-flow doctor [--config path]
 ```
+
+`diff` now reports field-level changes for operations that already exist in the sidecar.
+In `pretty` format, this appears under `Changed details` with changed paths per operation (for example, `current_state` or `transitions[0].target_state`).
+In `json` format, this appears in `diff.changedOperationDetails`:
+
+```json
+{
+  "diff": {
+    "changedOperationDetails": [
+      {
+        "operationId": "listItems",
+        "changedPaths": ["current_state"]
+      }
+    ]
+  }
+}
+```
+
+### CI usage (`diff` as a gate)
+
+Fail the pipeline when sidecar drift is detected:
+
+```bash
+npx x-openapi-flow diff openapi.yaml --format json | node -e '
+const fs = require("fs");
+const payload = JSON.parse(fs.readFileSync(0, "utf8"));
+const diff = payload.diff || {};
+const changes = (diff.added || 0) + (diff.removed || 0) + (diff.changed || 0);
+if (changes > 0) {
+  console.error("x-openapi-flow diff detected changes. Run init/apply and commit sidecar updates.");
+  process.exit(1);
+}
+'
+```
+
+This keeps `.x` sidecar data aligned with the OpenAPI source in pull requests.
+
+## Semantic lint (`lint`)
+
+Use `lint` to run semantic checks focused on flow modeling quality.
+
+```bash
+npx x-openapi-flow lint openapi.yaml
+npx x-openapi-flow lint openapi.yaml --format json
+```
+
+MVP semantic rules:
+
+- `next_operation_id_exists`
+- `prerequisite_operation_ids_exist`
+- `duplicate_transitions`
+- `terminal_path` (states without path to terminal)
+
+Disable individual rules with config (`x-openapi-flow.config.json`):
+
+```json
+{
+  "lint": {
+    "rules": {
+      "next_operation_id_exists": true,
+      "prerequisite_operation_ids_exist": true,
+      "duplicate_transitions": false,
+      "terminal_path": true
+    }
+  }
+}
+```
+
+## Graph JSON contract (`graph --format json`)
+
+`graph --format json` returns a stable contract for CI/pipeline integrations:
+
+- `format_version`: output contract version (currently `"1.0"`).
+- `flowCount`: number of operations with `x-openapi-flow`.
+- `nodes`: sorted state names (deterministic order).
+- `edges`: sorted transitions by `from`, `to`, `next_operation_id`, and prerequisites.
+- `mermaid`: deterministic Mermaid rendering of the same graph.
+
+Example:
+
+```json
+{
+  "format_version": "1.0",
+  "flowCount": 3,
+  "nodes": ["CONFIRMED", "CREATED", "SHIPPED"],
+  "edges": [
+    {
+      "from": "CONFIRMED",
+      "to": "SHIPPED",
+      "next_operation_id": "shipOrder",
+      "prerequisite_operation_ids": []
+    }
+  ],
+  "mermaid": "stateDiagram-v2\n  state CONFIRMED\n  state CREATED\n  state SHIPPED\n  CONFIRMED --> SHIPPED: next:shipOrder"
+}
+```
+
+## HTTP Methods Support
+
+`init`, `apply`, and `graph` support all OpenAPI 3 HTTP operation methods:
+
+- `get`
+- `put`
+- `post`
+- `delete`
+- `options`
+- `head`
+- `patch`
+- `trace`
 
 ## Sidecar Workflow
 
-`init` always works on an existing OpenAPI file in your repository.
-`init` creates/synchronizes `{context}-openapi-flow.(json|yaml)` as a persistent sidecar for your `x-openapi-flow` data.
-When `{context}.flow.(json|yaml)` does not exist yet, `init` also generates it automatically (same merge result as `apply`).
-When `{context}.flow.(json|yaml)` already exists, `init` asks in interactive mode whether to recreate it; if confirmed, it creates a backup as `{context}.flow.(json|yaml).backup-N` before regenerating.
-In non-interactive mode, `init` fails if flow output already exists and suggests using `apply` to update it.
-Use `apply` to inject sidecar flows back into regenerated OpenAPI files.
-If no OpenAPI/Swagger file exists yet, generate one first with your framework's official OpenAPI/Swagger tooling.
+Behavior summary:
+
+- `init` works on an existing OpenAPI source file in your repository.
+- `init` creates/synchronizes `{context}.x.(json|yaml)` as a persistent sidecar for `x-openapi-flow` data.
+- If `{context}.flow.(json|yaml)` does not exist, `init` generates it automatically (same merge result as `apply`).
+- If `{context}.flow.(json|yaml)` already exists, `init` asks in interactive mode whether to recreate it.
+- On confirmation (or with `--force`), `init` creates a sidecar backup as `{context}.x.(json|yaml).backup-N` before regenerating `{context}.flow.(json|yaml)`.
+- In non-interactive mode, `init` fails when flow output already exists unless `--force` is provided.
+- With `--dry-run`, `init` prints a summary of sidecar/flow behavior without writing files.
+- Use `apply` to inject sidecar flows back into regenerated OpenAPI source files.
+- If no OpenAPI/Swagger source file exists yet, generate one first with your framework's official tooling.
 
 ### Recommended Sequence
 
 ```bash
-x-openapi-flow init openapi.yaml
-# edit {context}-openapi-flow.(json|yaml)
-x-openapi-flow apply openapi.yaml
+npx x-openapi-flow init
+npx x-openapi-flow init --dry-run
+# edit {context}.x.(json|yaml)
+npx x-openapi-flow diff openapi.yaml
+npx x-openapi-flow apply openapi.yaml
 ```
 
 ## Sidecar File Contract (all supported fields)
@@ -180,18 +300,18 @@ Field reference format:
 ### Swagger UI
 
 - There is no Swagger UI-based automated test in this repo today (tests are CLI-only).
-- For UI interpretation of `x-openapi-flow`, use `showExtensions: true` plus the plugin at `lib/swagger-ui/x-openapi-flow-plugin.js`.
+- For UI interpretation of `x-openapi-flow`, use `showExtensions: true` with the plugin at `lib/swagger-ui/x-openapi-flow-plugin.js`.
 - A ready HTML example is available at `examples/swagger-ui/index.html`.
 - The plugin renders a global **Flow Overview** (Mermaid image) near the top of the docs, plus operation-level flow cards.
 
-![Swagger UI integration result](../docs/assets/swagger-ui-integration-result-v2.svg)
+![Swagger UI integration result](../docs/assets/x-openapi-flow-extension.png)
 
 ### Graph Output Example
 
 `x-openapi-flow graph` includes transition guidance labels in Mermaid output when present (`next_operation_id`, `prerequisite_operation_ids`).
-The `graph` command accepts both full OpenAPI files and sidecar files (`{context}-openapi-flow.(json|yaml)`).
+The `graph` command accepts both full OpenAPI source files and sidecar files (`{context}.x.(json|yaml)` and legacy `{context}-openapi-flow.(json|yaml)`).
 
-![Guided graph example](../docs/assets/graph-order-guided.svg)
+![Guided graph example](../docs/assets/x-openapi-flow-overview.png)
 
 ## Repository and Documentation
 

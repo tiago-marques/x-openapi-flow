@@ -230,6 +230,70 @@ paths:
           description: Cancelled
 ```
 
+## 4) Refunds (requested -> approved -> paid)
+
+```yaml
+openapi: "3.0.3"
+info:
+  title: Refund API
+  version: "1.0.0"
+paths:
+  /refunds:
+    post:
+      operationId: createRefund
+      x-openapi-flow:
+        version: "1.0"
+        id: create-refund-flow
+        current_state: REQUESTED
+        transitions:
+          - target_state: APPROVED
+            trigger_type: synchronous
+            next_operation_id: approveRefund
+      responses:
+        "201":
+          description: Created
+
+  /refunds/{id}/approve:
+    post:
+      operationId: approveRefund
+      x-openapi-flow:
+        version: "1.0"
+        id: approve-refund-flow
+        current_state: APPROVED
+        transitions:
+          - target_state: PAID
+            trigger_type: webhook
+            next_operation_id: payRefund
+            prerequisite_operation_ids:
+              - createRefund
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved
+
+  /refunds/{id}/pay:
+    post:
+      operationId: payRefund
+      x-openapi-flow:
+        version: "1.0"
+        id: pay-refund-flow
+        current_state: PAID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paid
+```
+
 ## How to validate any example
 
 ```bash
@@ -238,4 +302,4 @@ npx x-openapi-flow validate openapi.yaml --profile strict
 
 ## Mermaid graph example
 
-![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/graph-order-guided.svg)
+![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-overview.png)

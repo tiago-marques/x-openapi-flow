@@ -1,4 +1,5 @@
-# x-openapi-flow
+![x-openapi-flow logo](docs/assets/x-openapi-flow-logo.svg)
+
 
 [![npm version](https://img.shields.io/npm/v/x-openapi-flow?label=npm%20version)](https://www.npmjs.com/package/x-openapi-flow)
 [![npm downloads](https://img.shields.io/npm/dm/x-openapi-flow?label=npm%20downloads)](https://www.npmjs.com/package/x-openapi-flow)
@@ -8,6 +9,8 @@
 [![open issues](https://img.shields.io/github/issues/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/issues)
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
 ![copilot ready](https://img.shields.io/badge/Copilot-Ready-00BFA5?logo=githubcopilot&logoColor=white)
+
+# x-openapi-flow
 
 `x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
 
@@ -22,32 +25,35 @@ Most teams document endpoints but not lifecycle behavior. State transitions beco
 From your API project root:
 
 ```bash
-npx x-openapi-flow init openapi.yaml
-npx x-openapi-flow apply openapi.yaml
+npx x-openapi-flow init
+npx x-openapi-flow apply openapi.x.yaml
 ```
 
 That is the default adoption path.
 
+For a full rollout guide (local + CI + PR checks), see `docs/wiki/Adoption-Playbook.md`.
+For common errors and fixes, see `docs/wiki/Troubleshooting.md`.
+
 ## Initialization Behavior
 
-Running `init` will:
+Running `init`:
 
-- Auto-detects OpenAPI files (such as `openapi.yaml`, `openapi.json`, `swagger.yaml`)
-- Creates/synchronizes `{context}-openapi-flow.(json|yaml)` (sidecar with your lifecycle definitions)
-- Generates `{context}.flow.(json|yaml)` automatically if it does not exist
-- If `{context}.flow.(json|yaml)` already exists, asks (interactive mode) before recreation and stores backup as `{context}.flow.(json|yaml).backup-N`
-- In non-interactive mode, `init` fails when `{context}.flow.(json|yaml)` already exists and points to `apply` for updates
+- Auto-detects OpenAPI source files (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.)
+- Creates or syncs `{context}.x.(json|yaml)` (sidecar with lifecycle metadata)
+- Generates `{context}.flow.(json|yaml)` automatically when missing
+- If `{context}.flow.(json|yaml)` already exists, asks for confirmation in interactive mode and creates `{context}.x.(json|yaml).backup-N`
+- In non-interactive mode, fails when `{context}.flow.(json|yaml)` already exists unless `--force` is provided
 
-Project file roles:
+File roles:
 
-- Source of truth for API shape: your generated OpenAPI file (`openapi.yaml`)
-- Source of truth for lifecycle metadata: `{context}-openapi-flow.(json|yaml)`
+- Source of truth for API shape: your generated OpenAPI source file (`openapi.yaml`)
+- Source of truth for lifecycle metadata: `{context}.x.(json|yaml)`
 - CLI/config: `x-openapi-flow.config.json` (optional)
 
 Recommended update loop:
 
-1. Regenerate/update your OpenAPI file with your framework tool.
-2. Run `x-openapi-flow apply openapi.yaml` to inject sidecar lifecycle data.
+1. Regenerate/update your OpenAPI source file with your framework tool.
+2. Run `npx x-openapi-flow apply openapi.x.yaml` to inject sidecar lifecycle data.
 
 Optional quality gate:
 
@@ -181,49 +187,76 @@ Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
 ### Commands
 
 ```bash
-x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
-x-openapi-flow init [openapi-file] [--flows path]
-x-openapi-flow apply [openapi-file] [--flows path] [--out path]
-x-openapi-flow graph <openapi-file> [--format mermaid|json]
-x-openapi-flow doctor [--config path]
+npx x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
+npx x-openapi-flow init [--flows path] [--force] [--dry-run]
+npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
+npx x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
+npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
+npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
+npx x-openapi-flow doctor [--config path]
 ```
+
+Canonical command details are maintained in:
+
+- `flow-spec/README.md`
+- `docs/wiki/CLI-Reference.md`
+
+Preferred `apply` usage in this repository is sidecar positional:
+
+```bash
+npx x-openapi-flow apply openapi.x.yaml
+```
+
+Supported OpenAPI 3 HTTP methods across `init`, `apply`, and `graph`:
+
+- `get`, `put`, `post`, `delete`, `options`, `head`, `patch`, `trace`
 
 ### Common Commands
 
 ```bash
-x-openapi-flow validate examples/payment-api.yaml
-x-openapi-flow init openapi.yaml
-x-openapi-flow apply openapi.yaml
-x-openapi-flow graph examples/order-api.yaml
-x-openapi-flow doctor
+npx x-openapi-flow validate flow-spec/examples/payment-api.yaml
+npx x-openapi-flow init
+npx x-openapi-flow apply openapi.x.yaml
+npx x-openapi-flow lint openapi.yaml
+npx x-openapi-flow graph flow-spec/examples/order-api.yaml
+npx x-openapi-flow doctor
 ```
 
 ### Advanced Options
 
 ```bash
-x-openapi-flow validate examples/order-api.yaml --profile relaxed
-x-openapi-flow validate examples/quality-warning-api.yaml --strict-quality
-x-openapi-flow validate examples/ticket-api.yaml --format json
-x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
+npx x-openapi-flow validate flow-spec/examples/order-api.yaml --profile relaxed
+npx x-openapi-flow validate flow-spec/examples/quality-warning-api.yaml --strict-quality
+npx x-openapi-flow validate flow-spec/examples/ticket-api.yaml --format json
+npx x-openapi-flow init --dry-run
+npx x-openapi-flow diff openapi.yaml --format json
+npx x-openapi-flow apply openapi.x.yaml --out openapi.flow.yaml
+npx x-openapi-flow apply swagger.json --flows examples/swagger.x.json
 ```
 
-`init` works on an existing OpenAPI file in your repository. It auto-discovers common names (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.) when no path is provided.
-`init` also creates/synchronizes a sidecar file named from the OpenAPI context (for example, `swagger-openapi-flow.json` or `openapi-openapi-flow.yaml`) to persist your `x-openapi-flow` definitions across OpenAPI regenerations.
-Use `apply` after regenerating your OpenAPI file to re-inject persisted `x-openapi-flow` blocks from the sidecar.
-If no OpenAPI/Swagger file exists yet, create one with your framework's official OpenAPI/Swagger generator first.
+Behavior notes:
+
+- `init` works by auto-discovering an existing OpenAPI source file (run from your OpenAPI project root).
+- `init` creates/synchronizes a sidecar file based on OpenAPI context (for example, `swagger.x.json` or `openapi.x.yaml`) to persist `x-openapi-flow` metadata across regenerations.
+- If `{context}.flow.(json|yaml)` already exists, `init` asks for confirmation in interactive mode.
+- In non-interactive mode, use `init --force` to skip prompt, back up sidecar as `{context}.x.(json|yaml).backup-N`, and recreate `{context}.flow.(json|yaml)`.
+- Use `init --dry-run` to preview sidecar/flow changes without writing files.
+- Legacy naming (`{context}-openapi-flow.(json|yaml)`) remains compatible in `apply` and `graph`.
+- Use `apply` after regenerating your OpenAPI source file to re-inject sidecar metadata (for example: `npx x-openapi-flow apply openapi.x.yaml`).
+- If no OpenAPI/Swagger source file exists yet, create one first with your framework's official generator.
 
 ## Regeneration Workflow
 
 ```bash
-# 1) generate/open your OpenAPI file (framework-specific)
+# 1) generate/open your OpenAPI source file (framework-specific)
 
 # 2) initialize and sync sidecar
-x-openapi-flow init openapi.yaml
+npx x-openapi-flow init
 
-# 3) edit {context}-openapi-flow.(json|yaml) with your flow states/transitions
+# 3) edit {context}.x.(json|yaml) with your flow states/transitions
 
 # 4) whenever OpenAPI is regenerated, re-apply flows
-x-openapi-flow apply openapi.yaml
+npx x-openapi-flow apply openapi.x.yaml
 ```
 
 ## Copilot Ready (AI Sidecar Authoring)
@@ -233,10 +266,10 @@ This repository includes an AI authoring guide at `llm.txt` to help assistants p
 
 Recommended AI-assisted flow:
 
-1. Run `x-openapi-flow init openapi.yaml`.
-2. Ask your AI assistant to fill `{context}-openapi-flow.(json|yaml)` using `llm.txt`.
-3. Run `x-openapi-flow apply openapi.yaml`.
-4. Run `x-openapi-flow apply openapi.yaml` again after AI updates (if needed).
+1. Run `npx x-openapi-flow init`.
+2. Ask your AI assistant to fill `{context}.x.(json|yaml)` using `llm.txt`.
+3. Run `npx x-openapi-flow apply openapi.x.yaml`.
+4. Run `npx x-openapi-flow apply openapi.x.yaml` again after AI updates (if needed).
 
 The `llm.txt` guide covers required fields, transition modeling, field reference formats, and a quality checklist.
 
@@ -244,7 +277,7 @@ Prompt template (copy/paste):
 
 ```text
 Use llm.txt from this repository as authoring rules.
-Read my OpenAPI file and populate {context}-openapi-flow.(json|yaml) only.
+Read my OpenAPI source file and populate {context}.x.(json|yaml) only.
 Do not change endpoint paths or HTTP methods.
 Generate x-openapi-flow per operationId with coherent states/transitions,
 including next_operation_id, prerequisite_field_refs, and propagated_field_refs when applicable.
@@ -300,12 +333,12 @@ When transitions include `next_operation_id` and `prerequisite_operation_ids`, M
 Example:
 
 ```bash
-x-openapi-flow graph examples/order-api.yaml
+npx x-openapi-flow graph flow-spec/examples/order-api.yaml
 ```
 
 Example graph image:
 
-![Guided graph example](docs/assets/graph-order-guided.svg)
+![Guided graph example](docs/assets/x-openapi-flow-overview.png)
 
 ### Swagger UI Integration
 
@@ -315,24 +348,25 @@ To visualize and interpret `x-openapi-flow` in Swagger UI:
 
 1. Enable vendor extension rendering with `showExtensions: true`.
 2. Use the plugin in `flow-spec/lib/swagger-ui/x-openapi-flow-plugin.js`.
-3. Open `flow-spec/examples/swagger-ui/index.html` and point it to your OpenAPI file.
+3. Open `flow-spec/examples/swagger-ui/index.html` and point it to your OpenAPI source file.
 
 This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.
 It can also render a graph image if `graph_image_url` is present in `x-openapi-flow` (or if `window.XOpenApiFlowGraphImageUrl` is configured).
 
 Example result image:
 
-![Swagger UI integration result](docs/assets/swagger-ui-integration-result-v2.svg)
+![Swagger UI integration result](docs/assets/x-openapi-flow-extension.png)
 
 ## CI Integration
 
 There is a ready-to-use workflow in `.github/workflows/x-openapi-flow-validate.yml`.
-To adapt it to your real OpenAPI files, update the paths in the `Validate x-openapi-flow examples` step.
+To adapt it to your real OpenAPI source files, update the paths in the `Validate x-openapi-flow examples` step.
 
 ## Included Examples
 
 - `payment-api.yaml` (financial)
 - `order-api.yaml` (e-commerce/logistics)
+- `refund` lifecycle example: `docs/wiki/Real-Examples.md#4-refunds-requested---approved---paid`
 - `ticket-api.yaml` (support)
 - `quality-warning-api.yaml` (demonstrates quality warnings)
 - `non-terminating-api.yaml` (demonstrates `non_terminating_states`)

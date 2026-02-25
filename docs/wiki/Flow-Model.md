@@ -63,4 +63,4 @@ When you run `x-openapi-flow graph`, Mermaid edges include labels from:
 - `next_operation_id`
 - `prerequisite_operation_ids`
 
-![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/graph-order-guided.svg)
+![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-overview.png)

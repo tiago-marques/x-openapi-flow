@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "operations": [
+    {
+      "operationId": "createOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "createOrder",
+        "current_state": "createOrder",
+        "transitions": []
+      }
+    },
+    {
+      "operationId": "payOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "payOrder",
+        "current_state": "payOrder",
+        "transitions": []
+      }
+    },
+    {
+      "operationId": "fulfillOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "fulfillOrder",
+        "current_state": "fulfillOrder",
+        "transitions": []
+      }
+    },
+    {
+      "operationId": "getOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "getOrder",
+        "current_state": "getOrder",
+        "transitions": []
+      }
+    },
+    {
+      "operationId": "createRefund",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "createRefund",
+        "current_state": "createRefund",
+        "transitions": []
+      }
+    },
+    {
+      "operationId": "approveRefund",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "approveRefund",
+        "current_state": "approveRefund",
+        "transitions": []
+      }
+    }
+  ]
+}

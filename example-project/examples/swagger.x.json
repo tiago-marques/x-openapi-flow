@@ -36,7 +36,8 @@
             "target_state": "paid",
             "next_operation_id": "payOrder",
             "prerequisite_operation_ids": [
-              "createOrder"
+              "createOrder",
+              "getOrder"
             ],
             "prerequisite_field_refs": [
               "createOrder:response.201.body.order_id"
@@ -94,6 +95,71 @@
           "header": "Idempotency-Key",
           "required": false
         },
+        "transitions": []
+      }
+    },
+    {
+      "operationId": "getOrder",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "get-order",
+        "current_state": "order_observed",
+        "description": "Read model operation used by polling transitions to observe order status",
+        "transitions": [
+          {
+            "trigger_type": "polling",
+            "condition": "Order status endpoint confirms payment status as paid",
+            "target_state": "paid",
+            "next_operation_id": "payOrder",
+            "prerequisite_operation_ids": [
+              "getOrder"
+            ],
+            "prerequisite_field_refs": [
+              "getOrder:response.200.body.order_id",
+              "getOrder:response.200.body.status"
+            ],
+            "propagated_field_refs": [
+              "getOrder:response.200.body.order_id",
+              "getOrder:response.200.body.status"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "createRefund",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "create-refund",
+        "current_state": "refund_requested",
+        "description": "Creates a refund request",
+        "transitions": [
+          {
+            "trigger_type": "synchronous",
+            "condition": "Refund request is approved",
+            "target_state": "refund_approved",
+            "next_operation_id": "approveRefund",
+            "prerequisite_operation_ids": [
+              "createRefund"
+            ],
+            "prerequisite_field_refs": [
+              "createRefund:request.body.order_id",
+              "createRefund:request.body.amount"
+            ],
+            "propagated_field_refs": [
+              "createRefund:response.201.body.refund_id"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "operationId": "approveRefund",
+      "x-openapi-flow": {
+        "version": "1.0",
+        "id": "approve-refund",
+        "current_state": "refund_approved",
+        "description": "Terminal operation for approved refunds",
         "transitions": []
       }
     }

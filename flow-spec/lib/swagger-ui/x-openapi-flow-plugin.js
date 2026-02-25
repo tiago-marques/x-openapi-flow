@@ -177,13 +177,13 @@ window.XOpenApiFlowPlugin = function () {
       .xof-meta-label { opacity: 0.85; }
       .xof-list { margin: 0; padding-left: 18px; }
       .xof-list li { margin: 6px 0; line-height: 1.45; }
-      .xof-next-link { margin-left: 8px; border: 1px solid rgba(127,127,127,0.4); border-radius: 4px; background: transparent; padding: 1px 6px; font-size: 11px; cursor: pointer; }
+      .xof-next-link { margin-left: 8px; border: 0; background: none; color: inherit; padding: 0; font-size: 11px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
       .xof-pre-links { margin-left: 8px; }
-      .xof-pre-link { margin-left: 4px; border: 1px solid rgba(127,127,127,0.4); border-radius: 4px; background: transparent; padding: 1px 6px; font-size: 11px; cursor: pointer; }
-      .xof-next-link:hover { opacity: 0.9; }
-      .xof-pre-link:hover { opacity: 0.9; }
-      .xof-next-link:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
-      .xof-pre-link:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+      .xof-pre-link { margin-left: 4px; border: 0; background: none; color: inherit; padding: 0; font-size: 11px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+      .xof-next-link:hover { opacity: 0.95; text-decoration-thickness: 2px; }
+      .xof-pre-link:hover { opacity: 0.95; text-decoration-thickness: 2px; }
+      .xof-next-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 3px; background: rgba(127,127,127,0.14); }
+      .xof-pre-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 3px; background: rgba(127,127,127,0.14); }
       .xof-graph { margin-top: 10px; padding: 8px; border: 1px dashed rgba(127,127,127,0.42); border-radius: 8px; }
       .xof-graph-title { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
       .xof-edge { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
@@ -215,6 +215,28 @@ window.XOpenApiFlowPlugin = function () {
         white-space: pre-wrap;
         max-height: 180px;
         overflow: auto;
+      }
+      @keyframes xof-target-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(127,127,127,0.5); }
+        100% { box-shadow: 0 0 0 10px rgba(127,127,127,0); }
+      }
+      .xof-jump-target {
+        animation: xof-target-pulse 0.9s ease-out 1;
+      }
+      .xof-jump-feedback {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 9999;
+        max-width: 360px;
+        border: 1px solid rgba(127,127,127,0.5);
+        border-radius: 8px;
+        background: rgba(20,20,20,0.92);
+        color: #fff;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.35;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.25);
       }
     `;
 
@@ -259,14 +281,14 @@ window.XOpenApiFlowPlugin = function () {
       .map((transition) => {
         const condition = transition.condition ? ` — ${escapeHtml(transition.condition)}` : '';
         const nextOperation = transition.next_operation_id
-          ? ` <button class="xof-next-link" data-xof-jump="${escapeHtml(transition.next_operation_id)}" type="button">next: ${escapeHtml(transition.next_operation_id)}</button>`
+          ? ` <button class="xof-next-link" data-xof-jump="${escapeHtml(transition.next_operation_id)}" type="button" title="Go to operation ${escapeHtml(transition.next_operation_id)}" aria-label="Go to operation ${escapeHtml(transition.next_operation_id)}">next: ${escapeHtml(transition.next_operation_id)}</button>`
           : '';
         const preOperations = getPrerequisiteOperationIds(transition);
         const preOperationLinks = preOperations.length
           ? `<span class="xof-pre-links">requires:${preOperations
               .map(
                 (operationId) =>
-                  ` <button class="xof-pre-link" data-xof-jump="${escapeHtml(operationId)}" type="button">${escapeHtml(operationId)}</button>`
+                  ` <button class="xof-pre-link" data-xof-jump="${escapeHtml(operationId)}" type="button" title="Go to operation ${escapeHtml(operationId)}" aria-label="Go to operation ${escapeHtml(operationId)}">${escapeHtml(operationId)}</button>`
               )
               .join('')}</span>`
           : '';
@@ -377,6 +399,7 @@ window.XOpenApiFlowPlugin = function () {
     const statesByName = new Map();
     const seen = new Set();
     let stateCounter = 0;
+    const edgeLines = [];
 
     function getStateId(stateName) {
       const normalized = text(stateName);
@@ -425,15 +448,15 @@ window.XOpenApiFlowPlugin = function () {
         const key = `${fromId}::${toId}::${label}`;
         if (seen.has(key)) return;
         seen.add(key);
-        lines.push(`  ${fromId} --> ${toId}${label ? `: ${label}` : ''}`);
+        edgeLines.push(`  ${fromId} --> ${toId}${label ? `: ${label}` : ''}`);
       });
     });
 
-    Array.from(statesByName.entries())
-      .sort()
-      .forEach(([stateName, stateId]) => {
-        lines.splice(1, 0, `  state "${sanitizeLabel(stateName)}" as ${stateId}`);
-      });
+    statesByName.forEach((stateId, stateName) => {
+      lines.push(`  state "${sanitizeLabel(stateName)}" as ${stateId}`);
+    });
+
+    lines.push(...edgeLines);
 
     return lines.join('\n');
   }
@@ -676,27 +699,45 @@ window.XOpenApiFlowPlugin = function () {
   }
 
   function jumpToOperationById(operationId) {
+    function highlightTarget(opblock) {
+      if (!opblock) return;
+      opblock.classList.remove('xof-jump-target');
+      window.requestAnimationFrame(() => {
+        opblock.classList.add('xof-jump-target');
+        window.setTimeout(() => opblock.classList.remove('xof-jump-target'), 950);
+      });
+    }
+
+    function getOperationSummaries() {
+      return Array.from(document.querySelectorAll('.swagger-ui .opblock-summary')).map((summary) => {
+        const opblock = summary.closest('.opblock');
+        const pathNode = summary.querySelector('.opblock-summary-path');
+        const path = pathNode ? pathNode.textContent.trim() : '';
+        return { summary, opblock, path };
+      });
+    }
+
+    function tryJump(match) {
+      const summaries = getOperationSummaries();
+      for (const { summary, opblock, path } of summaries) {
+        if (!opblock || !opblock.classList.contains(`opblock-${match.method}`)) continue;
+        if (path !== match.pathKey) continue;
+
+        summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (!opblock.classList.contains('is-open')) {
+          summary.click();
+        }
+        highlightTarget(opblock);
+        return true;
+      }
+      return false;
+    }
+
     const spec = getSpecFromUi();
     const match = findOperationById(spec, operationId);
     if (!match) return false;
 
-    const summaries = document.querySelectorAll('.swagger-ui .opblock-summary');
-    for (const summary of summaries) {
-      const opblock = summary.closest('.opblock');
-      if (!opblock || !opblock.classList.contains(`opblock-${match.method}`)) continue;
-
-      const pathNode = summary.querySelector('.opblock-summary-path');
-      const path = pathNode ? pathNode.textContent.trim() : '';
-      if (path !== match.pathKey) continue;
-
-      summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (!opblock.classList.contains('is-open')) {
-        summary.click();
-      }
-      return true;
-    }
-
-    return false;
+    return tryJump(match);
   }
 
   function findXOpenApiFlowValueCell(opblock) {
@@ -727,6 +768,32 @@ window.XOpenApiFlowPlugin = function () {
 
     valueCell.innerHTML = renderCard(flow);
     valueCell.dataset.xofEnhanced = '1';
+  }
+
+  let jumpFeedbackTimeoutId = null;
+  function showJumpFeedback(message) {
+    injectStyles();
+
+    let feedback = document.getElementById('xof-jump-feedback');
+    if (!feedback) {
+      feedback = document.createElement('div');
+      feedback.id = 'xof-jump-feedback';
+      feedback.className = 'xof-jump-feedback';
+      document.body.appendChild(feedback);
+    }
+
+    feedback.textContent = message;
+
+    if (jumpFeedbackTimeoutId) {
+      window.clearTimeout(jumpFeedbackTimeoutId);
+    }
+
+    jumpFeedbackTimeoutId = window.setTimeout(() => {
+      if (feedback && feedback.parentNode) {
+        feedback.parentNode.removeChild(feedback);
+      }
+      jumpFeedbackTimeoutId = null;
+    }, 2200);
   }
 
   function enhanceAll() {
@@ -766,7 +833,10 @@ window.XOpenApiFlowPlugin = function () {
     event.preventDefault();
     const operationId = jumpButton.getAttribute('data-xof-jump');
     if (!operationId) return;
-    jumpToOperationById(operationId);
+    const jumped = jumpToOperationById(operationId);
+    if (!jumped) {
+      showJumpFeedback(`Could not locate operation '${operationId}' in the rendered Swagger view.`);
+    }
   });
 
   window.addEventListener('load', () => {

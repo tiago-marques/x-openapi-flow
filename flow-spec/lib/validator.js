@@ -1015,5 +1015,8 @@ module.exports = {
   validateFlows,
   detectOrphanStates,
   buildStateGraph,
+  detectDuplicateTransitions,
+  detectInvalidOperationReferences,
+  detectTerminalCoverage,
   run,
 };

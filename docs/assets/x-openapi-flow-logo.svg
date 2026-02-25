@@ -1,0 +1,19 @@
+<svg width="900" height="220" viewBox="0 0 900 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="900" height="220" rx="20" fill="#0B1020"/>
+  <g transform="translate(42,42)">
+    <line x1="36" y1="22" x2="94" y2="68" stroke="#00BFA5" stroke-width="12" stroke-linecap="round"/>
+    <line x1="94" y1="68" x2="36" y2="114" stroke="#4DD0E1" stroke-width="12" stroke-linecap="round"/>
+    <line x1="36" y1="22" x2="36" y2="114" stroke="#66BB6A" stroke-width="12" stroke-linecap="round"/>
+
+    <circle cx="36" cy="22" r="18" fill="#66BB6A"/>
+    <circle cx="94" cy="68" r="18" fill="#00BFA5"/>
+    <circle cx="36" cy="114" r="18" fill="#4DD0E1"/>
+
+    <circle cx="36" cy="22" r="8" fill="#0B1020"/>
+    <circle cx="94" cy="68" r="8" fill="#0B1020"/>
+    <circle cx="36" cy="114" r="8" fill="#0B1020"/>
+  </g>
+
+  <text x="190" y="96" fill="#F3F6FF" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="52" font-weight="700">x-openapi-flow</text>
+  <text x="190" y="140" fill="#9FB3C8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="500">OpenAPI lifecycle flows made explicit</text>
+</svg>

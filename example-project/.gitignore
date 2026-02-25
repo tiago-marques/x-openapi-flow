@@ -3,6 +3,3 @@ npm-debug.log*
 
 # Local OpenAPI working files (keep repository clean)
 swagger.flow.json
-swagger-openapi-flow.json
-swagger-openapi-flow.generated.json
-openapi-openapi-flow.yaml

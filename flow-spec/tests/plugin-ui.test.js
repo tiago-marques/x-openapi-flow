@@ -159,3 +159,31 @@ test("plugin internals detect when overview has no transitions", () => {
 
   assert.equal(internals.hasOverviewTransitionData(flows), false);
 });
+
+test("plugin overview mermaid preserves flow order from spec", () => {
+  const internals = loadUiInternals();
+  const flows = [
+    {
+      operationId: "createOrder",
+      flow: {
+        current_state: "created",
+        transitions: [{ trigger_type: "sync", target_state: "paid" }],
+      },
+    },
+    {
+      operationId: "createRefund",
+      flow: {
+        current_state: "refund_requested",
+        transitions: [{ trigger_type: "sync", target_state: "refund_approved" }],
+      },
+    },
+  ];
+
+  const mermaid = internals.buildOverviewMermaid(flows);
+  const createdIndex = mermaid.indexOf('state "created"');
+  const refundIndex = mermaid.indexOf('state "refund_requested"');
+
+  assert.notEqual(createdIndex, -1);
+  assert.notEqual(refundIndex, -1);
+  assert.ok(createdIndex < refundIndex);
+});

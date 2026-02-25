@@ -1,2 +1,3 @@
 node_modules/
 example-project/swagger.flow.json
+*.backup*

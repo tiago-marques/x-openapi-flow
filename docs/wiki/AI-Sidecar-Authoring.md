@@ -4,12 +4,12 @@ This page explains how to use AI assistants (including GitHub Copilot) to popula
 
 ## Why this matters
 
-The most complex part of adoption is not generating OpenAPI; it is authoring high-quality lifecycle transitions and references in `{context}-openapi-flow.(json|yaml)`.
+The most complex part of adoption is not generating OpenAPI; it is authoring high-quality lifecycle transitions and references in `{context}.x.(json|yaml)`.
 
 ## Source of truth
 
 - API shape: OpenAPI file (`openapi.yaml|json` / `swagger.yaml|json`)
-- Lifecycle metadata: sidecar (`{context}-openapi-flow.(json|yaml)`)
+- Lifecycle metadata: sidecar (`{context}.x.(json|yaml)`)
 
 ## Use the LLM guide
 
@@ -25,8 +25,8 @@ It includes:
 ## Recommended workflow
 
 ```bash
-npx x-openapi-flow init openapi.yaml
-# ask AI to fill {context}-openapi-flow.(json|yaml) using llm.txt
+npx x-openapi-flow init
+# ask AI to fill {context}.x.(json|yaml) using llm.txt
 npx x-openapi-flow apply openapi.yaml
 npx x-openapi-flow validate openapi.yaml --profile strict
 ```
@@ -35,7 +35,7 @@ npx x-openapi-flow validate openapi.yaml --profile strict
 
 ```text
 Use llm.txt from this repository as authoring rules.
-Read my OpenAPI file and populate {context}-openapi-flow.yaml only.
+Read my OpenAPI file and populate {context}.x.yaml only.
 Do not change endpoint paths/methods.
 Generate x-openapi-flow for each operationId with coherent states/transitions,
 including next_operation_id, prerequisite_field_refs, and propagated_field_refs when applicable.

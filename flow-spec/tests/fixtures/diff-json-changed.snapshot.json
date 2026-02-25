@@ -1,0 +1,27 @@
+{
+  "openApiFile": "<OPENAPI_FILE>",
+  "flowsPath": "<FLOWS_PATH>",
+  "trackedOperations": 1,
+  "exists": true,
+  "diff": {
+    "added": 0,
+    "removed": 0,
+    "changed": 1,
+    "addedOperationIds": [],
+    "removedOperationIds": [],
+    "changedOperationIds": [
+      "listItems"
+    ],
+    "changedOperationDetails": [
+      {
+        "operationId": "listItems",
+        "changedPaths": [
+          "current_state",
+          "id",
+          "transitions",
+          "version"
+        ]
+      }
+    ]
+  }
+}

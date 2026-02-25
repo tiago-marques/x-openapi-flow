@@ -1,12 +1,12 @@
 x-openapi-flow — LLM Authoring Guide
 
 Purpose
-- Help an AI assistant populate `{context}-openapi-flow.(json|yaml)` accurately and consistently.
+- Help an AI assistant populate `{context}.x.(json|yaml)` accurately and consistently.
 - The sidecar must contain only lifecycle metadata (`x-openapi-flow`) per operation.
 
 Input files
 - Base OpenAPI: `openapi.yaml|yml|json` or `swagger.yaml|yml|json`
-- Sidecar: `{context}-openapi-flow.(json|yaml)`
+- Sidecar: `{context}.x.(json|yaml)`
 
 Expected sidecar shape
 - `version: "1.0"`

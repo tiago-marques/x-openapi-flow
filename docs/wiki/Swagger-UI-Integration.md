@@ -32,7 +32,7 @@ Open:
 
 ## Example result image
 
-![Swagger UI integration result](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/swagger-ui-integration-result-v2.svg)
+![Swagger UI integration result](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-extension.png)
 
 ## Tip
 

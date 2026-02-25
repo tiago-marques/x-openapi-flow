@@ -27,3 +27,11 @@ Migrate to `x-openapi-flow` for compatibility with current versions.
 ## Can I use this in CI?
 
 Yes. Run `x-openapi-flow validate ... --profile strict --strict-quality` in your pipeline.
+
+## Where is the full rollout guide (local + CI + PR checks)?
+
+See [Adoption Playbook](Adoption-Playbook).
+
+## Where are common errors and fixes documented?
+
+See [Troubleshooting](Troubleshooting).

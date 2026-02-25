@@ -1,17 +1,19 @@
 {
   "name": "x-openapi-flow-local-example",
-  "version": "1.0.0",
-  "private": true,
+  "version": "1.3.0",
+  
   "description": "Local playground to test x-openapi-flow with OpenAPI + Swagger UI",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
     "init": "x-openapi-flow init",
+    "diff": "x-openapi-flow diff swagger.json --format pretty",
     "apply": "x-openapi-flow apply swagger.json",
-    "apply:yaml-example": "x-openapi-flow apply swagger.json --flows examples/order-openapi-flow.yaml",
-    "apply:json-example": "x-openapi-flow apply swagger.json --flows examples/order-openapi-flow.json",
+    "apply:yaml-example": "x-openapi-flow apply swagger.json --flows examples/swagger.x.yaml",
+    "apply:json-example": "x-openapi-flow apply swagger.json --flows examples/swagger.x.json",
     "validate": "npm run apply && x-openapi-flow validate swagger.flow.json --profile strict",
+    "lint": "npm run apply && x-openapi-flow lint swagger.flow.json",
     "graph": "npm run apply && x-openapi-flow graph swagger.flow.json",
     "doctor": "x-openapi-flow doctor",
     "start:full": "npm start"

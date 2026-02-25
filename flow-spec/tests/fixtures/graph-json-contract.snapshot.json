@@ -1,0 +1,26 @@
+{
+  "format_version": "1.0",
+  "flowCount": 3,
+  "nodes": [
+    "CONFIRMED",
+    "CREATED",
+    "SHIPPED"
+  ],
+  "edges": [
+    {
+      "from": "CONFIRMED",
+      "to": "SHIPPED",
+      "next_operation_id": "shipOrder",
+      "prerequisite_operation_ids": []
+    },
+    {
+      "from": "CREATED",
+      "to": "CONFIRMED",
+      "next_operation_id": "confirmOrder",
+      "prerequisite_operation_ids": [
+        "createOrder"
+      ]
+    }
+  ],
+  "mermaid": "stateDiagram-v2\n  state CONFIRMED\n  state CREATED\n  state SHIPPED\n  CONFIRMED --> SHIPPED: next:shipOrder\n  CREATED --> CONFIRMED: next:confirmOrder | requires:createOrder"
+}
