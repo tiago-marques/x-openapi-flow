@@ -8,6 +8,46 @@
 [![open issues](https://img.shields.io/github/issues/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/issues)
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
 
+## Developer UX (Start Here)
+
+Run `init` on your existing OpenAPI file:
+
+```bash
+npx x-openapi-flow init openapi.yaml
+```
+
+What this does in your repository:
+
+- Auto-detects OpenAPI files (such as `openapi.yaml`, `openapi.json`, `swagger.yaml`)
+- Creates/synchronizes `x-openapi-flow.flows.yaml` (sidecar with your lifecycle definitions)
+- Re-applies existing `x-openapi-flow` blocks into your OpenAPI file
+
+How to work with project files:
+
+- Source of truth for API shape: your generated OpenAPI file (`openapi.yaml`)
+- Source of truth for lifecycle metadata: `x-openapi-flow.flows.yaml`
+- CLI/config: `x-openapi-flow.config.json` (optional)
+
+How to keep everything updated:
+
+1. Regenerate/update your OpenAPI file with your framework tool.
+2. Run `x-openapi-flow apply openapi.yaml` to inject sidecar lifecycle data.
+3. Run `x-openapi-flow validate openapi.yaml --profile strict` to enforce consistency.
+
+## Why? What? How?
+
+**Why?**
+
+Most teams document endpoints but not lifecycle behavior. State transitions become implicit, inconsistent, and hard to validate in CI.
+
+**What?**
+
+`x-openapi-flow` is a CLI and extension contract that adds explicit state-machine metadata to OpenAPI operations and validates it.
+
+**How?**
+
+It defines a vendor extension (`x-openapi-flow`), validates it with schema + graph rules, and supports a sidecar workflow (`init` + `apply`) so lifecycle data survives OpenAPI regeneration.
+
 `x-openapi-flow` is the package/CLI used to validate the OpenAPI `x-openapi-flow` extension and describe resource lifecycle workflows (not limited to payments).
 
 It allows documenting, per operation, the current state (`current_state`) and possible transitions (`transitions`) with explicit triggers.
