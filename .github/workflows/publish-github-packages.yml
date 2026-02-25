@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: 20
           registry-url: https://npm.pkg.github.com
-          scope: '@t-marques'
+          scope: '@tiago-marques'
 
       - name: Install dependencies
         working-directory: flow-spec
@@ -33,7 +33,7 @@ jobs:
 
       - name: Prepare scoped name for GitHub Packages mirror
         working-directory: flow-spec
-        run: npm pkg set name=@t-marques/x-openapi-flow
+        run: npm pkg set name=@tiago-marques/x-openapi-flow
 
       - name: Validate GitHub Packages token
         run: |

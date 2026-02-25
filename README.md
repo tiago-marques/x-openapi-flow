@@ -115,8 +115,8 @@ npm install x-openapi-flow
 Optional mirror on GitHub Packages (default usage remains unscoped on npm):
 
 ```bash
-npm config set @t-marques:registry https://npm.pkg.github.com
-npm install @t-marques/x-openapi-flow
+npm config set @tiago-marques:registry https://npm.pkg.github.com
+npm install @tiago-marques/x-openapi-flow
 ```
 
 When authentication is required, add this to your `.npmrc`:
