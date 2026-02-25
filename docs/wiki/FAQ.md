@@ -1,25 +1,25 @@
 # FAQ
 
-## O projeto substitui OpenAPI?
+## Does this replace OpenAPI?
 
-Não. Ele estende OpenAPI com `x-openapi-flow`.
+No. It extends OpenAPI with `x-openapi-flow`.
 
-## Preciso editar o OpenAPI gerado manualmente?
+## Do I need to edit generated OpenAPI manually?
 
-Não. Use sidecar (`init`/`apply`) para manter os fluxos separados e reaplicáveis.
+No. Use sidecar (`init`/`apply`) to keep flows separate and re-applicable.
 
-## Funciona com arquivos JSON e YAML?
+## Does it work with JSON and YAML files?
 
-Sim, ambos.
+Yes, both.
 
-## O Swagger UI valida os fluxos?
+## Does Swagger UI validate flows?
 
-Não. O Swagger UI apenas exibe. A validação é feita pela CLI (`validate`).
+No. Swagger UI only renders data. Validation is done by the CLI (`validate`).
 
-## Tenho OpenAPI legado com `x-flow`. E agora?
+## I have legacy OpenAPI using `x-flow`. What now?
 
-Migre para `x-openapi-flow` para compatibilidade com as versões atuais.
+Migrate to `x-openapi-flow` for compatibility with current versions.
 
-## Posso usar em CI?
+## Can I use this in CI?
 
-Sim. Rode `x-openapi-flow validate ... --profile strict --strict-quality` no pipeline.
+Yes. Run `x-openapi-flow validate ... --profile strict --strict-quality` in your pipeline.

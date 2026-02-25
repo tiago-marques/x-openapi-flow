@@ -1,6 +1,6 @@
 # Flow Model (`x-openapi-flow`)
 
-Cada operação pode ter um bloco:
+Each operation may have a block like this:
 
 ```yaml
 x-openapi-flow:
@@ -12,25 +12,25 @@ x-openapi-flow:
       trigger_type: synchronous
 ```
 
-## Campos principais
+## Core fields
 
-- `version`: versão do contrato (atual: `1.0`)
-- `id`: identificador único do passo
-- `current_state`: estado representado pela operação
-- `transitions[]`: transições possíveis a partir do estado atual
+- `version`: contract version (current: `1.0`)
+- `id`: unique step identifier
+- `current_state`: state represented by the operation
+- `transitions[]`: allowed transitions from the current state
 
-## Regras validadas (resumo)
+## Validated rules (summary)
 
-- Schema obrigatório
-- Estados órfãos
-- Estado inicial e terminal
-- Estados inalcançáveis
-- Ciclos
-- Duplicidade de transição
-- Estados sem caminho para terminal
+- Required schema fields
+- Orphan states
+- Initial and terminal states
+- Unreachable states
+- Cycles
+- Duplicate transitions
+- States without path to a terminal state
 
-## Perfis
+## Profiles
 
-- `core`: schema + órfãos
-- `relaxed`: checks avançados como warnings
-- `strict`: checks avançados como erro
+- `core`: schema + orphan checks
+- `relaxed`: advanced checks as warnings
+- `strict`: advanced checks as errors

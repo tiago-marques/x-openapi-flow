@@ -1,22 +1,22 @@
 # x-openapi-flow Wiki
 
-`x-openapi-flow` é uma CLI para validar e manter fluxos de ciclo de vida de recursos em OpenAPI usando a extensão vendor `x-openapi-flow`.
+`x-openapi-flow` is a CLI to validate and maintain resource lifecycle flows in OpenAPI using the `x-openapi-flow` vendor extension.
 
-## O que o projeto resolve
+## What problem it solves
 
-APIs reais mudam com frequência, e o fluxo de estados costuma ficar implícito.
-Com `x-openapi-flow`, o estado atual e as transições ficam explícitos por operação, com validação automática.
+Real APIs change often, and lifecycle state transitions usually stay implicit.
+With `x-openapi-flow`, current states and transitions become explicit per operation, with automated validation.
 
-## Principais capacidades
+## Key capabilities
 
-- Validação de schema da extensão `x-openapi-flow`
-- Validação de consistência de grafo (órfãos, alcançabilidade, ciclos, estados terminais)
-- Perfis de validação (`core`, `relaxed`, `strict`)
-- Sidecar para persistir fluxos em OpenAPI regenerado (`init` + `apply`)
-- Export de grafo (`mermaid`/`json`)
-- Exemplo de integração com Swagger UI
+- Schema validation for the `x-openapi-flow` extension
+- Graph consistency checks (orphans, reachability, cycles, terminal states)
+- Validation profiles (`core`, `relaxed`, `strict`)
+- Sidecar workflow for regenerated OpenAPI files (`init` + `apply`)
+- Graph export (`mermaid`/`json`)
+- Swagger UI integration example
 
-## Começo rápido
+## Quick start
 
 ```bash
 npm install x-openapi-flow
@@ -24,11 +24,11 @@ npx x-openapi-flow init openapi.yaml
 npx x-openapi-flow validate openapi.yaml --profile strict
 ```
 
-## Páginas desta Wiki
+## Wiki pages
 
 - [Quickstart](Quickstart)
 - [CLI Reference](CLI-Reference)
 - [Flow Model](Flow-Model)
-- [Exemplos Reais Completos](Real-Examples)
+- [Real-World Complete Examples](Real-Examples)
 - [Swagger-UI Integration](Swagger-UI-Integration)
 - [FAQ](FAQ)

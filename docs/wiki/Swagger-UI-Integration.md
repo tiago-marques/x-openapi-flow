@@ -1,15 +1,15 @@
 # Swagger UI Integration
 
-## Objetivo
+## Goal
 
-Exibir `x-openapi-flow` diretamente no Swagger UI para facilitar leitura de estado por operação.
+Render `x-openapi-flow` directly in Swagger UI to make per-operation lifecycle state easier to read.
 
-## Exemplo pronto no repositório
+## Ready example in this repository
 
 - `flow-spec/examples/swagger-ui/index.html`
 - `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js`
 
-## Como rodar localmente
+## Run locally
 
 ```bash
 cd flow-spec
@@ -20,13 +20,13 @@ Abra:
 
 `http://localhost:8080/examples/swagger-ui/index.html`
 
-## Como funciona
+## How it works
 
-- `showExtensions: true` mantém extensões visíveis.
-- Plugin customizado adiciona um painel no resumo da operação com:
+- `showExtensions: true` keeps vendor extensions visible.
+- Custom plugin adds a panel in operation summary with:
   - `version`
   - `current_state`
 
-## Dica
+## Tip
 
-Depois de regenerar seu OpenAPI, rode `x-openapi-flow apply` antes de abrir no Swagger UI.
+After regenerating your OpenAPI file, run `x-openapi-flow apply` before opening Swagger UI.

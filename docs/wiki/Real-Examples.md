@@ -1,8 +1,8 @@
-# Exemplos Reais Completos
+# Real-World Complete Examples
 
-Esta página traz exemplos completos e realistas de OpenAPI com `x-openapi-flow`.
+This page provides complete and realistic OpenAPI examples with `x-openapi-flow`.
 
-## 1) Pagamentos (autorização -> captura)
+## 1) Payments (authorization -> capture)
 
 ```yaml
 openapi: "3.0.3"
@@ -42,7 +42,7 @@ paths:
           description: Captured
 ```
 
-## 2) Pedidos (criação -> confirmação -> envio -> entrega)
+## 2) Orders (creation -> confirmation -> shipping -> delivery)
 
 ```yaml
 openapi: "3.0.3"
@@ -124,7 +124,7 @@ paths:
           description: Delivered
 ```
 
-## 3) Assinaturas SaaS (trial -> active -> suspended -> cancelled)
+## 3) SaaS Subscriptions (trial -> active -> suspended -> cancelled)
 
 ```yaml
 openapi: "3.0.3"
@@ -210,7 +210,7 @@ paths:
           description: Cancelled
 ```
 
-## Como validar qualquer exemplo
+## How to validate any example
 
 ```bash
 npx x-openapi-flow validate openapi.yaml --profile strict

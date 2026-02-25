@@ -2,7 +2,7 @@
 
 ## `validate`
 
-Valida schema + regras de grafo + qualidade.
+Validates schema + graph rules + quality checks.
 
 ```bash
 x-openapi-flow validate <openapi-file> \
@@ -14,18 +14,18 @@ x-openapi-flow validate <openapi-file> \
 
 ## `init`
 
-Sincroniza OpenAPI com sidecar.
+Synchronizes OpenAPI with sidecar.
 
 ```bash
 x-openapi-flow init [openapi-file] [--flows path]
 ```
 
-- Auto-descobre `openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.
-- Cria/sincroniza `x-openapi-flow.flows.yaml`
+- Auto-discovers `openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.
+- Creates/synchronizes `x-openapi-flow.flows.yaml`
 
 ## `apply`
 
-Aplica o sidecar no OpenAPI (útil após regeneração).
+Applies sidecar data to OpenAPI (useful after regeneration).
 
 ```bash
 x-openapi-flow apply [openapi-file] [--flows path] [--out path]
@@ -33,7 +33,7 @@ x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 
 ## `graph`
 
-Gera grafo de estados:
+Generates state graph:
 
 ```bash
 x-openapi-flow graph <openapi-file> [--format mermaid|json]
@@ -41,7 +41,7 @@ x-openapi-flow graph <openapi-file> [--format mermaid|json]
 
 ## `doctor`
 
-Checa ambiente/configuração:
+Checks environment/configuration:
 
 ```bash
 x-openapi-flow doctor [--config path]

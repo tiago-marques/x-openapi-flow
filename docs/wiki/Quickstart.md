@@ -1,51 +1,51 @@
 # Quickstart
 
-## 1) Instalar
+## 1) Install
 
 ```bash
 npm install x-openapi-flow
 ```
 
-ou direto com `npx`:
+or run directly with `npx`:
 
 ```bash
 npx x-openapi-flow --help
 ```
 
-## 2) Inicializar sidecar
+## 2) Initialize sidecar
 
-Com seu OpenAPI existente:
+With your existing OpenAPI file:
 
 ```bash
 npx x-openapi-flow init openapi.yaml
 ```
 
-Isso cria/sincroniza `x-openapi-flow.flows.yaml`.
+This creates/synchronizes `x-openapi-flow.flows.yaml`.
 
-## 3) Editar fluxos
+## 3) Edit flows
 
-Edite o sidecar e preencha os blocos `x-openapi-flow` por operação.
+Edit the sidecar and fill `x-openapi-flow` blocks per operation.
 
-## 4) Reaplicar após regenerar OpenAPI
+## 4) Re-apply after regenerating OpenAPI
 
 ```bash
 npx x-openapi-flow apply openapi.yaml
 ```
 
-## 5) Validar
+## 5) Validate
 
 ```bash
 npx x-openapi-flow validate openapi.yaml --profile strict
 ```
 
-## 6) Visualizar grafo
+## 6) Visualize graph
 
 ```bash
 npx x-openapi-flow graph openapi.yaml --format mermaid
 ```
 
-## Exemplos completos
+## Complete examples
 
-Para cenários reais completos (com OpenAPI válido e múltiplas operações), veja:
+For complete real-world scenarios (valid OpenAPI + multiple operations), see:
 
-- [Exemplos Reais Completos](Real-Examples)
+- [Real-World Complete Examples](Real-Examples)
