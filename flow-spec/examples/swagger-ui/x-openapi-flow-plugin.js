@@ -256,6 +256,10 @@ window.XOpenApiFlowPlugin = function () {
     return result;
   }
 
+  function hasFlowData(spec) {
+    return extractFlowsFromSpec(spec).length > 0;
+  }
+
   function buildOverviewMermaid(flows) {
     const lines = ['stateDiagram-v2'];
     const states = new Set();
@@ -417,6 +421,11 @@ window.XOpenApiFlowPlugin = function () {
   }
 
   function enhanceAll() {
+    const spec = getSpecFromUi();
+    if (!hasFlowData(spec)) {
+      return;
+    }
+
     injectStyles();
     const opblocks = document.querySelectorAll('.opblock');
     opblocks.forEach((opblock) => enhanceOperation(opblock));
