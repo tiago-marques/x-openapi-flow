@@ -7,15 +7,39 @@
         "version": "1.0",
         "id": "create-order",
         "current_state": "created",
+        "description": "Creates an order and opens the lifecycle in CREATED",
+        "idempotency": {
+          "header": "Idempotency-Key",
+          "required": true
+        },
         "transitions": [
           {
             "trigger_type": "synchronous",
             "condition": "Payment is confirmed",
             "target_state": "paid",
             "next_operation_id": "payOrder",
+            "prerequisite_operation_ids": [
+              "createOrder"
+            ],
             "prerequisite_field_refs": [
               "createOrder:request.body.customer_id",
               "createOrder:request.body.amount"
+            ],
+            "propagated_field_refs": [
+              "createOrder:response.201.body.order_id",
+              "createOrder:response.201.body.status"
+            ]
+          },
+          {
+            "trigger_type": "polling",
+            "condition": "Payment status polling confirms authorization",
+            "target_state": "paid",
+            "next_operation_id": "payOrder",
+            "prerequisite_operation_ids": [
+              "createOrder"
+            ],
+            "prerequisite_field_refs": [
+              "createOrder:response.201.body.order_id"
             ],
             "propagated_field_refs": [
               "createOrder:response.201.body.order_id"
@@ -30,18 +54,30 @@
         "version": "1.0",
         "id": "pay-order",
         "current_state": "paid",
+        "description": "Captures payment and waits for fulfillment completion callback",
+        "idempotency": {
+          "header": "Idempotency-Key",
+          "required": true
+        },
         "transitions": [
           {
-            "trigger_type": "synchronous",
-            "condition": "Fulfillment is completed",
+            "trigger_type": "webhook",
+            "condition": "Fulfillment provider callback is received",
             "target_state": "fulfilled",
             "next_operation_id": "fulfillOrder",
+            "prerequisite_operation_ids": [
+              "createOrder",
+              "payOrder"
+            ],
             "prerequisite_field_refs": [
               "createOrder:response.201.body.order_id",
-              "payOrder:response.200.body.order_id"
+              "payOrder:request.path.id",
+              "payOrder:response.200.body.order_id",
+              "payOrder:response.200.body.payment_id"
             ],
             "propagated_field_refs": [
-              "payOrder:response.200.body.order_id"
+              "payOrder:response.200.body.order_id",
+              "payOrder:response.200.body.payment_status"
             ]
           }
         ]
@@ -53,6 +89,11 @@
         "version": "1.0",
         "id": "fulfill-order",
         "current_state": "fulfilled",
+        "description": "Terminal operation for FULFILLED; prerequisites are declared in the incoming transition from payOrder",
+        "idempotency": {
+          "header": "Idempotency-Key",
+          "required": false
+        },
         "transitions": []
       }
     }

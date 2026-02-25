@@ -33,6 +33,7 @@ x-openapi-flow:
 Field reference format:
 
 - `operationId:request.body.field`
+- `operationId:request.path.paramName`
 - `operationId:response.<status>.body.field`
 
 ## Validated rules (summary)
@@ -50,6 +51,10 @@ Field reference format:
 - `core`: schema + orphan checks
 - `relaxed`: advanced checks as warnings
 - `strict`: advanced checks as errors
+
+## See also
+
+- [Sidecar Contract](Sidecar-Contract)
 
 ## Mermaid Graph with Operation Guidance
 

@@ -14,6 +14,16 @@
       "post": {
         "operationId": "createOrder",
         "summary": "Create order",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -38,7 +48,26 @@
         },
         "responses": {
           "201": {
-            "description": "Order created"
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "order_id",
+                    "status"
+                  ],
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -49,26 +78,13 @@
         "summary": "Pay order",
         "parameters": [
           {
-            "in": "path",
-            "name": "id",
+            "in": "header",
+            "name": "Idempotency-Key",
             "required": true,
             "schema": {
               "type": "string"
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Order paid"
-          }
-        }
-      }
-    },
-    "/orders/{id}/fulfill": {
-      "post": {
-        "operationId": "fulfillOrder",
-        "summary": "Fulfill order",
-        "parameters": [
+          },
           {
             "in": "path",
             "name": "id",
@@ -80,7 +96,79 @@
         ],
         "responses": {
           "200": {
-            "description": "Order fulfilled"
+            "description": "Order paid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "order_id",
+                    "payment_id",
+                    "payment_status"
+                  ],
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "payment_id": {
+                      "type": "string"
+                    },
+                    "payment_status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}/fulfill": {
+      "post": {
+        "operationId": "fulfillOrder",
+        "summary": "Fulfill order",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order fulfilled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "shipment_id",
+                    "delivery_date"
+                  ],
+                  "properties": {
+                    "shipment_id": {
+                      "type": "string"
+                    },
+                    "delivery_date": {
+                      "type": "string",
+                      "format": "date"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

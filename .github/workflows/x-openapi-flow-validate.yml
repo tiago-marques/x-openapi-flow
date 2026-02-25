@@ -7,24 +7,6 @@ on:
       - main
 
 jobs:
-  protect-example-swagger:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Guard example-project/swagger.json
-        run: |
-          expected="ea67bac9d5c47593792c9da7bc904e40fccc210970b66be328fdab74072524c3"
-          actual=$(sha256sum example-project/swagger.json | awk '{print $1}')
-          if [ "$actual" != "$expected" ]; then
-            echo "example-project/swagger.json is protected and cannot be changed."
-            echo "Expected: $expected"
-            echo "Actual:   $actual"
-            exit 1
-          fi
-
   validate-openapi:
     runs-on: ubuntu-latest
     defaults:

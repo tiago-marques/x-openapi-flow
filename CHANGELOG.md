@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.3.0 - 2026-02-25
+
+### Added
+- UI plugin test suite (`flow-spec/tests/plugin-ui.test.js`) integrated into `npm test`.
+- Sidecar positional usage in `apply` (for example: `x-openapi-flow apply examples/order-openapi-flow.yaml`).
+- Dedicated wiki page for sidecar schema: `docs/wiki/Sidecar-Contract.md`.
+
+### Changed
+- `init` now auto-generates `{context}.flow.(json|yaml)` when missing.
+- `init` behavior with existing flow output:
+	- interactive mode asks confirmation and creates incremental backups (`.backup-N`) before recreate;
+	- non-interactive mode fails with guidance to use `apply`.
+- Default scaffold values from `init` now use `operationId` directly for `id` and `current_state`.
+- Validator and docs now support `request.path` references (`operationId:request.path.paramName`).
+- Swagger UI overview improved:
+	- dynamic title from `OpenAPI info.title`;
+	- accordion collapsed by default;
+	- stable rendering without infinite DOM rewrite;
+	- Mermaid syntax hardening and horizontal layout (`direction LR`);
+	- better fallback diagnostics with parser error details.
+- Removed CI hash guard that blocked updates to `example-project/swagger.json`.
+
+### Fixed
+- Mermaid overview parse issues caused by unsafe labels in `stateDiagram-v2`.
+- Empty/placeholder overview behavior when flows have no transitions.
+- Example project OpenAPI/sidecar alignment for idempotency headers and path parameter dependencies.
+
 ## 1.2.3 - 2026-02-25
 
 ### Added

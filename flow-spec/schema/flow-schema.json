@@ -72,14 +72,14 @@
           },
           "prerequisite_field_refs": {
             "type": "array",
-            "description": "Field references required before this transition. Format: operationId:request.body.field or operationId:response.<status>.body.field",
+            "description": "Field references required before this transition. Format: operationId:request.body.field, operationId:request.path.paramName, or operationId:response.<status>.body.field",
             "items": {
               "type": "string"
             }
           },
           "propagated_field_refs": {
             "type": "array",
-            "description": "Field references produced/propagated for downstream flows. Format: operationId:request.body.field or operationId:response.<status>.body.field",
+            "description": "Field references produced/propagated for downstream flows. Format: operationId:request.body.field, operationId:request.path.paramName, or operationId:response.<status>.body.field",
             "items": {
               "type": "string"
             }

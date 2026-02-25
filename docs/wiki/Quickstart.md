@@ -14,6 +14,10 @@ This creates/synchronizes `{context}-openapi-flow.(json|yaml)`.
 
 Edit the sidecar and fill `x-openapi-flow` blocks per operation.
 
+For full sidecar contract details (all fields, required/optional, examples), see:
+
+- [Sidecar Contract](Sidecar-Contract)
+
 ## 3) Apply to OpenAPI
 
 ```bash

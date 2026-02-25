@@ -14,6 +14,7 @@ function runCli(args, options = {}) {
   const result = spawnSync("node", [CLI_PATH, ...args], {
     cwd: options.cwd || FLOW_SPEC_ROOT,
     encoding: "utf8",
+    input: options.input,
     env: { ...process.env, ...(options.env || {}) },
   });
 
@@ -125,6 +126,37 @@ test("init succeeds with explicit existing OpenAPI file", () => {
     const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
     const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
     assert.match(sidecarContent, /operationId: listItems/);
+
+    const flowOutputPath = path.join(tempDir, "openapi.flow.yaml");
+    assert.equal(fs.existsSync(flowOutputPath), true);
+    const flowOutputContent = fs.readFileSync(flowOutputPath, "utf8");
+    assert.match(flowOutputContent, /x-openapi-flow:/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init fails in non-interactive mode when flow output exists", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-existing-flow-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const flowOutputPath = path.join(tempDir, "openapi.flow.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Existing Flow API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(flowOutputPath, "# existing flow output\n", "utf8");
+
+    const result = runCli(["init", openapiPath]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Flow output already exists/);
+    assert.match(result.stderr, /Use `x-openapi-flow apply` to update/);
+
+    const flowContent = fs.readFileSync(flowOutputPath, "utf8");
+    assert.equal(flowContent, "# existing flow output\n");
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -222,7 +254,7 @@ test("init creates fallback operationId for operations without operationId", () 
     const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
     const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
     assert.match(sidecarContent, /operationId: get_health/);
-    assert.match(sidecarContent, /id: get_health_FLOW_ID/);
+    assert.match(sidecarContent, /id: get_health/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -286,6 +318,39 @@ test("apply supports --in-place to preserve legacy behavior", () => {
     const updatedOpenApi = fs.readFileSync(openapiPath, "utf8");
     assert.match(updatedOpenApi, /x-openapi-flow:/);
     assert.match(updatedOpenApi, /id: healthFlow/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("apply accepts sidecar file as positional argument", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-apply-sidecar-positional-"));
+  const openapiPath = path.join(tempDir, "swagger.json");
+  const sidecarPath = path.join(tempDir, "examples", "order-openapi-flow.yaml");
+
+  try {
+    fs.mkdirSync(path.dirname(sidecarPath), { recursive: true });
+
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Positional Sidecar API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: createOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: create-order\n      current_state: CREATED\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const apply = runCli(["apply", "examples/order-openapi-flow.yaml"], { cwd: tempDir });
+    assert.equal(apply.status, 0);
+    assert.match(apply.stdout, /Flows sidecar: .*examples\/order-openapi-flow.yaml/);
+    assert.match(apply.stdout, /Applied x-openapi-flow entries: 1/);
+
+    const updatedOpenApi = fs.readFileSync(path.join(tempDir, "swagger.flow.json"), "utf8");
+    assert.match(updatedOpenApi, /"x-openapi-flow"\s*:/);
+    assert.match(updatedOpenApi, /"id"\s*:\s*"create-order"/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

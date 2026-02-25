@@ -169,6 +169,8 @@ function getOperationsById(api) {
 
       operationsById.set(operation.operationId, {
         operation,
+        path_item: pathItem,
+        path_key: pathKey,
         endpoint: `${method.toUpperCase()} ${pathKey}`,
       });
     }
@@ -224,15 +226,15 @@ function parseFieldReference(refValue) {
     return null;
   }
 
-  const match = refValue.match(/^([^:]+):(request\.body|response\.(\d{3}|default)\.body)\.(.+)$/);
+  const match = refValue.match(/^([^:]+):(request\.(body|path)|response\.(\d{3}|default)\.body)\.(.+)$/);
   if (!match) {
     return null;
   }
 
   const operationId = match[1];
   const scope = match[2];
-  const responseCode = match[3];
-  const fieldPath = match[4];
+  const responseCode = match[4];
+  const fieldPath = match[5];
 
   return {
     operation_id: operationId,
@@ -330,6 +332,34 @@ function resolveFieldReferenceSchema(api, operationsById, parsedRef) {
     }
 
     return { schema: requestSchema };
+  }
+
+  if (parsedRef.scope === "request.path") {
+    const pathLevelParams = Array.isArray(operationInfo.path_item && operationInfo.path_item.parameters)
+      ? operationInfo.path_item.parameters
+      : [];
+    const operationLevelParams = Array.isArray(operation.parameters)
+      ? operation.parameters
+      : [];
+
+    const allParams = [...pathLevelParams, ...operationLevelParams].filter(
+      (param) => param && typeof param === "object" && param.in === "path" && param.name
+    );
+
+    if (!allParams.length) {
+      return { error: "path_parameters_not_found" };
+    }
+
+    const pathSchema = {
+      type: "object",
+      properties: {},
+    };
+
+    for (const param of allParams) {
+      pathSchema.properties[param.name] = param.schema || { type: "string" };
+    }
+
+    return { schema: pathSchema };
   }
 
   const responseCode = parsedRef.response_code;

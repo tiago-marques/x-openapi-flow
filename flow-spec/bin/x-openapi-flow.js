@@ -69,6 +69,52 @@ function deriveFlowOutputPath(openApiFile) {
   return path.join(parsed.dir, `${parsed.name}.flow${extension}`);
 }
 
+function readSingleLineFromStdin() {
+  const chunks = [];
+  const buffer = Buffer.alloc(256);
+
+  while (true) {
+    const bytesRead = fs.readSync(0, buffer, 0, buffer.length, null);
+    if (bytesRead === 0) {
+      break;
+    }
+
+    const chunk = buffer.toString("utf8", 0, bytesRead);
+    chunks.push(chunk);
+    if (chunk.includes("\n")) {
+      break;
+    }
+  }
+
+  const input = chunks.join("");
+  const firstLine = input.split(/\r?\n/)[0] || "";
+  return firstLine.trim();
+}
+
+function askForConfirmation(question) {
+  process.stdout.write(`${question} [y/N]: `);
+  const answer = readSingleLineFromStdin().toLowerCase();
+  return answer === "y" || answer === "yes";
+}
+
+function getNextBackupPath(filePath) {
+  let index = 1;
+  while (true) {
+    const candidate = `${filePath}.backup-${index}`;
+    if (!fs.existsSync(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+}
+
+function applyFlowsAndWrite(openApiFile, flowsDoc, outputPath) {
+  const api = loadApi(openApiFile);
+  const appliedCount = applyFlowsToOpenApi(api, flowsDoc);
+  saveOpenApi(outputPath, api);
+  return appliedCount;
+}
+
 function getOptionValue(args, optionName) {
   const index = args.indexOf(optionName);
   if (index === -1) {
@@ -408,6 +454,17 @@ function resolveFlowsPath(openApiFile, customFlowsPath) {
   return path.resolve(process.cwd(), DEFAULT_FLOWS_FILE);
 }
 
+function looksLikeFlowsSidecar(filePath) {
+  if (!filePath) return false;
+  const normalized = filePath.toLowerCase();
+  return normalized.endsWith("-openapi-flow.yaml")
+    || normalized.endsWith("-openapi-flow.yml")
+    || normalized.endsWith("-openapi-flow.json")
+    || normalized.endsWith("x-openapi-flow.flows.yaml")
+    || normalized.endsWith("x-openapi-flow.flows.yml")
+    || normalized.endsWith("x-openapi-flow.flows.json");
+}
+
 function getOpenApiFormat(filePath) {
   return filePath.endsWith(".json") ? "json" : "yaml";
 }
@@ -494,8 +551,8 @@ function buildFlowTemplate(operationId) {
   const safeOperationId = operationId || "operation";
   return {
     version: "1.0",
-    id: `${safeOperationId}_FLOW_ID`,
-    current_state: `${safeOperationId}_STATE`,
+    id: safeOperationId,
+    current_state: safeOperationId,
     transitions: [],
   };
 }
@@ -606,6 +663,7 @@ function runInit(parsed) {
   }
 
   const flowsPath = resolveFlowsPath(targetOpenApiFile, parsed.flowsPath);
+  const flowOutputPath = deriveFlowOutputPath(targetOpenApiFile);
 
   let api;
   try {
@@ -627,9 +685,36 @@ function runInit(parsed) {
   writeFlowsFile(flowsPath, mergedFlows);
   const trackedCount = mergedFlows.operations.length;
 
+  let applyMessage = "Init completed without regenerating flow output.";
+  if (!fs.existsSync(flowOutputPath)) {
+    const appliedCount = applyFlowsAndWrite(targetOpenApiFile, mergedFlows, flowOutputPath);
+    applyMessage = `Flow output generated: ${flowOutputPath} (applied entries: ${appliedCount}).`;
+  } else {
+    const isInteractive = process.stdin.isTTY && process.stdout.isTTY;
+    if (isInteractive) {
+      const shouldRecreate = askForConfirmation(
+        `Flow output already exists at ${flowOutputPath}. Recreate it from current OpenAPI + sidecar?`
+      );
+
+      if (shouldRecreate) {
+        const backupPath = getNextBackupPath(flowOutputPath);
+        fs.renameSync(flowOutputPath, backupPath);
+        const appliedCount = applyFlowsAndWrite(targetOpenApiFile, mergedFlows, flowOutputPath);
+        applyMessage = `Flow output recreated: ${flowOutputPath} (applied entries: ${appliedCount}). Backup: ${backupPath}.`;
+      } else {
+        applyMessage = "Flow output kept as-is (recreate cancelled by user).";
+      }
+    } else {
+      console.error(`ERROR: Flow output already exists at ${flowOutputPath}.`);
+      console.error("Use `x-openapi-flow apply` to update the existing flow output in non-interactive mode.");
+      return 1;
+    }
+  }
+
   console.log(`Using existing OpenAPI file: ${targetOpenApiFile}`);
   console.log(`Flows sidecar synced: ${flowsPath}`);
   console.log(`Tracked operations: ${trackedCount}`);
+  console.log(applyMessage);
   console.log("OpenAPI source unchanged. Edit the sidecar and run apply to generate the full spec.");
 
   console.log(`Validate now: x-openapi-flow validate ${targetOpenApiFile}`);
@@ -637,18 +722,28 @@ function runInit(parsed) {
 }
 
 function runApply(parsed) {
-  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  let targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  let flowsPathFromPositional = null;
+
+  if (!parsed.flowsPath && parsed.openApiFile && looksLikeFlowsSidecar(parsed.openApiFile)) {
+    flowsPathFromPositional = parsed.openApiFile;
+    targetOpenApiFile = findOpenApiFile(process.cwd());
+  }
 
   if (!targetOpenApiFile) {
     console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
     console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    if (flowsPathFromPositional) {
+      console.error(`Detected sidecar argument: ${flowsPathFromPositional}`);
+      console.error("Provide an OpenAPI file explicitly or run the command from the OpenAPI project root.");
+    }
     return 1;
   }
 
-  const flowsPath = resolveFlowsPath(targetOpenApiFile, parsed.flowsPath);
+  const flowsPath = resolveFlowsPath(targetOpenApiFile, parsed.flowsPath || flowsPathFromPositional);
   if (!fs.existsSync(flowsPath)) {
     console.error(`ERROR: Flows sidecar not found: ${flowsPath}`);
-    console.error("Run `x-openapi-flow init` first to create and sync the sidecar.");
+    console.error("Run `x-openapi-flow init` first to create and sync the sidecar, or use --flows <sidecar-file>.");
     return 1;
   }
 

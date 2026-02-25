@@ -28,6 +28,7 @@ npx x-openapi-flow validate openapi.yaml --profile strict
 ## Wiki pages
 
 - [Quickstart](Quickstart)
+- [Sidecar Contract](Sidecar-Contract)
 - [CLI Reference](CLI-Reference)
 - [Flow Model](Flow-Model)
 - [AI Sidecar Authoring](AI-Sidecar-Authoring)

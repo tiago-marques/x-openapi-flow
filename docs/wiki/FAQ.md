@@ -8,6 +8,10 @@ No. It extends OpenAPI with `x-openapi-flow`.
 
 No. Use sidecar (`init`/`apply`) to keep flows separate and re-applicable.
 
+## Where can I find all sidecar fields and structure?
+
+See [Sidecar Contract](Sidecar-Contract) for the complete schema and examples.
+
 ## Does it work with JSON and YAML files?
 
 Yes, both.

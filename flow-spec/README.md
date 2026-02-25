@@ -61,6 +61,9 @@ x-openapi-flow doctor [--config path]
 
 `init` always works on an existing OpenAPI file in your repository.
 `init` creates/synchronizes `{context}-openapi-flow.(json|yaml)` as a persistent sidecar for your `x-openapi-flow` data.
+When `{context}.flow.(json|yaml)` does not exist yet, `init` also generates it automatically (same merge result as `apply`).
+When `{context}.flow.(json|yaml)` already exists, `init` asks in interactive mode whether to recreate it; if confirmed, it creates a backup as `{context}.flow.(json|yaml).backup-N` before regenerating.
+In non-interactive mode, `init` fails if flow output already exists and suggests using `apply` to update it.
 Use `apply` to inject sidecar flows back into regenerated OpenAPI files.
 If no OpenAPI/Swagger file exists yet, generate one first with your framework's official OpenAPI/Swagger tooling.
 
@@ -71,6 +74,77 @@ x-openapi-flow init openapi.yaml
 # edit {context}-openapi-flow.(json|yaml)
 x-openapi-flow apply openapi.yaml
 ```
+
+## Sidecar File Contract (all supported fields)
+
+Sidecar top-level shape:
+
+```yaml
+version: "1.0"
+operations:
+  - operationId: createOrder
+    x-openapi-flow:
+      version: "1.0"
+      id: create-order
+      current_state: CREATED
+      description: Creates an order and starts its lifecycle
+      idempotency:
+        header: Idempotency-Key
+        required: true
+      transitions:
+        - target_state: PAID
+          trigger_type: synchronous
+          condition: Payment approved
+          next_operation_id: payOrder
+          prerequisite_operation_ids:
+            - createOrder
+          prerequisite_field_refs:
+            - createOrder:request.body.customer_id
+          propagated_field_refs:
+            - createOrder:response.201.body.order_id
+```
+
+Top-level (sidecar document):
+
+- `version` (optional, string): sidecar contract version. Default is `"1.0"`.
+- `operations` (optional, array): entries keyed by operation.
+
+Per operation entry:
+
+- `operationId` (recommended, string): target operation identifier in OpenAPI.
+- `x-openapi-flow` (object): lifecycle metadata for that operation.
+- `key` (optional, legacy): backward-compatibility fallback key used by apply.
+
+`x-openapi-flow` fields:
+
+- Required:
+  - `version` (string): currently `"1.0"`.
+  - `id` (string): unique flow id.
+  - `current_state` (string): state represented by this operation.
+- Optional:
+  - `description` (string): human-readable purpose.
+  - `idempotency` (object):
+    - `header` (required, string)
+    - `required` (optional, boolean)
+  - `transitions` (array of transition objects)
+
+Transition object fields:
+
+- Required:
+  - `target_state` (string)
+  - `trigger_type` (enum): `synchronous`, `webhook`, `polling`
+- Optional:
+  - `condition` (string)
+  - `next_operation_id` (string)
+  - `prerequisite_operation_ids` (array of strings)
+  - `prerequisite_field_refs` (array of strings)
+  - `propagated_field_refs` (array of strings)
+
+Field refs format:
+
+- `operationId:request.body.field`
+- `operationId:request.path.paramName`
+- `operationId:response.<status>.body.field`
 
 ## Configuration
 
