@@ -41,13 +41,13 @@ x-openapi-flow graph examples/order-api.yaml
 Running `init` will:
 
 - Auto-detects OpenAPI files (such as `openapi.yaml`, `openapi.json`, `swagger.yaml`)
-- Creates/synchronizes `x-openapi-flow.flows.yaml` (sidecar with your lifecycle definitions)
+- Creates/synchronizes `{context}-openapi-flow.(json|yaml)` (sidecar with your lifecycle definitions)
 - Re-applies existing `x-openapi-flow` blocks into your OpenAPI file
 
 Project file roles:
 
 - Source of truth for API shape: your generated OpenAPI file (`openapi.yaml`)
-- Source of truth for lifecycle metadata: `x-openapi-flow.flows.yaml`
+- Source of truth for lifecycle metadata: `{context}-openapi-flow.(json|yaml)`
 - CLI/config: `x-openapi-flow.config.json` (optional)
 
 Recommended update loop:
@@ -175,7 +175,7 @@ x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
 ```
 
 `init` works on an existing OpenAPI file in your repository. It auto-discovers common names (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.) when no path is provided.
-`init` also creates/synchronizes a sidecar file (`x-openapi-flow.flows.yaml`) to persist your `x-openapi-flow` definitions across OpenAPI regenerations.
+`init` also creates/synchronizes a sidecar file named from the OpenAPI context (for example, `swagger-openapi-flow.json` or `openapi-openapi-flow.yaml`) to persist your `x-openapi-flow` definitions across OpenAPI regenerations.
 Use `apply` after regenerating your OpenAPI file to re-inject persisted `x-openapi-flow` blocks from the sidecar.
 If no OpenAPI/Swagger file exists yet, create one with your framework's official OpenAPI/Swagger generator first.
 
@@ -187,7 +187,7 @@ If no OpenAPI/Swagger file exists yet, create one with your framework's official
 # 2) initialize and sync sidecar
 x-openapi-flow init openapi.yaml
 
-# 3) edit x-openapi-flow.flows.yaml with your flow states/transitions
+# 3) edit {context}-openapi-flow.(json|yaml) with your flow states/transitions
 
 # 4) whenever OpenAPI is regenerated, re-apply flows
 x-openapi-flow apply openapi.yaml

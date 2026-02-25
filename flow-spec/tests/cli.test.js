@@ -102,9 +102,9 @@ test("init succeeds with explicit existing OpenAPI file", () => {
     assert.match(result.stdout, /Tracked operations: 1/);
     assert.match(result.stdout, /Validate now: x-openapi-flow validate/);
 
-    const sidecarPath = path.join(tempDir, "x-openapi-flow.flows.yaml");
+    const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
     const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
-    assert.match(sidecarContent, /operationId:listItems/);
+    assert.match(sidecarContent, /operationId: listItems/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -133,7 +133,7 @@ test("init auto-discovers openapi file in current project", () => {
 test("init preserves sidecar x-openapi-flow and apply injects into regenerated OpenAPI", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-sidecar-"));
   const openapiPath = path.join(tempDir, "openapi.yaml");
-  const sidecarPath = path.join(tempDir, "x-openapi-flow.flows.yaml");
+  const sidecarPath = path.join(tempDir, "openapi-openapi-flow.yaml");
 
   try {
     fs.writeFileSync(
@@ -147,7 +147,7 @@ test("init preserves sidecar x-openapi-flow and apply injects into regenerated O
 
     fs.writeFileSync(
       sidecarPath,
-      `version: '1.0'\noperations:\n  - key: operationId:getOrder\n    operationId: getOrder\n    method: get\n    path: /orders/{id}\n    x-openapi-flow:\n      version: '1.0'\n      id: getOrderFlow\n      current_state: CREATED\n      states: [CREATED, DONE]\n      transitions:\n        - from: CREATED\n          to: DONE\n          action: complete\n`,
+      `version: '1.0'\noperations:\n  - operationId: getOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: getOrderFlow\n      current_state: CREATED\n      states: [CREATED, DONE]\n      transitions:\n        - from: CREATED\n          to: DONE\n          action: complete\n`,
       "utf8"
     );
 

@@ -54,7 +54,7 @@ x-openapi-flow doctor [--config path]
 ## Sidecar Workflow
 
 `init` always works on an existing OpenAPI file in your repository.
-`init` creates/synchronizes `x-openapi-flow.flows.yaml` as a persistent sidecar for your `x-openapi-flow` data.
+`init` creates/synchronizes `{context}-openapi-flow.(json|yaml)` as a persistent sidecar for your `x-openapi-flow` data.
 Use `apply` to inject sidecar flows back into regenerated OpenAPI files.
 If no OpenAPI/Swagger file exists yet, generate one first with your framework's official OpenAPI/Swagger tooling.
 
@@ -62,7 +62,7 @@ If no OpenAPI/Swagger file exists yet, generate one first with your framework's 
 
 ```bash
 x-openapi-flow init openapi.yaml
-# edit x-openapi-flow.flows.yaml
+# edit {context}-openapi-flow.(json|yaml)
 x-openapi-flow apply openapi.yaml
 ```
 

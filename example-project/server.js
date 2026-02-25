@@ -1,14 +1,10 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
-const yaml = require('js-yaml');
 const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
-const openapiPath = path.join(__dirname, 'openapi.yaml');
-const openapiDocument = yaml.load(fs.readFileSync(openapiPath, 'utf8'));
+const specUrl = process.env.SWAGGER_SPEC_URL || '/swagger.json';
 const nativePluginPath = path.join(
   __dirname,
   'node_modules',
@@ -17,6 +13,8 @@ const nativePluginPath = path.join(
   'swagger-ui',
   'x-openapi-flow-plugin.js'
 );
+
+app.use(express.static(__dirname));
 
 app.get('/x-openapi-flow-plugin.js', (_req, res) => {
   res.sendFile(nativePluginPath);
@@ -29,11 +27,12 @@ app.get('/', (_req, res) => {
 app.use(
   '/docs',
   swaggerUi.serve,
-  swaggerUi.setup(openapiDocument, {
+  swaggerUi.setup(null, {
     customJs: '/x-openapi-flow-plugin.js',
     explorer: true,
     swaggerOptions: {
-      showExtensions: true
+      showExtensions: true,
+      url: specUrl
     }
   })
 );

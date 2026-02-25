@@ -53,7 +53,7 @@ Examples:
   x-openapi-flow validate examples/order-api.yaml
   x-openapi-flow validate examples/order-api.yaml --profile relaxed
   x-openapi-flow validate examples/order-api.yaml --strict-quality
-  x-openapi-flow init openapi.yaml --flows x-openapi-flow.flows.yaml
+  x-openapi-flow init openapi.yaml --flows openapi-openapi-flow.yaml
   x-openapi-flow init
   x-openapi-flow apply openapi.yaml
   x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
@@ -386,7 +386,10 @@ function resolveFlowsPath(openApiFile, customFlowsPath) {
   }
 
   if (openApiFile) {
-    return path.join(path.dirname(openApiFile), DEFAULT_FLOWS_FILE);
+    const parsed = path.parse(openApiFile);
+    const extension = parsed.ext.toLowerCase() === ".json" ? ".json" : ".yaml";
+    const fileName = `${parsed.name}-openapi-flow${extension}`;
+    return path.join(path.dirname(openApiFile), fileName);
   }
 
   return path.resolve(process.cwd(), DEFAULT_FLOWS_FILE);
@@ -426,6 +429,7 @@ function extractOperationEntries(api) {
         operationId,
         method,
         path: pathKey,
+        operation,
       });
     }
   }
@@ -456,7 +460,9 @@ function readFlowsFile(flowsPath) {
 
 function writeFlowsFile(flowsPath, flowsDoc) {
   fs.mkdirSync(path.dirname(flowsPath), { recursive: true });
-  const content = yaml.dump(flowsDoc, { noRefs: true, lineWidth: -1 });
+  const content = flowsPath.endsWith(".json")
+    ? `${JSON.stringify(flowsDoc, null, 2)}\n`
+    : yaml.dump(flowsDoc, { noRefs: true, lineWidth: -1 });
   fs.writeFileSync(flowsPath, content, "utf8");
 }
 
@@ -476,51 +482,45 @@ function buildOperationLookup(api) {
 }
 
 function mergeFlowsWithOpenApi(api, flowsDoc) {
-  const { entries, lookupByKey, lookupByOperationId } = buildOperationLookup(api);
+  const { entries, lookupByKey } = buildOperationLookup(api);
 
+  const existingByOperationId = new Map();
   const existingByKey = new Map();
   for (const entry of flowsDoc.operations) {
-    const entryKey = entry.key || (entry.operationId ? `operationId:${entry.operationId}` : null);
-    if (entryKey) {
-      existingByKey.set(entryKey, entry);
+    if (entry && entry.operationId) {
+      existingByOperationId.set(entry.operationId, entry);
+    }
+
+    const legacyKey = entry && entry.key ? entry.key : null;
+    if (legacyKey) {
+      existingByKey.set(legacyKey, entry);
     }
   }
 
   const mergedOperations = [];
 
   for (const op of entries) {
-    const existing = existingByKey.get(op.key);
-    if (existing) {
-      mergedOperations.push({
-        ...existing,
-        key: op.key,
-        operationId: op.operationId,
-        method: op.method,
-        path: op.path,
-        missing_in_openapi: false,
-      });
-    } else {
-      mergedOperations.push({
-        key: op.key,
-        operationId: op.operationId,
-        method: op.method,
-        path: op.path,
-        "x-openapi-flow": null,
-        missing_in_openapi: false,
-      });
-    }
-  }
+    const existing = (op.operationId && existingByOperationId.get(op.operationId))
+      || existingByKey.get(op.key);
 
-  for (const existing of flowsDoc.operations) {
-    const existingKey = existing.key || (existing.operationId ? `operationId:${existing.operationId}` : null);
-    const found = existingKey && lookupByKey.has(existingKey);
+    const openApiFlow =
+      op.operation && typeof op.operation["x-openapi-flow"] === "object"
+        ? op.operation["x-openapi-flow"]
+        : null;
 
-    if (!found) {
-      mergedOperations.push({
-        ...existing,
-        missing_in_openapi: true,
-      });
+    const sidecarFlow =
+      existing && typeof existing["x-openapi-flow"] === "object"
+        ? existing["x-openapi-flow"]
+        : null;
+
+    if (!op.operationId) {
+      continue;
     }
+
+    mergedOperations.push({
+      operationId: op.operationId,
+      "x-openapi-flow": sidecarFlow || openApiFlow || null,
+    });
   }
 
   return {
@@ -535,12 +535,12 @@ function applyFlowsToOpenApi(api, flowsDoc) {
   const { lookupByKey, lookupByOperationId } = buildOperationLookup(api);
 
   for (const flowEntry of flowsDoc.operations || []) {
-    if (!flowEntry || flowEntry.missing_in_openapi === true) {
+    if (!flowEntry) {
       continue;
     }
 
     const flowValue = flowEntry["x-openapi-flow"];
-    if (!flowValue || typeof flowValue !== "object") {
+    if (!flowValue || typeof flowValue !== "object" || Object.keys(flowValue).length === 0) {
       continue;
     }
 
@@ -595,19 +595,12 @@ function runInit(parsed) {
 
   const mergedFlows = mergeFlowsWithOpenApi(api, flowsDoc);
   writeFlowsFile(flowsPath, mergedFlows);
-  const appliedCount = applyFlowsToOpenApi(api, mergedFlows);
-  saveOpenApi(targetOpenApiFile, api);
-
-  const trackedCount = mergedFlows.operations.filter((entry) => !entry.missing_in_openapi).length;
-  const orphanCount = mergedFlows.operations.filter((entry) => entry.missing_in_openapi).length;
+  const trackedCount = mergedFlows.operations.length;
 
   console.log(`Using existing OpenAPI file: ${targetOpenApiFile}`);
   console.log(`Flows sidecar synced: ${flowsPath}`);
   console.log(`Tracked operations: ${trackedCount}`);
-  if (orphanCount > 0) {
-    console.log(`Orphan flow entries kept in sidecar: ${orphanCount}`);
-  }
-  console.log(`Applied x-openapi-flow entries to OpenAPI: ${appliedCount}`);
+  console.log("OpenAPI source unchanged. Edit the sidecar and run apply to generate the full spec.");
 
   console.log(`Validate now: x-openapi-flow validate ${targetOpenApiFile}`);
   return 0;
