@@ -26,6 +26,9 @@ Open:
 - Custom plugin adds a panel in operation summary with:
   - `version`
   - `current_state`
+- Plugin can also render a graph image using:
+  - `x-openapi-flow.graph_image_url`, or
+  - `window.XOpenApiFlowGraphImageUrl`
 
 ## Example result image
 

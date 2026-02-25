@@ -12,6 +12,36 @@ window.XOpenApiFlowPlugin = function () {
         const flowObject = flow && flow.toJS ? flow.toJS() : flow;
         const currentState = flowObject.current_state || "-";
         const version = flowObject.version || "-";
+        const graphImageUrl = flowObject.graph_image_url || window.XOpenApiFlowGraphImageUrl;
+
+        const graphImageNode = graphImageUrl
+          ? React.createElement(
+              "div",
+              { style: { marginTop: "10px" } },
+              React.createElement(
+                "div",
+                {
+                  style: {
+                    fontWeight: 600,
+                    marginBottom: "6px",
+                    color: "#111827",
+                  },
+                },
+                "Flow graph image"
+              ),
+              React.createElement("img", {
+                src: graphImageUrl,
+                alt: "x-openapi-flow graph",
+                style: {
+                  width: "100%",
+                  maxWidth: "560px",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "6px",
+                  background: "#fff",
+                },
+              })
+            )
+          : null;
 
         return React.createElement(
           "div",
@@ -37,7 +67,8 @@ window.XOpenApiFlowPlugin = function () {
               version,
               " | current_state: ",
               currentState
-            )
+            ),
+            graphImageNode
           )
         );
       },

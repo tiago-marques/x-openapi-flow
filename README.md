@@ -225,6 +225,7 @@ To visualize and interpret `x-openapi-flow` in Swagger UI:
 3. Open `flow-spec/examples/swagger-ui/index.html` and point it to your OpenAPI file.
 
 This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.
+It can also render a graph image if `graph_image_url` is present in `x-openapi-flow` (or if `window.XOpenApiFlowGraphImageUrl` is configured).
 
 Example result image:
 
