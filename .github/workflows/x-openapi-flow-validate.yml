@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate x-flow examples
+      - name: Validate x-openapi-flow examples
         run: |
           node bin/x-openapi-flow.js validate examples/payment-api.yaml --profile strict --strict-quality
           node bin/x-openapi-flow.js validate examples/order-api.yaml --profile strict --strict-quality

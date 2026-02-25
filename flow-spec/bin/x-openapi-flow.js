@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const yaml = require("js-yaml");
 const {
   run,
   loadApi,
@@ -11,6 +12,7 @@ const {
 } = require("../lib/validator");
 
 const DEFAULT_CONFIG_NAME = "x-openapi-flow.config.json";
+const DEFAULT_FLOWS_FILE = "x-openapi-flow.flows.yaml";
 
 function resolveConfigPath(configPathArg) {
   return configPathArg
@@ -42,7 +44,8 @@ function printHelp() {
 
 Usage:
   x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
-  x-openapi-flow init [output-file] [--title "My API"]
+  x-openapi-flow init [openapi-file] [--flows path]
+  x-openapi-flow apply [openapi-file] [--flows path] [--out path]
   x-openapi-flow graph <openapi-file> [--format mermaid|json]
   x-openapi-flow doctor [--config path]
   x-openapi-flow --help
@@ -51,7 +54,10 @@ Examples:
   x-openapi-flow validate examples/order-api.yaml
   x-openapi-flow validate examples/order-api.yaml --profile relaxed
   x-openapi-flow validate examples/order-api.yaml --strict-quality
-  x-openapi-flow init my-api.yaml --title "Orders API"
+  x-openapi-flow init openapi.yaml --flows x-openapi-flow.flows.yaml
+  x-openapi-flow init
+  x-openapi-flow apply openapi.yaml
+  x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
   x-openapi-flow graph examples/order-api.yaml
   x-openapi-flow doctor
 `);
@@ -163,21 +169,21 @@ function parseValidateArgs(args) {
 }
 
 function parseInitArgs(args) {
-  const unknown = findUnknownOptions(args, ["--title"], []);
+  const unknown = findUnknownOptions(args, ["--flows"], []);
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
   }
 
-  const titleOpt = getOptionValue(args, "--title");
-  if (titleOpt.error) {
-    return { error: titleOpt.error };
+  const flowsOpt = getOptionValue(args, "--flows");
+  if (flowsOpt.error) {
+    return { error: flowsOpt.error };
   }
 
   const positional = args.filter((token, index) => {
-    if (token === "--title") {
+    if (token === "--flows") {
       return false;
     }
-    if (index > 0 && args[index - 1] === "--title") {
+    if (index > 0 && args[index - 1] === "--flows") {
       return false;
     }
     return !token.startsWith("--");
@@ -188,8 +194,45 @@ function parseInitArgs(args) {
   }
 
   return {
-    outputFile: path.resolve(positional[0] || "x-flow-api.yaml"),
-    title: titleOpt.found ? titleOpt.value : "Sample API",
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
+  };
+}
+
+function parseApplyArgs(args) {
+  const unknown = findUnknownOptions(args, ["--flows", "--out"], []);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const flowsOpt = getOptionValue(args, "--flows");
+  if (flowsOpt.error) {
+    return { error: flowsOpt.error };
+  }
+
+  const outOpt = getOptionValue(args, "--out");
+  if (outOpt.error) {
+    return { error: outOpt.error };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--flows" || token === "--out") {
+      return false;
+    }
+    if (index > 0 && (args[index - 1] === "--flows" || args[index - 1] === "--out")) {
+      return false;
+    }
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
+    outPath: outOpt.found ? path.resolve(outOpt.value) : undefined,
   };
 }
 
@@ -274,6 +317,11 @@ function parseArgs(argv) {
     return parsed.error ? parsed : { command, ...parsed };
   }
 
+  if (command === "apply") {
+    const parsed = parseApplyArgs(commandArgs);
+    return parsed.error ? parsed : { command, ...parsed };
+  }
+
   if (command === "doctor") {
     const parsed = parseDoctorArgs(commandArgs);
     return parsed.error ? parsed : { command, ...parsed };
@@ -282,51 +330,330 @@ function parseArgs(argv) {
   return { error: `Unknown command: ${command}` };
 }
 
-function buildTemplate(title) {
-  return `openapi: "3.0.3"
-info:
-  title: ${title}
-  version: "1.0.0"
-paths:
-  /resources:
-    post:
-      summary: Create resource
-      operationId: createResource
-      x-flow:
-        version: "1.0"
-        id: create-resource-flow
-        current_state: CREATED
-        transitions:
-          - target_state: COMPLETED
-            condition: Resource reaches terminal condition.
-            trigger_type: synchronous
-      responses:
-        "201":
-          description: Resource created.
+function findOpenApiFile(startDirectory) {
+  const preferredNames = [
+    "openapi.yaml",
+    "openapi.yml",
+    "openapi.json",
+    "swagger.yaml",
+    "swagger.yml",
+    "swagger.json",
+  ];
 
-  /resources/{id}/complete:
-    post:
-      summary: Complete resource
-      operationId: completeResource
-      x-flow:
-        version: "1.0"
-        id: complete-resource-flow
-        current_state: COMPLETED
-      responses:
-        "200":
-          description: Resource completed.
-`;
+  for (const fileName of preferredNames) {
+    const candidate = path.join(startDirectory, fileName);
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  const ignoredDirs = new Set(["node_modules", ".git", "dist", "build"]);
+
+  function walk(directory) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(directory, { withFileTypes: true });
+    } catch (_err) {
+      return null;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(directory, entry.name);
+
+      if (entry.isDirectory()) {
+        if (!ignoredDirs.has(entry.name)) {
+          const nested = walk(fullPath);
+          if (nested) {
+            return nested;
+          }
+        }
+        continue;
+      }
+
+      if (preferredNames.includes(entry.name)) {
+        return fullPath;
+      }
+    }
+
+    return null;
+  }
+
+  return walk(startDirectory);
+}
+
+function resolveFlowsPath(openApiFile, customFlowsPath) {
+  if (customFlowsPath) {
+    return customFlowsPath;
+  }
+
+  if (openApiFile) {
+    return path.join(path.dirname(openApiFile), DEFAULT_FLOWS_FILE);
+  }
+
+  return path.resolve(process.cwd(), DEFAULT_FLOWS_FILE);
+}
+
+function getOpenApiFormat(filePath) {
+  return filePath.endsWith(".json") ? "json" : "yaml";
+}
+
+function saveOpenApi(filePath, api) {
+  const format = getOpenApiFormat(filePath);
+  const content = format === "json"
+    ? JSON.stringify(api, null, 2) + "\n"
+    : yaml.dump(api, { noRefs: true, lineWidth: -1 });
+
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, "utf8");
+}
+
+function extractOperationEntries(api) {
+  const entries = [];
+  const paths = (api && api.paths) || {};
+  const httpMethods = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
+
+  for (const [pathKey, pathItem] of Object.entries(paths)) {
+    for (const method of httpMethods) {
+      const operation = pathItem[method];
+      if (!operation) {
+        continue;
+      }
+
+      const operationId = operation.operationId;
+      const key = operationId ? `operationId:${operationId}` : `${method.toUpperCase()} ${pathKey}`;
+
+      entries.push({
+        key,
+        operationId,
+        method,
+        path: pathKey,
+      });
+    }
+  }
+
+  return entries;
+}
+
+function readFlowsFile(flowsPath) {
+  if (!fs.existsSync(flowsPath)) {
+    return {
+      version: "1.0",
+      operations: [],
+    };
+  }
+
+  const content = fs.readFileSync(flowsPath, "utf8");
+  const parsed = yaml.load(content);
+
+  if (!parsed || typeof parsed !== "object") {
+    return { version: "1.0", operations: [] };
+  }
+
+  return {
+    version: parsed.version || "1.0",
+    operations: Array.isArray(parsed.operations) ? parsed.operations : [],
+  };
+}
+
+function writeFlowsFile(flowsPath, flowsDoc) {
+  fs.mkdirSync(path.dirname(flowsPath), { recursive: true });
+  const content = yaml.dump(flowsDoc, { noRefs: true, lineWidth: -1 });
+  fs.writeFileSync(flowsPath, content, "utf8");
+}
+
+function buildOperationLookup(api) {
+  const lookupByKey = new Map();
+  const lookupByOperationId = new Map();
+  const entries = extractOperationEntries(api);
+
+  for (const entry of entries) {
+    lookupByKey.set(entry.key, entry);
+    if (entry.operationId) {
+      lookupByOperationId.set(entry.operationId, entry);
+    }
+  }
+
+  return { entries, lookupByKey, lookupByOperationId };
+}
+
+function mergeFlowsWithOpenApi(api, flowsDoc) {
+  const { entries, lookupByKey, lookupByOperationId } = buildOperationLookup(api);
+
+  const existingByKey = new Map();
+  for (const entry of flowsDoc.operations) {
+    const entryKey = entry.key || (entry.operationId ? `operationId:${entry.operationId}` : null);
+    if (entryKey) {
+      existingByKey.set(entryKey, entry);
+    }
+  }
+
+  const mergedOperations = [];
+
+  for (const op of entries) {
+    const existing = existingByKey.get(op.key);
+    if (existing) {
+      mergedOperations.push({
+        ...existing,
+        key: op.key,
+        operationId: op.operationId,
+        method: op.method,
+        path: op.path,
+        missing_in_openapi: false,
+      });
+    } else {
+      mergedOperations.push({
+        key: op.key,
+        operationId: op.operationId,
+        method: op.method,
+        path: op.path,
+        "x-openapi-flow": null,
+        missing_in_openapi: false,
+      });
+    }
+  }
+
+  for (const existing of flowsDoc.operations) {
+    const existingKey = existing.key || (existing.operationId ? `operationId:${existing.operationId}` : null);
+    const found = existingKey && lookupByKey.has(existingKey);
+
+    if (!found) {
+      mergedOperations.push({
+        ...existing,
+        missing_in_openapi: true,
+      });
+    }
+  }
+
+  return {
+    version: "1.0",
+    operations: mergedOperations,
+  };
+}
+
+function applyFlowsToOpenApi(api, flowsDoc) {
+  const paths = (api && api.paths) || {};
+  let appliedCount = 0;
+  const { lookupByKey, lookupByOperationId } = buildOperationLookup(api);
+
+  for (const flowEntry of flowsDoc.operations || []) {
+    if (!flowEntry || flowEntry.missing_in_openapi === true) {
+      continue;
+    }
+
+    const flowValue = flowEntry["x-openapi-flow"];
+    if (!flowValue || typeof flowValue !== "object") {
+      continue;
+    }
+
+    let target = null;
+    if (flowEntry.operationId && lookupByOperationId.has(flowEntry.operationId)) {
+      target = lookupByOperationId.get(flowEntry.operationId);
+    } else if (flowEntry.key && lookupByKey.has(flowEntry.key)) {
+      target = lookupByKey.get(flowEntry.key);
+    }
+
+    if (!target) {
+      continue;
+    }
+
+    const pathItem = paths[target.path];
+    if (pathItem && pathItem[target.method]) {
+      pathItem[target.method]["x-openapi-flow"] = flowValue;
+      appliedCount += 1;
+    }
+  }
+
+  return appliedCount;
 }
 
 function runInit(parsed) {
-  if (fs.existsSync(parsed.outputFile)) {
-    console.error(`ERROR: File already exists: ${parsed.outputFile}`);
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    console.error("Create your OpenAPI/Swagger spec first (using your framework's official generator), then run init again.");
     return 1;
   }
 
-  fs.writeFileSync(parsed.outputFile, buildTemplate(parsed.title), "utf8");
-  console.log(`Template created: ${parsed.outputFile}`);
-  console.log(`Next step: x-openapi-flow validate ${parsed.outputFile}`);
+  const flowsPath = resolveFlowsPath(targetOpenApiFile, parsed.flowsPath);
+
+  let api;
+  try {
+    api = loadApi(targetOpenApiFile);
+  } catch (err) {
+    console.error(`ERROR: Could not parse OpenAPI file — ${err.message}`);
+    return 1;
+  }
+
+  let flowsDoc;
+  try {
+    flowsDoc = readFlowsFile(flowsPath);
+  } catch (err) {
+    console.error(`ERROR: Could not parse flows file — ${err.message}`);
+    return 1;
+  }
+
+  const mergedFlows = mergeFlowsWithOpenApi(api, flowsDoc);
+  writeFlowsFile(flowsPath, mergedFlows);
+  const appliedCount = applyFlowsToOpenApi(api, mergedFlows);
+  saveOpenApi(targetOpenApiFile, api);
+
+  const trackedCount = mergedFlows.operations.filter((entry) => !entry.missing_in_openapi).length;
+  const orphanCount = mergedFlows.operations.filter((entry) => entry.missing_in_openapi).length;
+
+  console.log(`Using existing OpenAPI file: ${targetOpenApiFile}`);
+  console.log(`Flows sidecar synced: ${flowsPath}`);
+  console.log(`Tracked operations: ${trackedCount}`);
+  if (orphanCount > 0) {
+    console.log(`Orphan flow entries kept in sidecar: ${orphanCount}`);
+  }
+  console.log(`Applied x-openapi-flow entries to OpenAPI: ${appliedCount}`);
+
+  console.log(`Validate now: x-openapi-flow validate ${targetOpenApiFile}`);
+  return 0;
+}
+
+function runApply(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  const flowsPath = resolveFlowsPath(targetOpenApiFile, parsed.flowsPath);
+  if (!fs.existsSync(flowsPath)) {
+    console.error(`ERROR: Flows sidecar not found: ${flowsPath}`);
+    console.error("Run `x-openapi-flow init` first to create and sync the sidecar.");
+    return 1;
+  }
+
+  let api;
+  let flowsDoc;
+  try {
+    api = loadApi(targetOpenApiFile);
+  } catch (err) {
+    console.error(`ERROR: Could not parse OpenAPI file — ${err.message}`);
+    return 1;
+  }
+
+  try {
+    flowsDoc = readFlowsFile(flowsPath);
+  } catch (err) {
+    console.error(`ERROR: Could not parse flows file — ${err.message}`);
+    return 1;
+  }
+
+  const appliedCount = applyFlowsToOpenApi(api, flowsDoc);
+  const outputPath = parsed.outPath || targetOpenApiFile;
+  saveOpenApi(outputPath, api);
+
+  console.log(`OpenAPI source: ${targetOpenApiFile}`);
+  console.log(`Flows sidecar: ${flowsPath}`);
+  console.log(`Applied x-openapi-flow entries: ${appliedCount}`);
+  console.log(`Output written to: ${outputPath}`);
   return 0;
 }
 
@@ -438,6 +765,10 @@ function main() {
 
   if (parsed.command === "graph") {
     process.exit(runGraph(parsed));
+  }
+
+  if (parsed.command === "apply") {
+    process.exit(runApply(parsed));
   }
 
   const config = loadConfig(parsed.configPath);

@@ -24,7 +24,7 @@ This release focuses on developer experience (DX), with a more complete CLI, pro
 
 ## Breaking / Contract Changes
 
-- The `x-flow` object now requires `version: "1.0"`.
+- The `x-openapi-flow` object now requires `version: "1.0"`.
 
 ## Quality and Examples
 

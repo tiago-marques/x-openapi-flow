@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2 - 2026-02-25
+
+### Added
+- Swagger UI integration example with plugin for rendering `x-openapi-flow` operation details.
+- Ready-to-run Swagger UI sample page at `flow-spec/examples/swagger-ui/index.html`.
+
+### Changed
+- OpenAPI extension key renamed from `x-flow` to `x-openapi-flow` across validator, CLI sidecar apply flow, tests, fixtures, examples, and docs.
+- JSON Schema metadata updated to `x-openapi-flow` naming (`$id`, title, descriptions).
+
 ## 1.1.1 - 2026-02-25
 
 ### Changed
@@ -20,7 +30,7 @@
 
 ### Changed
 - npm package renamed to `x-openapi-flow`.
-- `x-flow` schema now requires `version: "1.0"`.
+- `x-openapi-flow` schema now requires `version: "1.0"`.
 - Improved schema error messages with fix suggestions.
 - README reorganized with quickstart, profiles, and CI integration.
 

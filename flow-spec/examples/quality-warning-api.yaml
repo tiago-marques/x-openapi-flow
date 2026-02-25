@@ -10,7 +10,7 @@ paths:
     post:
       summary: Start flow A
       operationId: startA
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: start-a-flow
         current_state: A_START
@@ -29,7 +29,7 @@ paths:
     post:
       summary: Complete flow A
       operationId: doneA
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: done-a-flow
         current_state: A_DONE
@@ -41,7 +41,7 @@ paths:
     post:
       summary: Start flow B
       operationId: startB
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: start-b-flow
         current_state: B_START
@@ -57,7 +57,7 @@ paths:
     post:
       summary: Complete flow B
       operationId: doneB
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: done-b-flow
         current_state: B_DONE

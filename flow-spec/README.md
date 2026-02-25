@@ -1,6 +1,6 @@
 # x-openapi-flow
 
-CLI and specification for validating the `x-flow` extension field in OpenAPI documents.
+CLI and specification for validating the `x-openapi-flow` extension field in OpenAPI documents.
 
 ## Installation
 
@@ -20,9 +20,23 @@ x-openapi-flow doctor
 
 ```bash
 x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
-x-openapi-flow init [output-file] [--title "My API"]
+x-openapi-flow init [openapi-file] [--flows path]
+x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 x-openapi-flow graph <openapi-file> [--format mermaid|json]
 x-openapi-flow doctor [--config path]
+```
+
+`init` always works on an existing OpenAPI file in your repository.
+`init` creates/synchronizes `x-openapi-flow.flows.yaml` as a persistent sidecar for your `x-openapi-flow` data.
+Use `apply` to inject sidecar flows back into regenerated OpenAPI files.
+If no OpenAPI/Swagger file exists yet, generate one first with your framework's official OpenAPI/Swagger tooling.
+
+## Recommended Workflow
+
+```bash
+x-openapi-flow init openapi.yaml
+# edit x-openapi-flow.flows.yaml
+x-openapi-flow apply openapi.yaml
 ```
 
 ## Optional Configuration
@@ -40,7 +54,13 @@ Create `x-openapi-flow.config.json` in your project directory:
 ## File Compatibility
 
 - OpenAPI input in `.yaml`, `.yml`, and `.json`
-- Validation processes OAS content with the `x-flow` extension
+- Validation processes OAS content with the `x-openapi-flow` extension
+
+## Swagger UI
+
+- There is no Swagger UI-based automated test in this repo today (tests are CLI-only).
+- For UI interpretation of `x-openapi-flow`, use `showExtensions: true` plus the example plugin at `examples/swagger-ui/x-openapi-flow-plugin.js`.
+- A ready HTML example is available at `examples/swagger-ui/index.html`.
 
 ## Repository and Full Documentation
 

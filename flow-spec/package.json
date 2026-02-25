@@ -1,6 +1,6 @@
 {
   "name": "x-openapi-flow",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "OpenAPI extension for resource workflow and lifecycle management",
   "main": "lib/validator.js",
   "repository": {
@@ -39,7 +39,7 @@
     "openapi-flow",
     "workflow",
     "lifecycle",
-    "x-flow"
+    "x-openapi-flow"
   ],
   "license": "MIT",
   "dependencies": {

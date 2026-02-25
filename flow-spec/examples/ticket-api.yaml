@@ -3,14 +3,14 @@ info:
   title: Support Ticket API
   version: "1.0.0"
   description: >
-    Example API demonstrating x-flow for support ticket lifecycle.
+    Example API demonstrating x-openapi-flow for support ticket lifecycle.
 
 paths:
   /tickets:
     post:
       summary: Open a support ticket
       operationId: openTicket
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: open-ticket-flow
         current_state: OPEN
@@ -27,7 +27,7 @@ paths:
     post:
       summary: Start ticket handling
       operationId: startTicket
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: start-ticket-flow
         current_state: IN_PROGRESS
@@ -53,7 +53,7 @@ paths:
     post:
       summary: Wait for customer response
       operationId: waitCustomer
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: wait-customer-flow
         current_state: WAITING_CUSTOMER
@@ -76,7 +76,7 @@ paths:
     post:
       summary: Resolve ticket
       operationId: resolveTicket
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: resolve-ticket-flow
         current_state: RESOLVED
@@ -99,7 +99,7 @@ paths:
     post:
       summary: Close ticket
       operationId: closeTicket
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: close-ticket-flow
         current_state: CLOSED

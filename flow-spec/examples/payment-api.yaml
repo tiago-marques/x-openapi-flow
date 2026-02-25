@@ -3,14 +3,14 @@ info:
   title: Payment API
   version: "1.0.0"
   description: >
-    Simple payment API demonstrating the x-flow extension for OpenAPI Spec.
+    Simple payment API demonstrating the x-openapi-flow extension for OpenAPI Spec.
 
 paths:
   /payments:
     post:
       summary: Create and authorize a payment
       operationId: createPayment
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: create-payment-flow
         current_state: AUTHORIZED
@@ -44,7 +44,7 @@ paths:
     post:
       summary: Capture an authorized payment
       operationId: capturePayment
-      x-flow:
+      x-openapi-flow:
         version: "1.0"
         id: capture-payment-flow
         current_state: CAPTURED

@@ -8,7 +8,7 @@
 [![open issues](https://img.shields.io/github/issues/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/issues)
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
 
-`x-openapi-flow` is the package/CLI used to validate the OpenAPI `x-flow` extension and describe resource lifecycle workflows (not limited to payments).
+`x-openapi-flow` is the package/CLI used to validate the OpenAPI `x-openapi-flow` extension and describe resource lifecycle workflows (not limited to payments).
 
 It allows documenting, per operation, the current state (`current_state`) and possible transitions (`transitions`) with explicit triggers.
 
@@ -25,12 +25,12 @@ node bin/x-openapi-flow.js validate examples/order-api.yaml
 - `flow-spec/schema/flow-schema.json`: extension JSON Schema contract.
 - `flow-spec/lib/validator.js`: validation engine (schema + graph consistency).
 - `flow-spec/bin/x-openapi-flow.js`: validation CLI.
-- `flow-spec/examples/*.yaml`: OpenAPI examples with `x-flow`.
+- `flow-spec/examples/*.yaml`: OpenAPI examples with `x-openapi-flow`.
 - `.github/workflows/x-openapi-flow-validate.yml`: CI validation workflow example.
 
-## Minimum Contract (`x-flow`)
+## Minimum Contract (`x-openapi-flow`)
 
-Each `x-flow` block must include:
+Each `x-openapi-flow` block must include:
 
 - `version`: extension contract version (`"1.0"`)
 - `id`: unique identifier of the flow step
@@ -48,7 +48,8 @@ npm test
 
 ```bash
 x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
-x-openapi-flow init [output-file] [--title "My API"]
+x-openapi-flow init [openapi-file] [--flows path]
+x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 x-openapi-flow graph <openapi-file> [--format mermaid|json]
 x-openapi-flow doctor [--config path]
 ```
@@ -62,7 +63,7 @@ npm install x-openapi-flow
 Try instantly with npx:
 
 ```bash
-npx --yes x-openapi-flow init my-api.yaml --title "My API"
+npx x-openapi-flow init
 ```
 
 Installed global command:
@@ -82,9 +83,31 @@ x-openapi-flow validate examples/ticket-api.yaml --format json
 x-openapi-flow validate examples/quality-warning-api.yaml
 x-openapi-flow validate examples/quality-warning-api.yaml --strict-quality
 x-openapi-flow validate examples/non-terminating-api.yaml --format json
-x-openapi-flow init my-api.yaml --title "Orders API"
+x-openapi-flow init openapi.yaml
+x-openapi-flow init
+x-openapi-flow apply openapi.yaml
+x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
 x-openapi-flow graph examples/order-api.yaml
 x-openapi-flow doctor
+```
+
+`init` works on an existing OpenAPI file in your repository. It auto-discovers common names (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.) when no path is provided.
+`init` also creates/synchronizes a sidecar file (`x-openapi-flow.flows.yaml`) to persist your `x-openapi-flow` definitions across OpenAPI regenerations.
+Use `apply` after regenerating your OpenAPI file to re-inject persisted `x-openapi-flow` blocks from the sidecar.
+If no OpenAPI/Swagger file exists yet, create one with your framework's official OpenAPI/Swagger generator first.
+
+## Regeneration Workflow (Recommended)
+
+```bash
+# 1) generate/open your OpenAPI file (framework-specific)
+
+# 2) initialize and sync sidecar
+x-openapi-flow init openapi.yaml
+
+# 3) edit x-openapi-flow.flows.yaml with your flow states/transitions
+
+# 4) whenever OpenAPI is regenerated, re-apply flows
+x-openapi-flow apply openapi.yaml
 ```
 
 ## Validation Profiles
@@ -109,7 +132,7 @@ Example file: `flow-spec/x-openapi-flow.config.example.json`.
 
 ## What Gets Validated
 
-1. **Schema validation**: enforces shape and required fields of `x-flow`.
+1. **Schema validation**: enforces shape and required fields of `x-openapi-flow`.
 2. **Graph validation**: detects orphan `target_state` entries (without matching `current_state` in any operation).
 3. **Advanced graph checks**:
 	- requires at least one initial state (`indegree = 0`)
@@ -133,6 +156,18 @@ Example:
 x-openapi-flow graph examples/order-api.yaml
 ```
 
+## Swagger UI Integration
+
+Current automated tests in this repository use only CLI execution (`node:test`) and do not use Swagger UI, ReDoc, or RapiDoc.
+
+To visualize and interpret `x-openapi-flow` in Swagger UI:
+
+1. Enable vendor extension rendering with `showExtensions: true`.
+2. Use the example plugin in `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js`.
+3. Open `flow-spec/examples/swagger-ui/index.html` and point it to your OpenAPI file.
+
+This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.
+
 ## Ready-to-Use CI
 
 There is a ready-to-use workflow in `.github/workflows/x-openapi-flow-validate.yml`.
@@ -141,7 +176,7 @@ To adapt it to your real OpenAPI files, update the paths in the `Validate x-open
 ## Changelog
 
 Version history is tracked in `CHANGELOG.md`.
-Release notes are available in `RELEASE_NOTES_v1.1.1.md`.
+Release notes are available in `RELEASE_NOTES_v1.1.2.md`.
 
 ## Included Examples
 

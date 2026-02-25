@@ -41,7 +41,7 @@ test("validate fails for missing required version with fix suggestion", () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Schema validation FAILED/);
-  assert.match(result.stderr, /Add `version: "1.0"` to the x-flow object/);
+  assert.match(result.stderr, /Add `version: "1.0"` to the x-openapi-flow object/);
 });
 
 test("relaxed profile allows cycle example with warning", () => {
@@ -83,18 +83,99 @@ test("doctor command runs successfully", () => {
   assert.match(result.stdout, /Validator engine: OK/);
 });
 
-test("init command generates a valid template", () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-flow-test-"));
-  const targetFile = path.join(tempDir, "generated-api.yaml");
+test("init succeeds with explicit existing OpenAPI file", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-explicit-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
 
   try {
-    const initResult = runCli(["init", targetFile, "--title", "Generated API"]);
-    assert.equal(initResult.status, 0);
-    assert.equal(fs.existsSync(targetFile), true);
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Init API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
 
-    const validateResult = runCli(["validate", targetFile, "--profile", "strict"]);
-    assert.equal(validateResult.status, 0);
-    assert.match(validateResult.stdout, /All validations passed/);
+    const result = runCli(["init", openapiPath]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Using existing OpenAPI file:/);
+    assert.match(result.stdout, /Flows sidecar synced:/);
+    assert.match(result.stdout, /Tracked operations: 1/);
+    assert.match(result.stdout, /Validate now: x-openapi-flow validate/);
+
+    const sidecarPath = path.join(tempDir, "x-openapi-flow.flows.yaml");
+    const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
+    assert.match(sidecarContent, /operationId:listItems/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init auto-discovers openapi file in current project", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-discover-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Discover API\n  version: "1.0.0"\npaths:\n  /health:\n    get:\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["init"], { cwd: tempDir });
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Using existing OpenAPI file:/);
+    assert.match(result.stdout, /Flows sidecar synced:/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init preserves sidecar x-openapi-flow and apply injects into regenerated OpenAPI", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-sidecar-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "x-openapi-flow.flows.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Sidecar API\n  version: "1.0.0"\npaths:\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const firstInit = runCli(["init", openapiPath]);
+    assert.equal(firstInit.status, 0);
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - key: operationId:getOrder\n    operationId: getOrder\n    method: get\n    path: /orders/{id}\n    x-openapi-flow:\n      version: '1.0'\n      id: getOrderFlow\n      current_state: CREATED\n      states: [CREATED, DONE]\n      transitions:\n        - from: CREATED\n          to: DONE\n          action: complete\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Sidecar API\n  version: "1.0.1"\npaths:\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const apply = runCli(["apply", openapiPath]);
+    assert.equal(apply.status, 0);
+    assert.match(apply.stdout, /Applied x-openapi-flow entries: 1/);
+
+    const updatedOpenApi = fs.readFileSync(openapiPath, "utf8");
+    assert.match(updatedOpenApi, /x-openapi-flow:/);
+    assert.match(updatedOpenApi, /id: getOrderFlow/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init fails when no OpenAPI file exists", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-empty-"));
+
+  try {
+    const result = runCli(["init"], { cwd: tempDir });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Could not find an existing OpenAPI file/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

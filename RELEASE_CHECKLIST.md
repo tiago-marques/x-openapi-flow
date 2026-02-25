@@ -1,6 +1,6 @@
 # Release Checklist
 
-## Version 1.1.1
+## Version 1.1.2
 
 - [ ] Confirm npm package name: `x-openapi-flow`.
 - [ ] Confirm product and DX changes in `CHANGELOG.md`.
@@ -11,8 +11,9 @@
   - [ ] `npx x-openapi-flow validate examples/ticket-api.yaml --profile strict`
 - [ ] Verify onboarding commands:
   - [ ] `npx x-openapi-flow doctor`
-  - [ ] `npx x-openapi-flow init /tmp/x-flow-release-check.yaml --title "Release Check API"`
-  - [ ] `npx x-openapi-flow validate /tmp/x-flow-release-check.yaml --profile strict`
+  - [ ] `cp flow-spec/examples/payment-api.yaml /tmp/x-openapi-flow-release-check.yaml`
+  - [ ] `npx x-openapi-flow init /tmp/x-openapi-flow-release-check.yaml`
+  - [ ] `npx x-openapi-flow validate /tmp/x-openapi-flow-release-check.yaml --profile strict`
 - [ ] Ensure CI workflow is active in `.github/workflows/x-openapi-flow-validate.yml`.
-- [ ] Create release tag (e.g., `v1.1.1`).
+- [ ] Create release tag (e.g., `v1.1.2`).
 - [ ] Publish release notes based on `CHANGELOG.md`.

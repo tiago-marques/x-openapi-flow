@@ -6,7 +6,7 @@ paths:
   /resources:
     post:
       operationId: createResource
-      x-flow:
+      x-openapi-flow:
         id: create-resource-flow
         current_state: CREATED
       responses:

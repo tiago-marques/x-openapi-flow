@@ -38,7 +38,7 @@ function loadApi(filePath) {
 }
 
 /**
- * Extract every x-flow object found in the `paths` section of an OAS document.
+ * Extract every x-openapi-flow object found in the `paths` section of an OAS document.
  * @param {object} api - Parsed OAS document.
  * @returns {{ endpoint: string, flow: object }[]}
  */
@@ -59,10 +59,10 @@ function extractFlows(api) {
     ];
     for (const method of HTTP_METHODS) {
       const operation = pathItem[method];
-      if (operation && operation["x-flow"]) {
+      if (operation && operation["x-openapi-flow"]) {
         entries.push({
           endpoint: `${method.toUpperCase()} ${pathKey}`,
-          flow: operation["x-flow"],
+          flow: operation["x-openapi-flow"],
         });
       }
     }
@@ -76,7 +76,7 @@ function extractFlows(api) {
 // ---------------------------------------------------------------------------
 
 /**
- * Validate all x-flow objects against the JSON Schema.
+ * Validate all x-openapi-flow objects against the JSON Schema.
  * @param {{ endpoint: string, flow: object }[]} flows
  * @returns {{ endpoint: string, errors: object[] }[]} Array of validation failures.
  */
@@ -105,23 +105,23 @@ function suggestFixes(errors = []) {
     if (err.keyword === "required" && err.params && err.params.missingProperty) {
       const missing = err.params.missingProperty;
       if (missing === "version") {
-        suggestions.add("Add `version: \"1.0\"` to the x-flow object.");
+        suggestions.add("Add `version: \"1.0\"` to the x-openapi-flow object.");
       } else if (missing === "id") {
-        suggestions.add("Add a unique `id` to the x-flow object.");
+        suggestions.add("Add a unique `id` to the x-openapi-flow object.");
       } else if (missing === "current_state") {
         suggestions.add("Add `current_state` to describe the operation state.");
       } else {
-        suggestions.add(`Add required property \`${missing}\` in x-flow.`);
+        suggestions.add(`Add required property \`${missing}\` in x-openapi-flow.`);
       }
     }
 
     if (err.keyword === "enum" && err.instancePath.endsWith("/version")) {
-      suggestions.add("Use supported x-flow version: `\"1.0\"`.");
+      suggestions.add("Use supported x-openapi-flow version: `\"1.0\"`.");
     }
 
     if (err.keyword === "additionalProperties" && err.params && err.params.additionalProperty) {
       suggestions.add(
-        `Remove unsupported property \`${err.params.additionalProperty}\` from x-flow payload.`
+        `Remove unsupported property \`${err.params.additionalProperty}\` from x-openapi-flow payload.`
       );
     }
   }
@@ -474,7 +474,7 @@ function run(apiPath, options = {}) {
     return result;
   }
 
-  // 2. Extract x-flow objects
+  // 2. Extract x-openapi-flow objects
   const flows = extractFlows(api);
 
   if (flows.length === 0) {
@@ -484,14 +484,14 @@ function run(apiPath, options = {}) {
     if (output === "json") {
       console.log(JSON.stringify(result, null, 2));
     } else {
-      console.warn("WARNING: No x-flow extensions found in the API paths.");
+      console.warn("WARNING: No x-openapi-flow extensions found in the API paths.");
     }
 
     return result;
   }
 
   if (output === "pretty") {
-    console.log(`Found ${flows.length} x-flow definition(s).\n`);
+    console.log(`Found ${flows.length} x-openapi-flow definition(s).\n`);
   }
 
   let hasErrors = false;
@@ -504,7 +504,7 @@ function run(apiPath, options = {}) {
 
   if (output === "pretty") {
     if (schemaFailures.length === 0) {
-      console.log("✔  Schema validation passed for all x-flow definitions.");
+      console.log("✔  Schema validation passed for all x-openapi-flow definitions.");
     } else {
       console.error("✘  Schema validation FAILED:");
       for (const { endpoint, errors } of schemaFailures) {

@@ -14,7 +14,7 @@ This release finalizes package naming and distribution updates so users can run 
 
 ## Notes
 
-- The OpenAPI extension key remains `x-flow`.
+- The OpenAPI extension key is now `x-openapi-flow`.
 - CLI binary remains `x-openapi-flow`.
 
 ## Quick verify
