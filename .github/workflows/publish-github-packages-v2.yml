@@ -1,0 +1,53 @@
+name: Publish to GitHub Packages (v2)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Optional GitHub Environment for isolated secrets/approvals
+    environment: github-packages-v2
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+          scope: '@tiago-marques'
+
+      - name: Install dependencies
+        working-directory: x-openapi-flow
+        run: npm ci
+
+      - name: Run tests
+        working-directory: x-openapi-flow
+        run: npm test
+
+      - name: Prepare scoped name for GitHub Packages mirror
+        working-directory: x-openapi-flow
+        run: npm pkg set name=@tiago-marques/x-openapi-flow
+
+      - name: Validate GitHub Packages token (v2)
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "Missing GH_PACKAGES_TOKEN_V2 secret."
+            echo "Set it at repo Secrets or Environment 'github-packages-v2'."
+            exit 1
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN_V2 }}
+
+      - name: Publish to GitHub Packages (v2 token)
+        working-directory: x-openapi-flow
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN_V2 }}
