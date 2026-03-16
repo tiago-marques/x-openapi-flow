@@ -12,7 +12,7 @@
 # x-openapi-flow
 
 **OpenAPI tells you what endpoints exist.**
-**x-openapi-flow tells you how to use them safely.**
+**x-openapi-flow tells you (and your AI) how to use them safely.**
 
 `x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
 It adds explicit state-machine metadata (`x-openapi-flow`) to operations and validates both schema and lifecycle graph consistency.
