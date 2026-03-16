@@ -50,8 +50,8 @@ Default adoption path:
 2. Run `init` to create/sync sidecar flow metadata.
 3. Run `apply` whenever the OpenAPI file is regenerated.
 
-Full rollout guide: `docs/wiki/Adoption-Playbook.md`
-Troubleshooting: `docs/wiki/Troubleshooting.md`
+Full rollout guide: [docs/wiki/Adoption-Playbook.md](docs/wiki/Adoption-Playbook.md)
+Troubleshooting: [docs/wiki/Troubleshooting.md](docs/wiki/Troubleshooting.md)
 
 ---
 
@@ -120,8 +120,8 @@ npx x-openapi-flow doctor [--config path]
 
 Full command details:
 
-- `docs/wiki/CLI-Reference.md`
-- `x-openapi-flow/README.md`
+- [docs/wiki/CLI-Reference.md](docs/wiki/CLI-Reference.md)
+- [x-openapi-flow/README.md](x-openapi-flow/README.md)
 
 ---
 
@@ -173,16 +173,16 @@ Example images:
 
 Integration docs:
 
-- `docs/wiki/Swagger-UI-Integration.md`
-- `docs/wiki/Redoc-Integration.md`
-- `docs/wiki/Postman-Integration.md`
-- `docs/wiki/Insomnia-Integration.md`
+- [docs/wiki/Swagger-UI-Integration.md](docs/wiki/Swagger-UI-Integration.md)
+- [docs/wiki/Redoc-Integration.md](docs/wiki/Redoc-Integration.md)
+- [docs/wiki/Postman-Integration.md](docs/wiki/Postman-Integration.md)
+- [docs/wiki/Insomnia-Integration.md](docs/wiki/Insomnia-Integration.md)
 
 ---
 
 ## Copilot Ready (AI Sidecar Authoring)
 
-Use `llm.txt` as authoring guidance for sidecar population.
+Use [llm.txt](llm.txt) as authoring guidance for sidecar population.
 
 Typical AI-assisted loop:
 
@@ -223,24 +223,24 @@ npx x-openapi-flow apply openapi.x.yaml
 - `quality-warning-api.yaml` (quality warnings)
 - `non-terminating-api.yaml` (non-terminating states)
 
-More examples: `docs/wiki/Real-Examples.md`
+More examples: [docs/wiki/Real-Examples.md](docs/wiki/Real-Examples.md)
 
 ---
 
 ## Repository Structure
 
-- `x-openapi-flow/schema/flow-schema.json`: extension JSON Schema contract
-- `x-openapi-flow/lib/validator.js`: schema + graph validation engine
-- `x-openapi-flow/bin/x-openapi-flow.js`: CLI entrypoint
+- [x-openapi-flow/schema/flow-schema.json](x-openapi-flow/schema/flow-schema.json): extension JSON Schema contract
+- [x-openapi-flow/lib/validator.js](x-openapi-flow/lib/validator.js): schema + graph validation engine
+- [x-openapi-flow/bin/x-openapi-flow.js](x-openapi-flow/bin/x-openapi-flow.js): CLI entrypoint
 - `x-openapi-flow/examples/*.yaml`: sample OpenAPI files
-- `.github/workflows/x-openapi-flow-validate.yml`: CI validation example
+- [.github/workflows/x-openapi-flow-validate.yml](.github/workflows/x-openapi-flow-validate.yml): CI validation example
 
 ---
 
 ## Changelog
 
-Version history: `CHANGELOG.md`
-Release notes: `RELEASE_NOTES_v1.3.4.md`
+Version history: [CHANGELOG.md](CHANGELOG.md)
+Release notes: [RELEASE_NOTES_v1.3.4.md](RELEASE_NOTES_v1.3.4.md)
 
 ---
 
