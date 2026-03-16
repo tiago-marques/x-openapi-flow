@@ -450,7 +450,7 @@ More examples: [docs/wiki/Real-Examples.md](docs/wiki/Real-Examples.md)
 ## Changelog
 
 Version history: [CHANGELOG.md](CHANGELOG.md)
-Release notes: [RELEASE_NOTES_v1.3.4.md](RELEASE_NOTES_v1.3.4.md)
+Release notes: [RELEASE_NOTES_v1.3.6.md](RELEASE_NOTES_v1.3.6.md)
 
 ---
 
