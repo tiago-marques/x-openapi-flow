@@ -11,8 +11,8 @@
 
 # x-openapi-flow
 
-**OpenAPI tells you what endpoints exist.**
-**x-openapi-flow tells you (and your AI) how to use them safely.**
+**OpenAPI describes APIs.**
+**x-openapi-flow describes how they actually work — for developers and AI.**
 
 `x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
 It adds explicit state-machine metadata (`x-openapi-flow`) to operations and validates both schema and lifecycle graph consistency.
@@ -105,6 +105,10 @@ Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
 ## CLI Reference (Selected Commands)
 
 ```bash
+npx x-openapi-flow help [command]
+npx x-openapi-flow --help
+npx x-openapi-flow version
+npx x-openapi-flow --version
 npx x-openapi-flow validate <openapi-file> [--profile core|relaxed|strict] [--strict-quality]
 npx x-openapi-flow init [--flows path] [--force] [--dry-run]
 npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
@@ -116,6 +120,13 @@ npx x-openapi-flow generate-insomnia [openapi-file] [--output path]
 npx x-openapi-flow generate-redoc [openapi-file] [--output path]
 npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
 npx x-openapi-flow doctor [--config path]
+npx x-openapi-flow completion [bash|zsh]
+```
+
+Global flag for troubleshooting:
+
+```bash
+npx x-openapi-flow <command> --verbose
 ```
 
 Full command details:

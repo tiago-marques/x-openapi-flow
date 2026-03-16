@@ -1,29 +1,46 @@
 # Insomnia Example
 
-This folder isolates the Insomnia workflow from the UI examples.
+Use this project to create and test an Insomnia export from `x-openapi-flow`.
 
-## Files
+## What this project covers
 
-- `swagger.json`: base OpenAPI spec input.
-- `swagger.backup.json`: backup copy of the base spec.
-- `examples/swagger.x.yaml`: sidecar example with `x-openapi-flow` definitions.
-- `x-openapi-flow.insomnia.json` (generated): flow-oriented workspace export.
+- Build `swagger.flow.json` from `swagger.json` + sidecar.
+- Validate flow-enriched OpenAPI with strict rules.
+- Generate `x-openapi-flow.insomnia.json` for Insomnia import.
 
-## Run workflow
+## Key files
+
+- `swagger.json`: base OpenAPI input.
+- `examples/swagger.x.yaml`: sidecar with `x-openapi-flow` metadata.
+- `swagger.flow.json` (generated): merged OpenAPI + flow data.
+- `x-openapi-flow.insomnia.json` (generated): Insomnia export.
+
+## Create flow output
 
 ```bash
 cd /workspaces/x-flow/example/insomnia
 npm install
+npm run diff
 npm run apply
 npm run validate
+```
+
+## Generate Insomnia artifact
+
+```bash
 npm run generate
 ```
 
-## Equivalent direct command
+## Test in Insomnia
+
+1. Open Insomnia.
+2. Import `x-openapi-flow.insomnia.json` from this folder.
+3. Inspect requests and flow transitions generated from sidecar data.
+4. Run sample requests against your target API environment.
+
+## Equivalent direct CLI command
 
 ```bash
 cd /workspaces/x-flow
 npx x-openapi-flow generate-insomnia example/insomnia/swagger.flow.json --output example/insomnia/x-openapi-flow.insomnia.json
 ```
-
-Import the generated JSON file into Insomnia as a request collection.

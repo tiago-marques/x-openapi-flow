@@ -20,9 +20,361 @@ const {
   generateInsomniaWorkspace,
   generateRedocPackage,
 } = require("../adapters/flow-output-adapters");
+const pkg = require("../package.json");
 
 const DEFAULT_CONFIG_NAME = "x-openapi-flow.config.json";
 const DEFAULT_FLOWS_FILE = "x-openapi-flow.flows.yaml";
+const KNOWN_COMMANDS = [
+  "validate",
+  "init",
+  "apply",
+  "diff",
+  "lint",
+  "analyze",
+  "generate-sdk",
+  "export-doc-flows",
+  "generate-postman",
+  "generate-insomnia",
+  "generate-redoc",
+  "graph",
+  "doctor",
+  "completion",
+];
+
+const COMMAND_SNIPPETS = {
+  validate: {
+    usage: "x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]",
+    examples: [
+      "x-openapi-flow validate examples/order-api.yaml",
+      "x-openapi-flow validate examples/order-api.yaml --profile relaxed",
+      "x-openapi-flow validate examples/order-api.yaml --strict-quality",
+    ],
+  },
+  init: {
+    usage: "x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run]",
+    examples: [
+      "x-openapi-flow init",
+      "x-openapi-flow init openapi.yaml --flows openapi.x.yaml",
+      "x-openapi-flow init openapi.yaml --force",
+      "x-openapi-flow init openapi.yaml --dry-run",
+    ],
+  },
+  apply: {
+    usage: "x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]",
+    examples: [
+      "x-openapi-flow apply openapi.yaml",
+      "x-openapi-flow apply openapi.yaml --in-place",
+      "x-openapi-flow apply openapi.yaml --out openapi.flow.yaml",
+    ],
+  },
+  diff: {
+    usage: "x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]",
+    examples: [
+      "x-openapi-flow diff openapi.yaml",
+      "x-openapi-flow diff openapi.yaml --format json",
+    ],
+  },
+  lint: {
+    usage: "x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]",
+    examples: [
+      "x-openapi-flow lint openapi.yaml",
+      "x-openapi-flow lint openapi.yaml --format json",
+    ],
+  },
+  analyze: {
+    usage: "x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]",
+    examples: [
+      "x-openapi-flow analyze openapi.yaml",
+      "x-openapi-flow analyze openapi.yaml --out openapi.x.yaml",
+      "x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml",
+    ],
+  },
+  "generate-sdk": {
+    usage: "x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]",
+    examples: [
+      "x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk",
+    ],
+  },
+  "export-doc-flows": {
+    usage: "x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]",
+    examples: [
+      "x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md",
+    ],
+  },
+  "generate-postman": {
+    usage: "x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]",
+    examples: [
+      "x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts",
+    ],
+  },
+  "generate-insomnia": {
+    usage: "x-openapi-flow generate-insomnia [openapi-file] [--output path]",
+    examples: [
+      "x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json",
+    ],
+  },
+  "generate-redoc": {
+    usage: "x-openapi-flow generate-redoc [openapi-file] [--output path]",
+    examples: [
+      "x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow",
+    ],
+  },
+  graph: {
+    usage: "x-openapi-flow graph <openapi-file> [--format mermaid|json]",
+    examples: [
+      "x-openapi-flow graph examples/order-api.yaml",
+    ],
+  },
+  doctor: {
+    usage: "x-openapi-flow doctor [--config path]",
+    examples: [
+      "x-openapi-flow doctor",
+    ],
+  },
+  completion: {
+    usage: "x-openapi-flow completion [bash|zsh]",
+    examples: [
+      "x-openapi-flow completion bash > ~/.x-openapi-flow-completion.bash",
+      "x-openapi-flow completion zsh > ~/.x-openapi-flow-completion.zsh",
+    ],
+  },
+};
+
+function stripGlobalFlags(args) {
+  const cleaned = [];
+  let verbose = false;
+
+  for (const token of args) {
+    if (token === "--verbose") {
+      verbose = true;
+      continue;
+    }
+    cleaned.push(token);
+  }
+
+  return { args: cleaned, verbose };
+}
+
+function printVerbose(parsed) {
+  if (!parsed || !parsed.verbose) {
+    return;
+  }
+
+  const printable = { ...parsed };
+  console.error("[verbose] Parsed CLI arguments:");
+  console.error(JSON.stringify(printable, null, 2));
+}
+
+function buildCompletionScript(shell) {
+  const commands = [...KNOWN_COMMANDS, "help", "version"].join(" ");
+
+  if (shell === "zsh") {
+    return `#compdef x-openapi-flow
+_x_openapi_flow() {
+  local -a commands
+  commands=(${commands})
+  local -a global_opts
+  global_opts=(--help --version --verbose)
+
+  if (( CURRENT == 2 )); then
+    _describe 'command' commands
+    return
+  fi
+
+  case "$words[2]" in
+    validate)
+      _values 'options' --format --profile --strict-quality --config --help
+      ;;
+    init)
+      _values 'options' --flows --force --dry-run --help
+      ;;
+    apply)
+      _values 'options' --flows --out --in-place --help
+      ;;
+    diff)
+      _values 'options' --flows --format --help
+      ;;
+    lint)
+      _values 'options' --format --config --help
+      ;;
+    analyze)
+      _values 'options' --format --out --merge --flows --help
+      ;;
+    generate-sdk)
+      _values 'options' --lang --output --help
+      ;;
+    export-doc-flows)
+      _values 'options' --output --format --help
+      ;;
+    generate-postman)
+      _values 'options' --output --with-scripts --help
+      ;;
+    generate-insomnia)
+      _values 'options' --output --help
+      ;;
+    generate-redoc)
+      _values 'options' --output --help
+      ;;
+    graph)
+      _values 'options' --format --help
+      ;;
+    doctor)
+      _values 'options' --config --help
+      ;;
+    completion)
+      _values 'shell' bash zsh
+      ;;
+    *)
+      _values 'global options' $global_opts
+      ;;
+  esac
+}
+compdef _x_openapi_flow x-openapi-flow
+`;
+  }
+
+  return `_x_openapi_flow()
+{
+  local cur prev opts
+  COMPREPLY=()
+  cur="\${COMP_WORDS[COMP_CWORD]}"
+  prev="\${COMP_WORDS[COMP_CWORD-1]}"
+  opts="${commands}"
+
+  if [[ \${COMP_CWORD} -eq 1 ]]; then
+    COMPREPLY=( $(compgen -W "${commands} --help --version --verbose" -- "\$cur") )
+    return 0
+  fi
+
+  case "\${COMP_WORDS[1]}" in
+    validate)
+      COMPREPLY=( $(compgen -W "--format --profile --strict-quality --config --help --verbose" -- "\$cur") )
+      ;;
+    init)
+      COMPREPLY=( $(compgen -W "--flows --force --dry-run --help --verbose" -- "\$cur") )
+      ;;
+    apply)
+      COMPREPLY=( $(compgen -W "--flows --out --in-place --help --verbose" -- "\$cur") )
+      ;;
+    diff)
+      COMPREPLY=( $(compgen -W "--flows --format --help --verbose" -- "\$cur") )
+      ;;
+    lint)
+      COMPREPLY=( $(compgen -W "--format --config --help --verbose" -- "\$cur") )
+      ;;
+    analyze)
+      COMPREPLY=( $(compgen -W "--format --out --merge --flows --help --verbose" -- "\$cur") )
+      ;;
+    generate-sdk)
+      COMPREPLY=( $(compgen -W "--lang --output --help --verbose" -- "\$cur") )
+      ;;
+    export-doc-flows)
+      COMPREPLY=( $(compgen -W "--output --format --help --verbose" -- "\$cur") )
+      ;;
+    generate-postman)
+      COMPREPLY=( $(compgen -W "--output --with-scripts --help --verbose" -- "\$cur") )
+      ;;
+    generate-insomnia)
+      COMPREPLY=( $(compgen -W "--output --help --verbose" -- "\$cur") )
+      ;;
+    generate-redoc)
+      COMPREPLY=( $(compgen -W "--output --help --verbose" -- "\$cur") )
+      ;;
+    graph)
+      COMPREPLY=( $(compgen -W "--format --help --verbose" -- "\$cur") )
+      ;;
+    doctor)
+      COMPREPLY=( $(compgen -W "--config --help --verbose" -- "\$cur") )
+      ;;
+    completion)
+      COMPREPLY=( $(compgen -W "bash zsh --help --verbose" -- "\$cur") )
+      ;;
+    *)
+      COMPREPLY=( $(compgen -W "--help --version --verbose" -- "\$cur") )
+      ;;
+  esac
+}
+complete -F _x_openapi_flow x-openapi-flow
+`;
+}
+
+function parseCompletionArgs(args) {
+  const positional = args.filter((token) => !token.startsWith("--"));
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  const shell = positional[0] || "bash";
+  if (![
+    "bash",
+    "zsh",
+  ].includes(shell)) {
+    return { error: `Invalid shell '${shell}'. Use 'bash' or 'zsh'.` };
+  }
+
+  return { shell };
+}
+
+function suggestCommand(input) {
+  if (!input) return null;
+  const normalized = input.toLowerCase();
+  const prefix = KNOWN_COMMANDS.find((cmd) => cmd.startsWith(normalized));
+  if (prefix) {
+    return prefix;
+  }
+
+  const includes = KNOWN_COMMANDS.find((cmd) => cmd.includes(normalized));
+  if (includes) {
+    return includes;
+  }
+
+  function levenshtein(a, b) {
+    const rows = a.length + 1;
+    const cols = b.length + 1;
+    const matrix = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+    for (let i = 0; i < rows; i += 1) {
+      matrix[i][0] = i;
+    }
+    for (let j = 0; j < cols; j += 1) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i < rows; i += 1) {
+      for (let j = 1; j < cols; j += 1) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return matrix[a.length][b.length];
+  }
+
+  let best = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const candidate of KNOWN_COMMANDS) {
+    const score = levenshtein(normalized, candidate);
+    if (score < bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+
+  return bestScore <= 3 ? best : null;
+}
+
+function buildUnknownCommandError(command) {
+  const suggestion = suggestCommand(command);
+  if (!suggestion) {
+    return `Unknown command: ${command}`;
+  }
+
+  return `Unknown command: ${command}. Did you mean '${suggestion}'?`;
+}
 
 function resolveConfigPath(configPathArg) {
   return configPathArg
@@ -49,10 +401,23 @@ function loadConfig(configPathArg) {
   }
 }
 
-function printHelp() {
+function printHelp(command) {
+  if (command && COMMAND_SNIPPETS[command]) {
+    const snippet = COMMAND_SNIPPETS[command];
+    const examples = snippet.examples.map((item) => `  ${item}`).join("\n");
+    console.log(`x-openapi-flow CLI\n\nCommand: ${command}\n\nUsage:\n  ${snippet.usage}\n\nExamples:\n${examples}\n`);
+    return;
+  }
+
   console.log(`x-openapi-flow CLI
 
+Global options:
+  --help, -h       Show help
+  --version, -v    Show CLI version
+  --verbose        Print parsed arguments for troubleshooting
+
 Usage:
+  x-openapi-flow <command> [options]
   x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
   x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run]
   x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
@@ -66,7 +431,11 @@ Usage:
   x-openapi-flow generate-redoc [openapi-file] [--output path]
   x-openapi-flow graph <openapi-file> [--format mermaid|json]
   x-openapi-flow doctor [--config path]
+  x-openapi-flow completion [bash|zsh]
+  x-openapi-flow help [command]
+  x-openapi-flow version
   x-openapi-flow --help
+  x-openapi-flow --version
 
 Examples:
   x-openapi-flow validate examples/order-api.yaml
@@ -94,6 +463,25 @@ Examples:
   x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
   x-openapi-flow graph examples/order-api.yaml
   x-openapi-flow doctor
+
+Quick Start:
+  # 1) Initialize sidecar from your OpenAPI file
+  x-openapi-flow init
+
+  # 2) Apply sidecar into flow output
+  x-openapi-flow apply
+
+  # 3) Validate with strict profile
+  x-openapi-flow validate --profile strict
+
+Autocomplete:
+  # Bash
+  x-openapi-flow completion bash > ~/.x-openapi-flow-completion.bash
+  echo 'source ~/.x-openapi-flow-completion.bash' >> ~/.bashrc
+
+  # Zsh
+  x-openapi-flow completion zsh > ~/.x-openapi-flow-completion.zsh
+  echo 'source ~/.x-openapi-flow-completion.zsh' >> ~/.zshrc
 `);
 }
 
@@ -828,84 +1216,113 @@ function parseGenerateRedocArgs(args) {
 }
 
 function parseArgs(argv) {
-  const args = argv.slice(2);
+  const stripped = stripGlobalFlags(argv.slice(2));
+  const args = stripped.args;
   const command = args[0];
+  const withVerbose = (payload) => ({ ...payload, verbose: stripped.verbose });
 
   if (!command || command === "--help" || command === "-h") {
-    return { help: true };
+    return withVerbose({ help: true });
+  }
+
+  if (command === "--version" || command === "-v" || command === "version") {
+    return withVerbose({ version: true });
+  }
+
+  if (command === "help") {
+    const helpTarget = args[1];
+    if (!helpTarget) {
+      return withVerbose({ help: true });
+    }
+
+    if (!KNOWN_COMMANDS.includes(helpTarget)) {
+      return withVerbose({ error: buildUnknownCommandError(helpTarget) });
+    }
+
+    return withVerbose({ help: true, command: helpTarget });
   }
 
   const commandArgs = args.slice(1);
   if (commandArgs.includes("--help") || commandArgs.includes("-h")) {
-    return { help: true, command };
+    return withVerbose({ help: true, command });
   }
 
   if (command === "validate") {
     const parsed = parseValidateArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "init") {
     const parsed = parseInitArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "graph") {
     const parsed = parseGraphArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "analyze") {
     const parsed = parseAnalyzeArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "apply") {
     const parsed = parseApplyArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "diff") {
     const parsed = parseDiffArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "lint") {
     const parsed = parseLintArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "doctor") {
     const parsed = parseDoctorArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "generate-sdk") {
     const parsed = parseGenerateSdkArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "export-doc-flows") {
     const parsed = parseExportDocFlowsArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "generate-postman") {
     const parsed = parseGeneratePostmanArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "generate-insomnia") {
     const parsed = parseGenerateInsomniaArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
   if (command === "generate-redoc") {
     const parsed = parseGenerateRedocArgs(commandArgs);
-    return parsed.error ? parsed : { command, ...parsed };
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
-  return { error: `Unknown command: ${command}` };
+  if (command === "completion") {
+    const parsed = parseCompletionArgs(commandArgs);
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
+  }
+
+  return withVerbose({ error: buildUnknownCommandError(command) });
+}
+
+function runCompletion(parsed) {
+  console.log(buildCompletionScript(parsed.shell));
+  return 0;
 }
 
 function findOpenApiFile(startDirectory) {
@@ -2251,9 +2668,19 @@ function runGenerateRedoc(parsed) {
 
 function main() {
   const parsed = parseArgs(process.argv);
+  printVerbose(parsed);
+
+  if (parsed.version) {
+    console.log(pkg.version);
+    process.exit(0);
+  }
 
   if (parsed.help) {
-    printHelp();
+    if (parsed.command && !KNOWN_COMMANDS.includes(parsed.command)) {
+      console.error(`ERROR: ${buildUnknownCommandError(parsed.command)}`);
+      process.exit(1);
+    }
+    printHelp(parsed.command);
     process.exit(0);
   }
 
@@ -2298,6 +2725,10 @@ function main() {
 
   if (parsed.command === "generate-redoc") {
     process.exit(runGenerateRedoc(parsed));
+  }
+
+  if (parsed.command === "completion") {
+    process.exit(runCompletion(parsed));
   }
 
   if (parsed.command === "apply") {

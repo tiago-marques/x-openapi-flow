@@ -47,11 +47,11 @@ function buildFlowSpecFromExample(exampleFolder, tempDir) {
   return flowSpecPath;
 }
 
-test("openapi-swagger-ui example can apply flow sidecar and render graph json", () => {
+test("swagger-ui example can apply flow sidecar and render graph json", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-example-swagger-"));
 
   try {
-    const flowSpecPath = buildFlowSpecFromExample("openapi-swagger-ui", tempDir);
+    const flowSpecPath = buildFlowSpecFromExample("swagger-ui", tempDir);
 
     const graphResult = runCli(["graph", flowSpecPath, "--format", "json"]);
     assert.equal(graphResult.status, 0, `graph failed:\n${graphResult.stderr}`);

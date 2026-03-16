@@ -53,6 +53,10 @@ npx x-openapi-flow graph openapi.yaml
 ## CLI Commands
 
 ```bash
+npx x-openapi-flow help [command]
+npx x-openapi-flow --help
+npx x-openapi-flow version
+npx x-openapi-flow --version
 npx x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
 npx x-openapi-flow init [--flows path] [--force] [--dry-run]
 npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
@@ -66,7 +70,14 @@ npx x-openapi-flow generate-insomnia [openapi-file] [--output path]
 npx x-openapi-flow generate-redoc [openapi-file] [--output path]
 npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
 npx x-openapi-flow doctor [--config path]
+npx x-openapi-flow completion [bash|zsh]
 ```
+
+Helpful additions:
+
+- Command-specific help: `x-openapi-flow <command> --help` (example: `x-openapi-flow validate --help`)
+- Verbose troubleshooting: `x-openapi-flow <command> --verbose`
+- Shell completion output: `x-openapi-flow completion bash` or `x-openapi-flow completion zsh`
 
 ## Output Adapters
 

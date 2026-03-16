@@ -9,6 +9,10 @@ on:
 jobs:
   validate-openapi:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
     defaults:
       run:
         working-directory: x-openapi-flow
@@ -20,15 +24,26 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: x-openapi-flow/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Run full test suite
+        run: npm test
+
       - name: Validate x-openapi-flow examples
         run: |
           node bin/x-openapi-flow.js validate examples/payment-api.yaml --profile strict --strict-quality
           node bin/x-openapi-flow.js validate examples/order-api.yaml --profile strict --strict-quality
           node bin/x-openapi-flow.js validate examples/ticket-api.yaml --profile strict --strict-quality
+          node bin/x-openapi-flow.js validate examples/quality-warning-api.yaml --profile strict
+
+      - name: Assert non-terminating example fails in strict profile
+        run: |
+          if node bin/x-openapi-flow.js validate examples/non-terminating-api.yaml --profile strict; then
+            echo "Expected non-terminating-api.yaml to fail in strict profile, but it passed."
+            exit 1
+          fi
