@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.3.4 - 2026-03-16
+
+### Fixed
+- npm publish workflow now uses the repository secret mapping actually configured in GitHub Actions (`GH_PACKAGES_TOKEN` for npm publish and `GH_PACKAGES_TOKEN_V2` for GitHub Packages).
+
 ## 1.3.3 - 2026-03-16
 
 ### Changed
