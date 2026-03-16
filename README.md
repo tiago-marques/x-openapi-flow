@@ -55,6 +55,205 @@ Troubleshooting: [docs/wiki/Troubleshooting.md](docs/wiki/Troubleshooting.md)
 
 ---
 
+## Day-to-Day Workflow (API Server Team)
+
+Typical routine when your OpenAPI source changes frequently:
+
+1. Bootstrap once per project.
+
+```bash
+npx x-openapi-flow init
+```
+
+2. Re-apply sidecar metadata after each OpenAPI regeneration.
+
+```bash
+npx x-openapi-flow apply openapi.yaml
+```
+
+3. Validate lifecycle quality before opening a PR.
+
+```bash
+npx x-openapi-flow validate openapi.flow.yaml --profile strict --strict-quality
+```
+
+4. Optional diagnostics for review and troubleshooting.
+
+```bash
+npx x-openapi-flow diff openapi.yaml --format pretty
+npx x-openapi-flow lint openapi.flow.yaml
+npx x-openapi-flow graph openapi.flow.yaml --format mermaid
+```
+
+What this gives your team in practice:
+
+- deterministic lifecycle checks in local dev and CI
+- explicit transition contracts instead of implicit tribal knowledge
+- safer API evolution with fewer integration regressions
+
+---
+
+## Integration Experience (What You See)
+
+### Swagger UI
+
+Use this when you want interactive docs with lifecycle context on each operation.
+
+```bash
+cd example/swagger-ui
+npm install
+npm run apply
+npm start
+```
+
+Experience outcome:
+
+- operation docs enriched with `x-openapi-flow` fields
+- visual lifecycle context while navigating endpoints
+
+Demo media:
+
+- GIF slot: `docs/assets/demo-swagger-ui.gif`
+- Image slot: `docs/assets/demo-swagger-ui.png`
+
+### Redoc
+
+Use this when you want a static docs bundle to share internally or publish.
+
+```bash
+cd example/redoc
+npm install
+npm run apply
+npm run generate
+```
+
+Experience outcome:
+
+- portable `redoc-flow/` package with lifecycle panel
+- stable documentation artifact for teams and portals
+
+Demo media:
+
+- GIF slot: `docs/assets/demo-redoc.gif`
+- Image slot: `docs/assets/demo-redoc.png`
+
+### Postman
+
+Use this when you want collections aligned with lifecycle transitions.
+
+```bash
+cd example/postman
+npm install
+npm run apply
+npm run generate
+```
+
+Experience outcome:
+
+- flow-oriented Postman collection
+- request execution closer to real transition paths
+
+Demo media:
+
+- GIF slot: `docs/assets/demo-postman.gif`
+- Image slot: `docs/assets/demo-postman.png`
+
+### Insomnia
+
+Use this when your team runs API scenarios in Insomnia workspaces.
+
+```bash
+cd example/insomnia
+npm install
+npm run apply
+npm run generate
+```
+
+Experience outcome:
+
+- generated workspace export with grouped lifecycle requests
+- faster onboarding to operation prerequisites and flow order
+
+Demo media:
+
+- GIF slot: `docs/assets/demo-insomnia.gif`
+- Image slot: `docs/assets/demo-insomnia.png`
+
+More integration details:
+
+- [docs/wiki/Swagger-UI-Integration.md](docs/wiki/Swagger-UI-Integration.md)
+- [docs/wiki/Redoc-Integration.md](docs/wiki/Redoc-Integration.md)
+- [docs/wiki/Postman-Integration.md](docs/wiki/Postman-Integration.md)
+- [docs/wiki/Insomnia-Integration.md](docs/wiki/Insomnia-Integration.md)
+
+---
+
+## CLI in Practice (Server Workflow)
+
+Use this sequence as your default lifecycle guardrail in backend projects:
+
+```bash
+# 1) Bootstrap sidecar from OpenAPI source
+npx x-openapi-flow init
+
+# 2) Merge sidecar into flow-aware OpenAPI output
+npx x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
+
+# 3) Detect drift before commit
+npx x-openapi-flow diff openapi.yaml --format pretty
+
+# 4) Enforce lifecycle quality gates
+npx x-openapi-flow validate openapi.flow.yaml --profile strict --strict-quality
+npx x-openapi-flow lint openapi.flow.yaml
+
+# 5) Generate graph artifact for PR discussion
+npx x-openapi-flow graph openapi.flow.yaml --format mermaid
+```
+
+CLI quick references for daily usage:
+
+```bash
+npx x-openapi-flow help [command]
+npx x-openapi-flow <command> --help
+npx x-openapi-flow <command> --verbose
+npx x-openapi-flow completion [bash|zsh]
+```
+
+---
+
+## SDK Generation Experience (TypeScript)
+
+Generate a flow-aware SDK directly from your OpenAPI + `x-openapi-flow` metadata:
+
+```bash
+npx x-openapi-flow generate-sdk openapi.flow.yaml --lang typescript --output ./sdk
+```
+
+What you get:
+
+- resource-centric classes with lifecycle-safe methods
+- operation transition awareness (`next_operation_id`, prerequisites, propagated fields)
+- reusable client layer for application services
+
+Typical integration snippet:
+
+```ts
+import { FlowApiClient } from "./sdk/src";
+
+const api = new FlowApiClient({ baseUrl: process.env.API_BASE_URL });
+
+const payment = await api.payments.create({ amount: 1000 });
+await payment.authorize();
+await payment.capture();
+```
+
+Demo media:
+
+- GIF slot: `docs/assets/demo-sdk-generation.gif`
+- Image slot: `docs/assets/demo-sdk-generation.png`
+
+---
+
 ## Example: Payment Flow
 
 ```mermaid
