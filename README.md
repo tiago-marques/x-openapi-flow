@@ -1,6 +1,5 @@
 ![x-openapi-flow logo](docs/assets/x-openapi-flow-logo.svg)
 
-
 [![npm version](https://img.shields.io/npm/v/x-openapi-flow?label=npm%20version)](https://www.npmjs.com/package/x-openapi-flow)
 [![npm downloads](https://img.shields.io/npm/dm/x-openapi-flow?label=npm%20downloads)](https://www.npmjs.com/package/x-openapi-flow)
 ![node](https://img.shields.io/badge/node-%3E%3D18-339933)
@@ -12,186 +11,103 @@
 
 # x-openapi-flow
 
-`x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
+**OpenAPI tells you what endpoints exist.**
+**x-openapi-flow tells you how to use them safely.**
 
+`x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
 It adds explicit state-machine metadata (`x-openapi-flow`) to operations and validates both schema and lifecycle graph consistency.
 
-## Why It Exists
+---
+
+## Why This Project Matters
 
 Most teams document endpoints but not lifecycle behavior. State transitions become implicit, inconsistent, and hard to validate in CI.
+`x-openapi-flow` makes flows explicit, so teams can:
 
-## Quick Start
+- Validate lifecycle consistency early in CI
+- Generate flow-aware docs and diagrams
+- Build SDKs that reduce invalid API calls
+
+Result: faster onboarding, fewer integration regressions, and clearer contracts between API producers and consumers.
+
+---
+
+## TL;DR / Quick Start
 
 From your API project root:
 
 ```bash
 npx x-openapi-flow init
+```
+or
+```bash
 npx x-openapi-flow apply openapi.x.yaml
 ```
 
-That is the default adoption path.
+Default adoption path:
 
-For a full rollout guide (local + CI + PR checks), see `docs/wiki/Adoption-Playbook.md`.
-For common errors and fixes, see `docs/wiki/Troubleshooting.md`.
+1. Generate or update your OpenAPI source.
+2. Run `init` to create/sync sidecar flow metadata.
+3. Run `apply` whenever the OpenAPI file is regenerated.
 
-## Initialization Behavior
+Full rollout guide: `docs/wiki/Adoption-Playbook.md`
+Troubleshooting: `docs/wiki/Troubleshooting.md`
 
-Running `init`:
+---
 
-- Auto-detects OpenAPI source files (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.)
-- Creates or syncs `{context}.x.(json|yaml)` (sidecar with lifecycle metadata)
-- Generates `{context}.flow.(json|yaml)` automatically when missing
-- If `{context}.flow.(json|yaml)` already exists, asks for confirmation in interactive mode and creates `{context}.x.(json|yaml).backup-N`
-- In non-interactive mode, fails when `{context}.flow.(json|yaml)` already exists unless `--force` is provided
+## Example: Payment Flow
 
-File roles:
+```mermaid
+graph TD
+CreatePayment --> AuthorizePayment
+AuthorizePayment --> CapturePayment
+CapturePayment --> RefundPayment
+```
 
-- Source of truth for API shape: your generated OpenAPI source file (`openapi.yaml`)
-- Source of truth for lifecycle metadata: `{context}.x.(json|yaml)`
-- CLI/config: `x-openapi-flow.config.json` (optional)
+### Flow-aware SDK Example (TypeScript)
 
-Recommended update loop:
+```ts
+const payment = await sdk.payments.create({ amount: 1000 });
+await payment.authorize();
+await payment.capture();
+await payment.refund();
+```
 
-1. Regenerate/update your OpenAPI source file with your framework tool.
-2. Run `npx x-openapi-flow apply openapi.x.yaml` to inject sidecar lifecycle data.
+At each stage, only valid lifecycle actions should be available.
 
-Optional quality gate:
+---
 
-- Run `npx x-openapi-flow validate openapi.yaml --profile strict`.
+## Installation
 
-## Quickstart (Local Development)
+Install from npm (default):
 
 ```bash
-cd x-openapi-flow
-npm install
-node bin/x-openapi-flow.js validate examples/order-api.yaml
+npm install x-openapi-flow
 ```
 
-## Repository Structure
-
-- `x-openapi-flow/schema/flow-schema.json`: extension JSON Schema contract.
-- `x-openapi-flow/lib/validator.js`: validation engine (schema + graph consistency).
-- `x-openapi-flow/bin/x-openapi-flow.js`: validation CLI.
-- `x-openapi-flow/examples/*.yaml`: OpenAPI examples with `x-openapi-flow`.
-- `.github/workflows/x-openapi-flow-validate.yml`: CI validation workflow example.
-
-## Extension Contract
-
-`x-openapi-flow` allows documenting, per operation, the current lifecycle state (`current_state`) and allowed transitions (`transitions`) with explicit triggers.
-
-### Minimum Required Fields
-
-Each `x-openapi-flow` block must include:
-
-- `version`: extension contract version (`"1.0"`)
-- `id`: unique identifier of the flow step
-- `current_state`: state represented by the operation
-
-### Optional Transition Guidance
-
-Optional transition guidance fields:
-
-- `next_operation_id`: operationId typically called for the next transition
-- `prerequisite_operation_ids`: operationIds expected before a transition
-- `prerequisite_field_refs`: required field references before a transition
-- `propagated_field_refs`: field references reused in downstream flows
-
-### Field Reference Format
-
-Field reference format:
-
-- `operationId:request.body.field`
-- `operationId:request.path.paramName`
-- `operationId:response.<status>.body.field` (example: `createPayment:response.201.body.id`)
-
-## Sidecar Structure (full)
-
-The sidecar file generated by `init` has this shape:
-
-```yaml
-version: "1.0"
-operations:
-	- operationId: createOrder
-		x-openapi-flow:
-			version: "1.0"
-			id: create-order
-			current_state: CREATED
-			description: Creates order and starts lifecycle
-			idempotency:
-				header: Idempotency-Key
-				required: true
-			transitions:
-				- target_state: PAID
-					trigger_type: synchronous
-					condition: Payment approved
-					next_operation_id: payOrder
-					prerequisite_operation_ids:
-						- createOrder
-					prerequisite_field_refs:
-						- createOrder:request.body.customer_id
-					propagated_field_refs:
-						- createOrder:response.201.body.order_id
-```
-
-Supported fields:
-
-- Sidecar document:
-	- `version` (optional, default `"1.0"`)
-	- `operations` (optional array)
-- Operation entry:
-	- `operationId` (recommended)
-	- `x-openapi-flow` (required to apply)
-	- `key` (legacy compatibility fallback)
-- `x-openapi-flow`:
-	- Required: `version`, `id`, `current_state`
-	- Optional: `description`, `idempotency`, `transitions`
-- Transition:
-	- Required: `target_state`, `trigger_type`
-	- Optional: `condition`, `next_operation_id`, `prerequisite_operation_ids`, `prerequisite_field_refs`, `propagated_field_refs`
-
-For package-focused details, see `x-openapi-flow/README.md`.
-
-## Install and Run
-
-Use with npx (recommended):
-
-```bash
-npx x-openapi-flow init
-```
-
-Run tests locally:
-
-```bash
-cd x-openapi-flow
-npm install
-npm test
-```
-
-Optional mirror on GitHub Packages (default usage remains unscoped on npm):
+Optional mirror from GitHub Packages:
 
 ```bash
 npm config set @tiago-marques:registry https://npm.pkg.github.com
 npm install @tiago-marques/x-openapi-flow
 ```
 
-When authentication is required, add this to your `.npmrc`:
+If authentication is required, add to `.npmrc`:
 
 ```ini
-//npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}
+//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
 ```
 
 Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
 
-## CLI Reference
+---
 
-### Commands
+## CLI Reference (Selected Commands)
 
 ```bash
-npx x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
+npx x-openapi-flow validate <openapi-file> [--profile core|relaxed|strict] [--strict-quality]
 npx x-openapi-flow init [--flows path] [--force] [--dry-run]
 npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
-npx x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
-npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
 npx x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
 npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
 npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
@@ -202,214 +118,138 @@ npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
 npx x-openapi-flow doctor [--config path]
 ```
 
-Canonical command details are maintained in:
+Full command details:
 
-- `x-openapi-flow/README.md`
 - `docs/wiki/CLI-Reference.md`
+- `x-openapi-flow/README.md`
 
-Preferred `apply` usage in this repository is sidecar positional:
+---
 
-```bash
-npx x-openapi-flow apply openapi.x.yaml
-```
+## Initialization Behavior
 
-Supported OpenAPI 3 HTTP methods across `init`, `apply`, and `graph`:
+Running `init`:
 
-- `get`, `put`, `post`, `delete`, `options`, `head`, `patch`, `trace`
+- Auto-detects OpenAPI source files (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.)
+- Creates or syncs `{context}.x.(json|yaml)` (sidecar with lifecycle metadata)
+- Generates `{context}.flow.(json|yaml)` automatically when missing
+- In interactive mode, asks before recreating existing flow files
+- In non-interactive mode, requires `--force` to recreate when flow file already exists
 
-### Common Commands
-
-```bash
-npx x-openapi-flow validate x-openapi-flow/examples/payment-api.yaml
-npx x-openapi-flow init
-npx x-openapi-flow apply openapi.x.yaml
-npx x-openapi-flow lint openapi.yaml
-npx x-openapi-flow analyze openapi.yaml --out openapi.x.yaml
-npx x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml
-npx x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
-npx x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
-npx x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
-npx x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
-npx x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
-npx x-openapi-flow graph x-openapi-flow/examples/order-api.yaml
-npx x-openapi-flow doctor
-```
-
-### Advanced Options
+Recommended quality gate:
 
 ```bash
-npx x-openapi-flow validate x-openapi-flow/examples/order-api.yaml --profile relaxed
-npx x-openapi-flow validate x-openapi-flow/examples/quality-warning-api.yaml --strict-quality
-npx x-openapi-flow validate x-openapi-flow/examples/ticket-api.yaml --format json
-npx x-openapi-flow init --dry-run
-npx x-openapi-flow diff openapi.yaml --format json
-npx x-openapi-flow apply openapi.x.yaml --out openapi.flow.yaml
-npx x-openapi-flow analyze openapi.yaml --format json
-npx x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml --format json
-npx x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
-npx x-openapi-flow export-doc-flows openapi.yaml --format json --output ./docs/api-flows.json
-npx x-openapi-flow apply swagger.json --flows examples/swagger.x.json
+npx x-openapi-flow validate openapi.yaml --profile strict
 ```
 
-Behavior notes:
+---
 
-- `init` works by auto-discovering an existing OpenAPI source file (run from your OpenAPI project root).
-- `init` creates/synchronizes a sidecar file based on OpenAPI context (for example, `swagger.x.json` or `openapi.x.yaml`) to persist `x-openapi-flow` metadata across regenerations.
-- If `{context}.flow.(json|yaml)` already exists, `init` asks for confirmation in interactive mode.
-- In non-interactive mode, use `init --force` to skip prompt, back up sidecar as `{context}.x.(json|yaml).backup-N`, and recreate `{context}.flow.(json|yaml)`.
-- Use `init --dry-run` to preview sidecar/flow changes without writing files.
-- Legacy naming (`{context}-openapi-flow.(json|yaml)`) remains compatible in `apply` and `graph`.
-- Use `apply` after regenerating your OpenAPI source file to re-inject sidecar metadata (for example: `npx x-openapi-flow apply openapi.x.yaml`).
-- Use `analyze` to generate an initial sidecar suggestion from OpenAPI operation naming and paths, then refine manually.
-- Use `analyze --merge` to preserve existing sidecar values and only fill inferred gaps.
-- In `--format json`, `analysis.transitionConfidence` includes confidence scores and reasons for each inferred transition.
-- Use `generate-sdk` to build a flow-aware TypeScript SDK from `x-openapi-flow` metadata and lifecycle graph.
-- Generated SDK output includes collection/service layer (`api.payments.create/retrieve/list`), typed state/resource instances, chainable lifecycle methods, optional auto-prerequisite helpers (`api.payments.capture(id)`), `runFlow`, and `flow-model.json`.
-- Use `export-doc-flows` to generate lifecycle documentation (Markdown or JSON) for Redoc/portal integration.
-- Use `generate-postman` to create lifecycle-aware Postman collections, optionally with prerequisite/test scripts.
-- Use `generate-insomnia` to create lifecycle-organized Insomnia workspace exports.
-- Use `generate-redoc` to generate a Redoc package with lifecycle panel (`index.html`, plugin script, model and spec).
-- If no OpenAPI/Swagger source file exists yet, create one first with your framework's official generator.
+## Validation Profiles
+
+- `strict` (default): schema + advanced graph checks as errors; quality as warnings (or errors with `--strict-quality`)
+- `relaxed`: schema and orphan checks as errors; advanced/quality checks as warnings
+- `core`: schema and orphan checks only
+
+Validation covers:
+
+- Schema contract correctness
+- Orphan states
+- Initial/terminal state structure
+- Cycles and unreachable states
+- Quality findings (duplicate transitions, invalid refs, non-terminating states)
+
+---
+
+## Integrations
+
+- Swagger UI: flow overview + operation-level extension panels
+- Redoc: generated package with flow panel
+- Postman and Insomnia: generated lifecycle-aware collections/workspaces
+- SDK generator: TypeScript available, other languages planned
+
+Example images:
+
+![Guided graph example](docs/assets/x-openapi-flow-overview.png)
+![Swagger UI integration result](docs/assets/x-openapi-flow-extension.png)
+
+Integration docs:
+
+- `docs/wiki/Swagger-UI-Integration.md`
+- `docs/wiki/Redoc-Integration.md`
+- `docs/wiki/Postman-Integration.md`
+- `docs/wiki/Insomnia-Integration.md`
+
+---
+
+## Copilot Ready (AI Sidecar Authoring)
+
+Use `llm.txt` as authoring guidance for sidecar population.
+
+Typical AI-assisted loop:
+
+1. `init`
+2. AI fills `{context}.x.(json|yaml)`
+3. `apply`
+4. `validate --profile strict`
+
+Prompt template:
+
+```text
+Use llm.txt from this repository as authoring rules.
+Populate {context}.x.(json|yaml) per operationId with coherent lifecycle states and transitions,
+including next_operation_id, prerequisite_field_refs, and propagated_field_refs when applicable.
+Do not change endpoint paths or HTTP methods.
+```
+
+---
 
 ## Regeneration Workflow
 
 ```bash
-# 1) generate/open your OpenAPI source file (framework-specific)
-
-# 2) initialize and sync sidecar
+# 1) Generate or update OpenAPI source
+# 2) Initialize sidecar metadata
 npx x-openapi-flow init
-
-# 3) edit {context}.x.(json|yaml) with your flow states/transitions
-
-# 4) whenever OpenAPI is regenerated, re-apply flows
+# 3) Edit {context}.x.(json|yaml)
+# 4) Re-apply after each OpenAPI regeneration
 npx x-openapi-flow apply openapi.x.yaml
 ```
 
-## Copilot Ready (AI Sidecar Authoring)
-
-The most sensitive part of adoption is usually authoring lifecycle data in the sidecar.
-This repository includes an AI authoring guide at `llm.txt` to help assistants populate sidecar files with higher consistency.
-
-Recommended AI-assisted flow:
-
-1. Run `npx x-openapi-flow init`.
-2. Ask your AI assistant to fill `{context}.x.(json|yaml)` using `llm.txt`.
-3. Run `npx x-openapi-flow apply openapi.x.yaml`.
-4. Run `npx x-openapi-flow apply openapi.x.yaml` again after AI updates (if needed).
-
-The `llm.txt` guide covers required fields, transition modeling, field reference formats, and a quality checklist.
-
-Prompt template (copy/paste):
-
-```text
-Use llm.txt from this repository as authoring rules.
-Read my OpenAPI source file and populate {context}.x.(json|yaml) only.
-Do not change endpoint paths or HTTP methods.
-Generate x-openapi-flow per operationId with coherent states/transitions,
-including next_operation_id, prerequisite_field_refs, and propagated_field_refs when applicable.
-Then run: init -> apply -> validate --profile strict.
-```
-
-## Validation
-
-### Profiles
-
-- `strict` (default): schema + advanced graph checks as errors; quality as warnings (or errors with `--strict-quality`).
-- `relaxed`: schema and orphan checks as errors; advanced/quality checks as warnings.
-- `core`: validates only schema and orphan states.
-
-### File-Based Configuration
-
-You can use `x-openapi-flow.config.json` in the current directory (or pass it via `--config`):
-
-```json
-{
-	"profile": "strict",
-	"format": "pretty",
-	"strictQuality": false
-}
-```
-
-Example file: `x-openapi-flow/x-openapi-flow.config.example.json`.
-
-### What Gets Validated
-
-1. **Schema validation**: enforces shape and required fields of `x-openapi-flow`.
-2. **Graph validation**: detects orphan `target_state` entries (without matching `current_state` in any operation).
-3. **Advanced graph checks**:
-	- requires at least one initial state (`indegree = 0`)
-	- requires at least one terminal state (`outdegree = 0`)
-	- detects unreachable states from initial states
-	- detects cycles (flow must be acyclic)
-4. **Quality checks**:
-	- warns when there are multiple initial states
-	- warns about duplicate transitions (`from + to + trigger_type`)
-	- warns about states with no path to any terminal state
-	- warns about invalid operation and field references in transitions
-
-By default, quality checks produce **warnings**. Use `--strict-quality` to treat them as errors (exit code 1).
-
-## Visualization
-
-### Graph Output
-
-`x-openapi-flow graph` generates Mermaid (or JSON) output for the state flow, helping review between developers and architecture teams.
-When transitions include `next_operation_id` and `prerequisite_operation_ids`, Mermaid edges include those values as labels.
-
-Example:
-
-```bash
-npx x-openapi-flow graph x-openapi-flow/examples/order-api.yaml
-```
-
-Example graph image:
-
-![Guided graph example](docs/assets/x-openapi-flow-overview.png)
-
-### Swagger UI Integration
-
-Current automated tests in this repository use only CLI execution (`node:test`) and do not use Swagger UI, ReDoc, or RapiDoc.
-
-To visualize and interpret `x-openapi-flow` in Swagger UI:
-
-1. Enable vendor extension rendering with `showExtensions: true`.
-2. Use the plugin in `x-openapi-flow/adapters/ui/swagger-ui/x-openapi-flow-plugin.js`.
-3. Open `example/openapi-swagger-ui/examples/swagger-ui/index.html` and point it to your OpenAPI source file.
-
-This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.
-It can also render a graph image if `graph_image_url` is present in `x-openapi-flow` (or if `window.XOpenApiFlowGraphImageUrl` is configured).
-
-Example result image:
-
-![Swagger UI integration result](docs/assets/x-openapi-flow-extension.png)
-
-## CI Integration
-
-There is a ready-to-use workflow in `.github/workflows/x-openapi-flow-validate.yml`.
-To adapt it to your real OpenAPI source files, update the paths in the `Validate x-openapi-flow examples` step.
+---
 
 ## Included Examples
 
 - `payment-api.yaml` (financial)
 - `order-api.yaml` (e-commerce/logistics)
-- `refund` lifecycle example: `docs/wiki/Real-Examples.md#4-refunds-requested---approved---paid`
 - `ticket-api.yaml` (support)
-- `quality-warning-api.yaml` (demonstrates quality warnings)
-- `non-terminating-api.yaml` (demonstrates `non_terminating_states`)
+- `quality-warning-api.yaml` (quality warnings)
+- `non-terminating-api.yaml` (non-terminating states)
+
+More examples: `docs/wiki/Real-Examples.md`
+
+---
+
+## Repository Structure
+
+- `x-openapi-flow/schema/flow-schema.json`: extension JSON Schema contract
+- `x-openapi-flow/lib/validator.js`: schema + graph validation engine
+- `x-openapi-flow/bin/x-openapi-flow.js`: CLI entrypoint
+- `x-openapi-flow/examples/*.yaml`: sample OpenAPI files
+- `.github/workflows/x-openapi-flow-validate.yml`: CI validation example
+
+---
 
 ## Changelog
 
-Version history is tracked in `CHANGELOG.md`.
-Release notes are available in `RELEASE_NOTES_v1.2.0.md`.
+Version history: `CHANGELOG.md`
+Release notes: `RELEASE_NOTES_v1.3.2.md`
+
+---
 
 ## Documentation Language Policy
 
-All project documentation must be written in English.
+All project documentation must be written in English, including:
 
-This includes:
-
-- Repository Markdown files (`*.md`)
-- GitHub Wiki pages
+- Repository Markdown files
+- Wiki pages
 - Release notes and changelog entries
 
 If a contribution includes non-English documentation content, it should be translated to English before merge.

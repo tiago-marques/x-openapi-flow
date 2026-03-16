@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+- GitHub Packages publish pipeline consolidated to a single canonical workflow: `.github/workflows/publish-github-packages.yml`.
+- npm publish workflow now validates and uses `NPM_TOKEN` (instead of GitHub Packages secrets).
+- GitHub Packages install docs now use a generic env var name: `GITHUB_PACKAGES_TOKEN`.
+
 ## 1.3.2 - 2026-03-16
 
 ### Added

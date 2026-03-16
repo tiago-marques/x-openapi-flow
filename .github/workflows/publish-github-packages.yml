@@ -12,6 +12,9 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Optional GitHub Environment for isolated secrets/approvals
+    environment: github-packages-v2
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,18 +38,18 @@ jobs:
         working-directory: x-openapi-flow
         run: npm pkg set name=@tiago-marques/x-openapi-flow
 
-      - name: Validate GitHub Packages token
+      - name: Validate GitHub Packages token (v2)
         run: |
           if [ -z "${NODE_AUTH_TOKEN}" ]; then
-            echo "Missing GH_PACKAGES_TOKEN secret."
-            echo "Create a PAT with write:packages (and read:packages) and save as GH_PACKAGES_TOKEN."
+            echo "Missing GH_PACKAGES_TOKEN_V2 secret."
+            echo "Set it at repo Secrets or Environment 'github-packages-v2'."
             exit 1
           fi
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN_V2 }}
 
-      - name: Publish to GitHub Packages
+      - name: Publish to GitHub Packages (v2 token)
         working-directory: x-openapi-flow
         run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN_V2 }}

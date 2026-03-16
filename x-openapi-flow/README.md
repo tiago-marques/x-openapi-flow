@@ -30,7 +30,7 @@ npm install @tiago-marques/x-openapi-flow
 If authentication is required, include this in your `.npmrc`:
 
 ```ini
-//npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}
+//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
 ```
 
 Use a GitHub PAT with `read:packages` (install) and `write:packages` (publish).
