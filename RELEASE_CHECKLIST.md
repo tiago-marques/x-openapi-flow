@@ -24,7 +24,8 @@
   - [ ] `docs/wiki/Adoption-Playbook.md`
   - [ ] `docs/wiki/Troubleshooting.md`
   - [ ] `docs/wiki/Real-Examples.md`
+  - [ ] `cd x-openapi-flow && npm run sync:readme` (keeps npm package README in sync with root README)
 - [ ] Validate local integration example:
-  - [ ] `cd example/openapi-swagger-ui && npm install && npm run validate`
+  - [ ] `cd example/swagger-ui && npm install && npm run validate`
 - [ ] Create release tag (e.g., `v1.2.3`).
 - [ ] Publish release notes based on `CHANGELOG.md`.

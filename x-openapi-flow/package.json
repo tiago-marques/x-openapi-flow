@@ -31,6 +31,8 @@
     "x-openapi-flow": "bin/x-openapi-flow.js"
   },
   "scripts": {
+    "sync:readme": "node ../scripts/sync-package-readme.js",
+    "prepack": "npm run sync:readme",
     "test": "npm run test:cli && npm run test:ui && npm run test:integration && npm run test:smoke",
     "test:cli": "node --test tests/cli/cli.test.js",
     "test:ui": "node --test tests/plugins/plugin-ui.test.js",
