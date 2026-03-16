@@ -1,6 +1,6 @@
 # x-openapi-flow
 
-![x-openapi-flow logo](../docs/assets/x-openapi-flow-logo.svg)
+![x-openapi-flow logo](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-logo.svg)
 
 CLI and extension contract for documenting and validating resource lifecycle workflows in OpenAPI using `x-openapi-flow`.
 
