@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+## 1.3.1 - 2026-03-16
+
+### Added
+- New `analyze` CLI command to infer a starter sidecar (`x-openapi-flow`) from OpenAPI operation names and paths.
+- `analyze --merge` mode to preserve existing sidecar fields while merging inferred operations.
+- Transition confidence scoring in `analyze --format json` under `analysis.transitionConfidence`.
+- New `generate-sdk` CLI command (`--lang typescript`) for flow-aware SDK generation from OpenAPI + `x-openapi-flow`.
+- TypeScript SDK templates and generator pipeline (parser -> graph -> state machine -> templates -> SDK).
+- Generated SDK lifecycle helper (`runFlow`) and exported intermediate model (`flow-model.json`).
+- New modular output adapters:
+	- `export-doc-flows` (Markdown/JSON lifecycle docs for Redoc/portals)
+	- `generate-postman` (flow-oriented Postman collections)
+	- `generate-insomnia` (flow-organized Insomnia exports)
+- New `generate-redoc` command to produce a Redoc bundle with flow panel (`index.html`, plugin, flow model, spec).
+
+### Changed
+- Repository structure reorganized to isolate core from adapters:
+  - `flow-spec/lib` now contains only core logic (`validator`, graph checks, SDK generator).
+  - visualization/export adapters moved to `flow-spec/adapters` (Swagger UI, Redoc, Postman/Insomnia/doc exporters).
+- Tests reorganized into `flow-spec/tests/cli`, `flow-spec/tests/plugins`, and `flow-spec/tests/integration`.
+- Swagger UI demo moved to `example-project/examples/swagger-ui` to keep `flow-spec/examples` focused on test/fixture-like API examples.
+- Root/package/wiki CLI documentation now includes `analyze`, `generate-sdk`, and output adapter commands.
+
 ## 1.3.0 - 2026-02-25
 
 ### Added

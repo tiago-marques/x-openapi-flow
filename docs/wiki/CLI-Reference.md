@@ -133,6 +133,77 @@ Example:
 }
 ```
 
+## `analyze`
+
+Infers a starter sidecar from operation naming + path heuristics.
+
+```bash
+npx x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path]
+
+npx x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
+```
+
+- Use when you need an initial flow draft for a spec that has no `x-openapi-flow` yet.
+- `--out` writes the inferred sidecar (`{context}.x.(json|yaml)` recommended).
+- Without `--out`, `pretty` prints summary + sidecar YAML to stdout.
+- Generated transitions are suggestions and should be reviewed before committing.
+- `--merge` preserves existing sidecar values and merges inferred operations/fields.
+- `--flows` selects the sidecar file used by `--merge`.
+- In `json`, transition confidence scores are reported in `analysis.transitionConfidence`.
+
+## `generate-sdk`
+
+Generates a flow-aware SDK from OpenAPI + `x-openapi-flow` metadata.
+
+```bash
+npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
+```
+
+- MVP currently supports `--lang typescript`.
+- Reuses lifecycle graph modeling to keep behavior aligned with `validate`, `graph`, and `diff`.
+- Output includes resource classes, state classes, lifecycle helper (`runFlow`) and `flow-model.json`.
+
+## `export-doc-flows`
+
+Exports lifecycle documentation pages/models from `x-openapi-flow`.
+
+```bash
+npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
+```
+
+- `markdown` generates an API Flows page with Mermaid diagrams and operation-level lifecycle metadata.
+- `json` exports the structured flow model for custom doc portals or Redocly-based rendering.
+
+## `generate-postman`
+
+Generates a Postman collection organized by lifecycle journeys.
+
+```bash
+npx x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
+```
+
+- Folders are grouped by resource lifecycle.
+- `--with-scripts` adds pre-request/test scripts for prerequisite checks and ID propagation.
+
+## `generate-insomnia`
+
+Generates an Insomnia export organized by resource flow groups.
+
+```bash
+npx x-openapi-flow generate-insomnia [openapi-file] [--output path]
+```
+
+## `generate-redoc`
+
+Generates a Redoc package with lifecycle panel powered by `x-openapi-flow`.
+
+```bash
+npx x-openapi-flow generate-redoc [openapi-file] [--output path]
+```
+
+- Output includes `index.html`, `x-openapi-flow-redoc-plugin.js`, `flow-model.json`, and copied OpenAPI spec.
+- Useful when you want a Redoc experience similar to the Swagger UI plugin flow visualization.
+
 ## `doctor`
 
 Checks environment/configuration:

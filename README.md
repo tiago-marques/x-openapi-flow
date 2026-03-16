@@ -192,6 +192,12 @@ npx x-openapi-flow init [--flows path] [--force] [--dry-run]
 npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 npx x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
 npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
+npx x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
+npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
+npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
+npx x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
+npx x-openapi-flow generate-insomnia [openapi-file] [--output path]
+npx x-openapi-flow generate-redoc [openapi-file] [--output path]
 npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
 npx x-openapi-flow doctor [--config path]
 ```
@@ -218,6 +224,13 @@ npx x-openapi-flow validate flow-spec/examples/payment-api.yaml
 npx x-openapi-flow init
 npx x-openapi-flow apply openapi.x.yaml
 npx x-openapi-flow lint openapi.yaml
+npx x-openapi-flow analyze openapi.yaml --out openapi.x.yaml
+npx x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml
+npx x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
+npx x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
+npx x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
+npx x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
+npx x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
 npx x-openapi-flow graph flow-spec/examples/order-api.yaml
 npx x-openapi-flow doctor
 ```
@@ -231,6 +244,10 @@ npx x-openapi-flow validate flow-spec/examples/ticket-api.yaml --format json
 npx x-openapi-flow init --dry-run
 npx x-openapi-flow diff openapi.yaml --format json
 npx x-openapi-flow apply openapi.x.yaml --out openapi.flow.yaml
+npx x-openapi-flow analyze openapi.yaml --format json
+npx x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml --format json
+npx x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
+npx x-openapi-flow export-doc-flows openapi.yaml --format json --output ./docs/api-flows.json
 npx x-openapi-flow apply swagger.json --flows examples/swagger.x.json
 ```
 
@@ -243,6 +260,15 @@ Behavior notes:
 - Use `init --dry-run` to preview sidecar/flow changes without writing files.
 - Legacy naming (`{context}-openapi-flow.(json|yaml)`) remains compatible in `apply` and `graph`.
 - Use `apply` after regenerating your OpenAPI source file to re-inject sidecar metadata (for example: `npx x-openapi-flow apply openapi.x.yaml`).
+- Use `analyze` to generate an initial sidecar suggestion from OpenAPI operation naming and paths, then refine manually.
+- Use `analyze --merge` to preserve existing sidecar values and only fill inferred gaps.
+- In `--format json`, `analysis.transitionConfidence` includes confidence scores and reasons for each inferred transition.
+- Use `generate-sdk` to build a flow-aware TypeScript SDK from `x-openapi-flow` metadata and lifecycle graph.
+- Generated SDK output includes collection/service layer (`api.payments.create/retrieve/list`), typed state/resource instances, chainable lifecycle methods, optional auto-prerequisite helpers (`api.payments.capture(id)`), `runFlow`, and `flow-model.json`.
+- Use `export-doc-flows` to generate lifecycle documentation (Markdown or JSON) for Redoc/portal integration.
+- Use `generate-postman` to create lifecycle-aware Postman collections, optionally with prerequisite/test scripts.
+- Use `generate-insomnia` to create lifecycle-organized Insomnia workspace exports.
+- Use `generate-redoc` to generate a Redoc package with lifecycle panel (`index.html`, plugin script, model and spec).
 - If no OpenAPI/Swagger source file exists yet, create one first with your framework's official generator.
 
 ## Regeneration Workflow
@@ -347,8 +373,8 @@ Current automated tests in this repository use only CLI execution (`node:test`) 
 To visualize and interpret `x-openapi-flow` in Swagger UI:
 
 1. Enable vendor extension rendering with `showExtensions: true`.
-2. Use the plugin in `flow-spec/lib/swagger-ui/x-openapi-flow-plugin.js`.
-3. Open `flow-spec/examples/swagger-ui/index.html` and point it to your OpenAPI source file.
+2. Use the plugin in `flow-spec/adapters/ui/swagger-ui/x-openapi-flow-plugin.js`.
+3. Open `example-project/examples/swagger-ui/index.html` and point it to your OpenAPI source file.
 
 This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.
 It can also render a graph image if `graph_image_url` is present in `x-openapi-flow` (or if `window.XOpenApiFlowGraphImageUrl` is configured).

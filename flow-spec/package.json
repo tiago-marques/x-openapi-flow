@@ -1,6 +1,6 @@
 {
   "name": "x-openapi-flow",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "OpenAPI extension for resource workflow and lifecycle management",
   "main": "lib/validator.js",
   "repository": {
@@ -14,6 +14,9 @@
   "files": [
     "bin",
     "lib",
+    "adapters",
+    "templates",
+    "schema",
     "schema",
     "examples",
     "README.md",
@@ -29,9 +32,10 @@
     "x-openapi-flow": "bin/x-openapi-flow.js"
   },
   "scripts": {
-    "test": "npm run test:cli && npm run test:ui && npm run test:smoke",
-    "test:cli": "node --test tests/cli.test.js",
-    "test:ui": "node --test tests/plugin-ui.test.js",
+    "test": "npm run test:cli && npm run test:ui && npm run test:integration && npm run test:smoke",
+    "test:cli": "node --test tests/cli/cli.test.js",
+    "test:ui": "node --test tests/plugins/plugin-ui.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
     "test:smoke": "node bin/x-openapi-flow.js validate examples/payment-api.yaml --profile strict"
   },
   "keywords": [
@@ -45,6 +49,7 @@
   "license": "MIT",
   "dependencies": {
     "ajv": "^8.17.1",
+    "handlebars": "^4.7.8",
     "js-yaml": "^4.1.0"
   }
 }

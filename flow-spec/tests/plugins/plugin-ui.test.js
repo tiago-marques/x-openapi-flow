@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const PLUGIN_PATH = path.resolve(__dirname, "..", "lib", "swagger-ui", "x-openapi-flow-plugin.js");
+const PLUGIN_PATH = path.resolve(__dirname, "..", "..", "adapters", "ui", "swagger-ui", "x-openapi-flow-plugin.js");
 
 function loadUiInternals() {
   const source = fs.readFileSync(PLUGIN_PATH, "utf8");

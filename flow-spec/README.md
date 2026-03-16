@@ -58,9 +58,114 @@ npx x-openapi-flow init [--flows path] [--force] [--dry-run]
 npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 npx x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
 npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
+npx x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
+npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
+npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
+npx x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
+npx x-openapi-flow generate-insomnia [openapi-file] [--output path]
+npx x-openapi-flow generate-redoc [openapi-file] [--output path]
 npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
 npx x-openapi-flow doctor [--config path]
 ```
+
+## Output Adapters
+
+`x-openapi-flow` now supports modular output adapters that reuse the same internal flow graph:
+
+- OpenAPI + `x-openapi-flow` -> parser -> graph builder -> adapters
+- Adapters: docs (`export-doc-flows`), SDK (`generate-sdk`), Postman (`generate-postman`), Insomnia (`generate-insomnia`)
+  and Redoc package (`generate-redoc`)
+
+### Redoc/Docs Adapter (`export-doc-flows`)
+
+```bash
+npx x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
+npx x-openapi-flow export-doc-flows openapi.yaml --format json --output ./docs/api-flows.json
+```
+
+Generates a lifecycle page (or JSON model) with:
+
+- Flow/Lifecycle panel per resource
+- Mermaid diagram per resource
+- Current state, prerequisites (`prerequisite_operation_ids`), next operations (`next_operation_id`)
+
+### Redoc Package Adapter (`generate-redoc`)
+
+```bash
+npx x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
+```
+
+Generates a ready-to-open Redoc bundle with:
+
+- `index.html` (Redoc + Flow/Lifecycle panel)
+- `x-openapi-flow-redoc-plugin.js` (DOM enhancer)
+- `flow-model.json` (flow graph model)
+- copied OpenAPI spec (`openapi.yaml`/`openapi.json`)
+
+### Postman Adapter (`generate-postman`)
+
+```bash
+npx x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
+```
+
+Generates lifecycle-oriented folders/journeys and optional scripts for:
+
+- prerequisite enforcement before request execution
+- propagated operation tracking and ID persistence in collection variables
+
+### Insomnia Adapter (`generate-insomnia`)
+
+```bash
+npx x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
+```
+
+Generates an Insomnia export organized by resource flow groups and ordered requests.
+
+## SDK Generator (`generate-sdk`)
+
+Generate a flow-aware SDK from OpenAPI + `x-openapi-flow` metadata.
+
+```bash
+npx x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
+```
+
+MVP output (TypeScript):
+
+- `src/resources/<Resource>.ts`: resource client + state classes (`PaymentAuthorized`, `PaymentCaptured`, etc.)
+- `src/index.ts`: root `FlowApiClient`
+- `src/http-client.ts`: pluggable HTTP client interface and fetch implementation
+- `src/flow-helpers.ts`: `runFlow("authorize -> capture")`
+- `flow-model.json`: intermediate model `{ resource, operations, prerequisites, nextOperations, states }`
+
+SDK layers (resource-centric):
+
+- Collection/service layer: `api.payments.create()`, `api.payments.retrieve(id)`, `api.payments.list()`
+- Resource instance/state layer: objects expose valid lifecycle transitions (`payment.capture()`, etc.)
+- Optional lifecycle helper methods at service level (`api.payments.capture(id, params, { autoPrerequisites: true })`)
+
+Pipeline used by the generator:
+
+- OpenAPI -> parser -> flow graph -> state machine -> templates -> SDK
+- Reuses lifecycle graph logic from the validator to stay consistent with `validate`, `graph`, and `diff`
+- Transition ordering uses `next_operation_id`, `prerequisite_operation_ids`, and state transitions from `x-openapi-flow`
+
+## Flow Analyzer (`analyze`)
+
+Use `analyze` to bootstrap a sidecar from OpenAPI paths/operation names.
+
+```bash
+npx x-openapi-flow analyze openapi.yaml --out openapi.x.yaml
+npx x-openapi-flow analyze openapi.yaml --format json
+npx x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml
+```
+
+Notes:
+
+- The output is heuristic and intended as a starting point.
+- Inferred states/transitions should be reviewed and adjusted by API/domain owners.
+- Default output format is `pretty`; without `--out`, the suggested sidecar is printed to stdout.
+- `--merge` merges inferred data into an existing sidecar (default path or `--flows`) while preserving existing operation fields.
+- In `json`, inferred transition confidence is available in `analysis.transitionConfidence`.
 
 `diff` now reports field-level changes for operations that already exist in the sidecar.
 In `pretty` format, this appears under `Changed details` with changed paths per operation (for example, `current_state` or `transitions[0].target_state`).
@@ -299,9 +404,9 @@ Field reference format:
 
 ### Swagger UI
 
-- There is no Swagger UI-based automated test in this repo today (tests are CLI-only).
-- For UI interpretation of `x-openapi-flow`, use `showExtensions: true` with the plugin at `lib/swagger-ui/x-openapi-flow-plugin.js`.
-- A ready HTML example is available at `examples/swagger-ui/index.html`.
+- UI plugin behavior is covered by tests in `tests/plugins/plugin-ui.test.js`.
+- For UI interpretation of `x-openapi-flow`, use `showExtensions: true` with the plugin at `adapters/ui/swagger-ui/x-openapi-flow-plugin.js`.
+- A ready HTML example is available at `../example-project/examples/swagger-ui/index.html`.
 - The plugin renders a global **Flow Overview** (Mermaid image) near the top of the docs, plus operation-level flow cards.
 
 ![Swagger UI integration result](../docs/assets/x-openapi-flow-extension.png)

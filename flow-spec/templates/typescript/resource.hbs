@@ -1,0 +1,24 @@
+import type { HttpClient, RequestOptions } from "../http-client";
+
+const ensurePrerequisites = (
+  completedOperations: Set<string>,
+  requiredOperationIds: string[],
+  methodName: string,
+): void => {
+  const missing = requiredOperationIds.filter((operationId) => !completedOperations.has(operationId));
+  if (missing.length > 0) {
+    throw new Error(
+      `Cannot call ${methodName} before prerequisites are satisfied: ${missing.join(", ")}`,
+    );
+  }
+};
+
+{{{sharedTypesCode}}}
+
+{{{stateClassesCode}}}
+
+export class {{resourceClassName}}Resource {
+  constructor(private readonly httpClient: HttpClient) {}
+
+{{{serviceMethodsCode}}}
+}

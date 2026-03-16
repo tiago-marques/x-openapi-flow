@@ -13,6 +13,13 @@ const {
   detectInvalidOperationReferences,
   detectTerminalCoverage,
 } = require("../lib/validator");
+const { generateSdk } = require("../lib/sdk-generator");
+const {
+  exportDocFlows,
+  generatePostmanCollection,
+  generateInsomniaWorkspace,
+  generateRedocPackage,
+} = require("../adapters/flow-output-adapters");
 
 const DEFAULT_CONFIG_NAME = "x-openapi-flow.config.json";
 const DEFAULT_FLOWS_FILE = "x-openapi-flow.flows.yaml";
@@ -51,6 +58,12 @@ Usage:
   x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
   x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
   x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
+  x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
+  x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
+  x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
+  x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
+  x-openapi-flow generate-insomnia [openapi-file] [--output path]
+  x-openapi-flow generate-redoc [openapi-file] [--output path]
   x-openapi-flow graph <openapi-file> [--format mermaid|json]
   x-openapi-flow doctor [--config path]
   x-openapi-flow --help
@@ -70,6 +83,15 @@ Examples:
   x-openapi-flow diff openapi.yaml --format json
   x-openapi-flow lint openapi.yaml
   x-openapi-flow lint openapi.yaml --format json
+  x-openapi-flow analyze openapi.yaml
+  x-openapi-flow analyze openapi.yaml --out openapi.x.yaml
+  x-openapi-flow analyze openapi.yaml --format json
+  x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml
+  x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
+  x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
+  x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
+  x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
+  x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
   x-openapi-flow graph examples/order-api.yaml
   x-openapi-flow doctor
 `);
@@ -567,6 +589,58 @@ function parseGraphArgs(args) {
   return { filePath: path.resolve(positional[0]), format };
 }
 
+function parseAnalyzeArgs(args) {
+  const unknown = findUnknownOptions(args, ["--format", "--out", "--flows"], ["--merge"]);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const formatOpt = getOptionValue(args, "--format");
+  if (formatOpt.error) {
+    return { error: `${formatOpt.error} Use 'pretty' or 'json'.` };
+  }
+
+  const outOpt = getOptionValue(args, "--out");
+  if (outOpt.error) {
+    return { error: outOpt.error };
+  }
+
+  const flowsOpt = getOptionValue(args, "--flows");
+  if (flowsOpt.error) {
+    return { error: flowsOpt.error };
+  }
+
+  const format = formatOpt.found ? formatOpt.value : "pretty";
+  if (!["pretty", "json"].includes(format)) {
+    return { error: `Invalid --format '${format}'. Use 'pretty' or 'json'.` };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--format" || token === "--out" || token === "--flows" || token === "--merge") {
+      return false;
+    }
+    if (
+      index > 0
+      && (args[index - 1] === "--format" || args[index - 1] === "--out" || args[index - 1] === "--flows")
+    ) {
+      return false;
+    }
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    format,
+    outPath: outOpt.found ? path.resolve(outOpt.value) : undefined,
+    merge: args.includes("--merge"),
+    flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
+  };
+}
+
 function parseDoctorArgs(args) {
   const unknown = findUnknownOptions(args, ["--config"], []);
   if (unknown) {
@@ -580,6 +654,176 @@ function parseDoctorArgs(args) {
 
   return {
     configPath: configOpt.found ? configOpt.value : undefined,
+  };
+}
+
+function parseGenerateSdkArgs(args) {
+  const unknown = findUnknownOptions(args, ["--lang", "--output"], []);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const langOpt = getOptionValue(args, "--lang");
+  if (langOpt.error) {
+    return { error: `${langOpt.error} Use 'typescript'.` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  if (!langOpt.found) {
+    return { error: "Missing --lang option. Usage: x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]" };
+  }
+
+  const language = langOpt.value;
+  if (language !== "typescript") {
+    return { error: `Unsupported --lang '${language}'. MVP currently supports only 'typescript'.` };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--lang" || token === "--output") {
+      return false;
+    }
+    if (index > 0 && (args[index - 1] === "--lang" || args[index - 1] === "--output")) {
+      return false;
+    }
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    language,
+    outputPath: outputOpt.found ? path.resolve(outputOpt.value) : path.resolve(process.cwd(), "sdk"),
+  };
+}
+
+function parseExportDocFlowsArgs(args) {
+  const unknown = findUnknownOptions(args, ["--output", "--format"], []);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  const formatOpt = getOptionValue(args, "--format");
+  if (formatOpt.error) {
+    return { error: `${formatOpt.error} Use 'markdown' or 'json'.` };
+  }
+
+  const format = formatOpt.found ? formatOpt.value : "markdown";
+  if (!["markdown", "json"].includes(format)) {
+    return { error: `Invalid --format '${format}'. Use 'markdown' or 'json'.` };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--output" || token === "--format") return false;
+    if (index > 0 && (args[index - 1] === "--output" || args[index - 1] === "--format")) return false;
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    outputPath: outputOpt.found ? path.resolve(outputOpt.value) : path.resolve(process.cwd(), "api-flows.md"),
+    format,
+  };
+}
+
+function parseGeneratePostmanArgs(args) {
+  const unknown = findUnknownOptions(args, ["--output"], ["--with-scripts"]);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--output" || token === "--with-scripts") return false;
+    if (index > 0 && args[index - 1] === "--output") return false;
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    outputPath: outputOpt.found
+      ? path.resolve(outputOpt.value)
+      : path.resolve(process.cwd(), "x-openapi-flow.postman_collection.json"),
+    withScripts: args.includes("--with-scripts"),
+  };
+}
+
+function parseGenerateInsomniaArgs(args) {
+  const unknown = findUnknownOptions(args, ["--output"], []);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--output") return false;
+    if (index > 0 && args[index - 1] === "--output") return false;
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    outputPath: outputOpt.found
+      ? path.resolve(outputOpt.value)
+      : path.resolve(process.cwd(), "x-openapi-flow.insomnia.json"),
+  };
+}
+
+function parseGenerateRedocArgs(args) {
+  const unknown = findUnknownOptions(args, ["--output"], []);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--output") return false;
+    if (index > 0 && args[index - 1] === "--output") return false;
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    outputPath: outputOpt.found ? path.resolve(outputOpt.value) : path.resolve(process.cwd(), "redoc-flow"),
   };
 }
 
@@ -611,6 +855,11 @@ function parseArgs(argv) {
     return parsed.error ? parsed : { command, ...parsed };
   }
 
+  if (command === "analyze") {
+    const parsed = parseAnalyzeArgs(commandArgs);
+    return parsed.error ? parsed : { command, ...parsed };
+  }
+
   if (command === "apply") {
     const parsed = parseApplyArgs(commandArgs);
     return parsed.error ? parsed : { command, ...parsed };
@@ -628,6 +877,31 @@ function parseArgs(argv) {
 
   if (command === "doctor") {
     const parsed = parseDoctorArgs(commandArgs);
+    return parsed.error ? parsed : { command, ...parsed };
+  }
+
+  if (command === "generate-sdk") {
+    const parsed = parseGenerateSdkArgs(commandArgs);
+    return parsed.error ? parsed : { command, ...parsed };
+  }
+
+  if (command === "export-doc-flows") {
+    const parsed = parseExportDocFlowsArgs(commandArgs);
+    return parsed.error ? parsed : { command, ...parsed };
+  }
+
+  if (command === "generate-postman") {
+    const parsed = parseGeneratePostmanArgs(commandArgs);
+    return parsed.error ? parsed : { command, ...parsed };
+  }
+
+  if (command === "generate-insomnia") {
+    const parsed = parseGenerateInsomniaArgs(commandArgs);
+    return parsed.error ? parsed : { command, ...parsed };
+  }
+
+  if (command === "generate-redoc") {
+    const parsed = parseGenerateRedocArgs(commandArgs);
     return parsed.error ? parsed : { command, ...parsed };
   }
 
@@ -1507,6 +1781,474 @@ function runGraph(parsed) {
   }
 }
 
+function toKebabCase(value) {
+  if (!value) {
+    return "operation";
+  }
+
+  const normalized = String(value)
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase();
+
+  return normalized || "operation";
+}
+
+function deriveResourceKey(pathKey) {
+  const tokens = String(pathKey || "")
+    .split("/")
+    .filter((token) => token && !token.startsWith("{") && !token.endsWith("}"));
+
+  return tokens[0] || "root";
+}
+
+function inferCurrentState(entry) {
+  const fingerprint = [entry.method, entry.path, entry.resolvedOperationId]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const keywordToState = [
+    { match: /cancel|void/, state: "CANCELED" },
+    { match: /refund/, state: "REFUNDED" },
+    { match: /fail|error|decline|reject/, state: "FAILED" },
+    { match: /deliver|received/, state: "DELIVERED" },
+    { match: /ship|dispatch/, state: "SHIPPED" },
+    { match: /complete|done|close|finish/, state: "COMPLETED" },
+    { match: /pay|charge|collect/, state: "PAID" },
+    { match: /confirm|approve|accept/, state: "CONFIRMED" },
+    { match: /process|fulfill/, state: "PROCESSING" },
+    { match: /create|submit|register/, state: "CREATED" },
+    { match: /get|list|find|fetch|read/, state: "OBSERVED" },
+  ];
+
+  for (const rule of keywordToState) {
+    if (rule.match.test(fingerprint)) {
+      return rule.state;
+    }
+  }
+
+  if (entry.method === "post") {
+    return "CREATED";
+  }
+  if (entry.method === "delete") {
+    return "CANCELED";
+  }
+  if (entry.method === "patch" || entry.method === "put") {
+    return "PROCESSING";
+  }
+
+  return "OBSERVED";
+}
+
+function inferTriggerType(fromEntry, toEntry) {
+  const toFingerprint = `${toEntry.method} ${toEntry.path} ${toEntry.resolvedOperationId}`.toLowerCase();
+  if (/(webhook|callback|event)/.test(toFingerprint)) {
+    return "webhook";
+  }
+
+  if (fromEntry.method === "get" || fromEntry.method === "head") {
+    return "polling";
+  }
+
+  return "synchronous";
+}
+
+function buildAnalyzedFlowsDoc(api) {
+  const stateOrder = {
+    CREATED: 10,
+    CONFIRMED: 20,
+    PAID: 30,
+    PROCESSING: 40,
+    SHIPPED: 50,
+    DELIVERED: 60,
+    COMPLETED: 70,
+    REFUNDED: 80,
+    CANCELED: 90,
+    FAILED: 100,
+    OBSERVED: 1000,
+  };
+
+  const terminalStates = new Set(["COMPLETED", "DELIVERED", "REFUNDED", "CANCELED", "FAILED"]);
+  const entries = extractOperationEntries(api);
+
+  const inferred = entries.map((entry) => ({
+    ...entry,
+    resourceKey: deriveResourceKey(entry.path),
+    inferredState: inferCurrentState(entry),
+    inferredRank: stateOrder[inferCurrentState(entry)] || 1000,
+  }));
+
+  const transitionInsights = [];
+
+  const operations = inferred.map((entry) => {
+    const sameResource = inferred.filter((candidate) => candidate.resourceKey === entry.resourceKey);
+    const prioritized = sameResource.length > 1 ? sameResource : inferred;
+
+    let transition = null;
+    if (!terminalStates.has(entry.inferredState)) {
+      const nextCandidates = prioritized
+        .filter((candidate) => candidate.resolvedOperationId !== entry.resolvedOperationId)
+        .filter((candidate) => candidate.inferredRank > entry.inferredRank)
+        .sort((left, right) => {
+          const rankDelta = (left.inferredRank - entry.inferredRank) - (right.inferredRank - entry.inferredRank);
+          if (rankDelta !== 0) {
+            return rankDelta;
+          }
+          return left.resolvedOperationId.localeCompare(right.resolvedOperationId);
+        });
+
+      const next = nextCandidates[0];
+      if (next) {
+        const confidence = Math.min(
+          0.95,
+          0.55
+            + (sameResource.length > 1 ? 0.25 : 0)
+            + (entry.inferredRank < 1000 && next.inferredRank < 1000 ? 0.1 : 0)
+            + (nextCandidates.length === 1 ? 0.1 : 0)
+        );
+
+        const confidenceReasons = [];
+        if (sameResource.length > 1) {
+          confidenceReasons.push("same_resource");
+        }
+        if (entry.inferredRank < 1000 && next.inferredRank < 1000) {
+          confidenceReasons.push("known_state_progression");
+        }
+        if (nextCandidates.length === 1) {
+          confidenceReasons.push("single_candidate");
+        }
+        if (confidenceReasons.length === 0) {
+          confidenceReasons.push("fallback_ordering");
+        }
+
+        transition = {
+          target_state: next.inferredState,
+          trigger_type: inferTriggerType(entry, next),
+          next_operation_id: next.resolvedOperationId,
+        };
+
+        transitionInsights.push({
+          from_operation_id: entry.resolvedOperationId,
+          to_operation_id: next.resolvedOperationId,
+          from_state: entry.inferredState,
+          target_state: next.inferredState,
+          trigger_type: transition.trigger_type,
+          confidence: Number(confidence.toFixed(2)),
+          confidence_reasons: confidenceReasons,
+        });
+      }
+    }
+
+    return {
+      operationId: entry.resolvedOperationId,
+      "x-openapi-flow": {
+        version: "1.0",
+        id: toKebabCase(entry.resolvedOperationId),
+        current_state: entry.inferredState,
+        description: "Auto-generated by x-openapi-flow analyze",
+        transitions: transition ? [transition] : [],
+      },
+    };
+  });
+
+  return {
+    version: "1.0",
+    operations,
+    analysis: {
+      operationCount: inferred.length,
+      uniqueStates: Array.from(new Set(inferred.map((entry) => entry.inferredState))).sort(),
+      inferredTransitions: operations.reduce((total, operation) => {
+        const transitions = operation["x-openapi-flow"].transitions || [];
+        return total + transitions.length;
+      }, 0),
+      transitionConfidence: transitionInsights,
+    },
+  };
+}
+
+function mergeSidecarOperations(existingDoc, inferredDoc) {
+  const existingOps = Array.isArray(existingDoc && existingDoc.operations)
+    ? existingDoc.operations
+    : [];
+  const inferredOps = Array.isArray(inferredDoc && inferredDoc.operations)
+    ? inferredDoc.operations
+    : [];
+
+  const existingByOperationId = new Map();
+  for (const operationEntry of existingOps) {
+    if (operationEntry && operationEntry.operationId) {
+      existingByOperationId.set(operationEntry.operationId, operationEntry);
+    }
+  }
+
+  const mergedOps = [];
+  const consumedExisting = new Set();
+
+  for (const inferredEntry of inferredOps) {
+    const existingEntry = existingByOperationId.get(inferredEntry.operationId);
+    if (!existingEntry) {
+      mergedOps.push(inferredEntry);
+      continue;
+    }
+
+    consumedExisting.add(inferredEntry.operationId);
+
+    const existingFlow = existingEntry["x-openapi-flow"] || {};
+    const inferredFlow = inferredEntry["x-openapi-flow"] || {};
+    const existingTransitions = Array.isArray(existingFlow.transitions) ? existingFlow.transitions : [];
+
+    mergedOps.push({
+      operationId: inferredEntry.operationId,
+      "x-openapi-flow": {
+        ...inferredFlow,
+        ...existingFlow,
+        transitions: existingTransitions.length > 0
+          ? existingTransitions
+          : (Array.isArray(inferredFlow.transitions) ? inferredFlow.transitions : []),
+      },
+    });
+  }
+
+  for (const existingEntry of existingOps) {
+    if (!existingEntry || !existingEntry.operationId) {
+      continue;
+    }
+    if (!consumedExisting.has(existingEntry.operationId)) {
+      mergedOps.push(existingEntry);
+    }
+  }
+
+  return {
+    version: "1.0",
+    operations: mergedOps,
+    mergeStats: {
+      existingOperations: existingOps.length,
+      inferredOperations: inferredOps.length,
+      mergedOperations: mergedOps.length,
+      preservedExistingOnly: Math.max(0, mergedOps.length - inferredOps.length),
+    },
+  };
+}
+
+function runAnalyze(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  let api;
+  try {
+    api = loadApi(targetOpenApiFile);
+  } catch (err) {
+    console.error(`ERROR: Could not parse OpenAPI file — ${err.message}`);
+    return 1;
+  }
+
+  const analysisResult = buildAnalyzedFlowsDoc(api);
+  let sidecarDoc = {
+    version: analysisResult.version,
+    operations: analysisResult.operations,
+  };
+  let mergeStats = null;
+
+  if (parsed.merge) {
+    const mergeFlowsPath = resolveFlowsPath(targetOpenApiFile, parsed.flowsPath);
+    let existingFlows = { version: "1.0", operations: [] };
+    if (fs.existsSync(mergeFlowsPath)) {
+      try {
+        existingFlows = readFlowsFile(mergeFlowsPath);
+      } catch (err) {
+        console.error(`ERROR: Could not parse flows file for merge — ${err.message}`);
+        return 1;
+      }
+    }
+
+    const merged = mergeSidecarOperations(existingFlows, sidecarDoc);
+    sidecarDoc = {
+      version: merged.version,
+      operations: merged.operations,
+    };
+    mergeStats = {
+      enabled: true,
+      flowsPath: mergeFlowsPath,
+      ...merged.mergeStats,
+    };
+  }
+
+  if (parsed.outPath) {
+    writeFlowsFile(parsed.outPath, sidecarDoc);
+  }
+
+  if (parsed.format === "json") {
+    console.log(JSON.stringify({
+      openApiFile: targetOpenApiFile,
+      outputPath: parsed.outPath || null,
+      merge: mergeStats || { enabled: false },
+      analysis: analysisResult.analysis,
+      sidecar: sidecarDoc,
+    }, null, 2));
+    return 0;
+  }
+
+  console.log(`Analyzed OpenAPI source: ${targetOpenApiFile}`);
+  console.log(`Inferred operations: ${analysisResult.analysis.operationCount}`);
+  console.log(`Inferred transitions: ${analysisResult.analysis.inferredTransitions}`);
+  console.log(`States: ${analysisResult.analysis.uniqueStates.join(", ") || "-"}`);
+  if (mergeStats && mergeStats.enabled) {
+    console.log(`Merged with sidecar: ${mergeStats.flowsPath}`);
+    console.log(`Merged operations total: ${mergeStats.mergedOperations}`);
+  }
+
+  if (parsed.outPath) {
+    console.log(`Suggested sidecar written to: ${parsed.outPath}`);
+    return 0;
+  }
+
+  console.log("---");
+  console.log(yaml.dump(sidecarDoc, { noRefs: true, lineWidth: -1 }).trimEnd());
+  return 0;
+}
+
+function runGenerateSdk(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  try {
+    const result = generateSdk({
+      apiPath: targetOpenApiFile,
+      language: parsed.language,
+      outputDir: parsed.outputPath,
+    });
+
+    console.log(`OpenAPI source: ${targetOpenApiFile}`);
+    console.log(`SDK language: ${result.language}`);
+    console.log(`Output directory: ${result.outputDir}`);
+    console.log(`Flow definitions processed: ${result.flowCount}`);
+    console.log(`Resources generated: ${result.resourceCount}`);
+    for (const resource of result.resources) {
+      console.log(`- ${resource.name}: operations=${resource.operations}, states=${resource.states}, initial=[${resource.initialStates.join(", ")}]`);
+    }
+    return 0;
+  } catch (err) {
+    console.error(`ERROR: Could not generate SDK — ${err.message}`);
+    return 1;
+  }
+}
+
+function runExportDocFlows(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  try {
+    const result = exportDocFlows({
+      apiPath: targetOpenApiFile,
+      outputPath: parsed.outputPath,
+      format: parsed.format,
+    });
+
+    console.log(`OpenAPI source: ${targetOpenApiFile}`);
+    console.log(`Output: ${result.outputPath}`);
+    console.log(`Format: ${result.format}`);
+    console.log(`Resources: ${result.resources}`);
+    console.log(`Flow definitions: ${result.flowCount}`);
+    return 0;
+  } catch (err) {
+    console.error(`ERROR: Could not export doc flows — ${err.message}`);
+    return 1;
+  }
+}
+
+function runGeneratePostman(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  try {
+    const result = generatePostmanCollection({
+      apiPath: targetOpenApiFile,
+      outputPath: parsed.outputPath,
+      withScripts: parsed.withScripts,
+    });
+
+    console.log(`OpenAPI source: ${targetOpenApiFile}`);
+    console.log(`Output: ${result.outputPath}`);
+    console.log(`Resources: ${result.resources}`);
+    console.log(`Flow definitions: ${result.flowCount}`);
+    console.log(`Scripts enabled: ${result.withScripts}`);
+    return 0;
+  } catch (err) {
+    console.error(`ERROR: Could not generate Postman collection — ${err.message}`);
+    return 1;
+  }
+}
+
+function runGenerateInsomnia(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  try {
+    const result = generateInsomniaWorkspace({
+      apiPath: targetOpenApiFile,
+      outputPath: parsed.outputPath,
+    });
+
+    console.log(`OpenAPI source: ${targetOpenApiFile}`);
+    console.log(`Output: ${result.outputPath}`);
+    console.log(`Resources: ${result.resources}`);
+    console.log(`Flow definitions: ${result.flowCount}`);
+    return 0;
+  } catch (err) {
+    console.error(`ERROR: Could not generate Insomnia workspace — ${err.message}`);
+    return 1;
+  }
+}
+
+function runGenerateRedoc(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  try {
+    const result = generateRedocPackage({
+      apiPath: targetOpenApiFile,
+      outputDir: parsed.outputPath,
+    });
+
+    console.log(`OpenAPI source: ${targetOpenApiFile}`);
+    console.log(`Output directory: ${result.outputDir}`);
+    console.log(`Redoc index: ${result.indexPath}`);
+    console.log(`Resources: ${result.resources}`);
+    console.log(`Flow definitions: ${result.flowCount}`);
+    return 0;
+  } catch (err) {
+    console.error(`ERROR: Could not generate Redoc package — ${err.message}`);
+    return 1;
+  }
+}
+
 function main() {
   const parsed = parseArgs(process.argv);
 
@@ -1532,6 +2274,30 @@ function main() {
 
   if (parsed.command === "graph") {
     process.exit(runGraph(parsed));
+  }
+
+  if (parsed.command === "analyze") {
+    process.exit(runAnalyze(parsed));
+  }
+
+  if (parsed.command === "generate-sdk") {
+    process.exit(runGenerateSdk(parsed));
+  }
+
+  if (parsed.command === "export-doc-flows") {
+    process.exit(runExportDocFlows(parsed));
+  }
+
+  if (parsed.command === "generate-postman") {
+    process.exit(runGeneratePostman(parsed));
+  }
+
+  if (parsed.command === "generate-insomnia") {
+    process.exit(runGenerateInsomnia(parsed));
+  }
+
+  if (parsed.command === "generate-redoc") {
+    process.exit(runGenerateRedoc(parsed));
   }
 
   if (parsed.command === "apply") {

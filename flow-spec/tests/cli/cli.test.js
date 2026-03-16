@@ -7,10 +7,10 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const FLOW_SPEC_ROOT = path.resolve(__dirname, "..");
+const FLOW_SPEC_ROOT = path.resolve(__dirname, "..", "..");
 const CLI_PATH = path.resolve(FLOW_SPEC_ROOT, "bin", "x-openapi-flow.js");
 const HTTP_METHODS = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
-const FIXTURES_DIR = path.resolve(FLOW_SPEC_ROOT, "tests", "fixtures");
+const FIXTURES_DIR = path.resolve(__dirname, "fixtures");
 
 function runCli(args, options = {}) {
   const result = spawnSync("node", [CLI_PATH, ...args], {
@@ -44,6 +44,13 @@ function normalizeDiffJsonOutput(stdout) {
 
 function normalizeGraphJsonOutput(stdout) {
   const payload = JSON.parse(stdout);
+  return JSON.stringify(payload, null, 2).trimEnd();
+}
+
+function normalizeAnalyzeJsonOutput(stdout) {
+  const payload = JSON.parse(stdout);
+  payload.openApiFile = "<OPENAPI_FILE>";
+  payload.outputPath = payload.outputPath ? "<OUTPUT_PATH>" : null;
   return JSON.stringify(payload, null, 2).trimEnd();
 }
 
@@ -92,7 +99,7 @@ test("validate strict succeeds on known good example", () => {
 test("validate fails for missing required version with fix suggestion", () => {
   const result = runCli([
     "validate",
-    "tests/fixtures/missing-version.yaml",
+    "tests/cli/fixtures/missing-version.yaml",
     "--profile",
     "strict",
   ]);
@@ -176,6 +183,320 @@ test("graph command accepts sidecar file", () => {
     assert.equal(result.status, 0);
     assert.match(result.stdout, /^stateDiagram-v2/m);
     assert.match(result.stdout, /CREATED --> PAID/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("analyze json infers sidecar with transitions", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-analyze-json-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Analyze API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n  /orders/{id}/ship:\n    post:\n      operationId: shipOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["analyze", openapiPath, "--format", "json"]);
+    assert.equal(result.status, 0);
+
+    const normalized = normalizeAnalyzeJsonOutput(result.stdout);
+    const payload = JSON.parse(normalized);
+
+    assert.equal(payload.analysis.operationCount, 3);
+    assert.equal(payload.analysis.inferredTransitions, 2);
+    assert.equal(Array.isArray(payload.analysis.transitionConfidence), true);
+    assert.equal(payload.analysis.transitionConfidence.length, 2);
+    payload.analysis.transitionConfidence.forEach((entry) => {
+      assert.equal(typeof entry.confidence, "number");
+      assert.equal(entry.confidence >= 0, true);
+      assert.equal(entry.confidence <= 1, true);
+      assert.equal(Array.isArray(entry.confidence_reasons), true);
+    });
+    assert.match(normalized, /"current_state": "CREATED"/);
+    assert.match(normalized, /"current_state": "CONFIRMED"/);
+    assert.match(normalized, /"current_state": "SHIPPED"/);
+    assert.match(normalized, /"next_operation_id": "confirmOrder"/);
+    assert.match(normalized, /"next_operation_id": "shipOrder"/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("analyze writes sidecar with --out", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-analyze-out-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const outPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Analyze Out API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/cancel:\n    post:\n      operationId: cancelOrder\n      responses:\n        "200":\n          description: canceled\n`,
+      "utf8"
+    );
+
+    const result = runCli(["analyze", openapiPath, "--out", outPath]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Suggested sidecar written to:/);
+
+    const sidecar = fs.readFileSync(outPath, "utf8");
+    assert.match(sidecar, /operationId: createOrder/);
+    assert.match(sidecar, /operationId: cancelOrder/);
+    assert.match(sidecar, /current_state: CREATED/);
+    assert.match(sidecar, /current_state: CANCELED/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("analyze --merge preserves existing flow fields and merges inferred operations", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-analyze-merge-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Analyze Merge API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: createOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: create-order-manual\n      current_state: MANUAL_CREATED\n      transitions:\n        - target_state: MANUAL_NEXT\n          trigger_type: synchronous\n          next_operation_id: manualNext\n  - operationId: archivedOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: archived-order\n      current_state: ARCHIVED\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["analyze", openapiPath, "--merge", "--flows", sidecarPath, "--out", sidecarPath, "--format", "json"]);
+    assert.equal(result.status, 0);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.merge.enabled, true);
+    assert.equal(payload.merge.existingOperations, 2);
+    assert.equal(payload.merge.inferredOperations, 2);
+    assert.equal(payload.merge.mergedOperations, 3);
+
+    const mergedSidecar = fs.readFileSync(sidecarPath, "utf8");
+    assert.match(mergedSidecar, /operationId: createOrder/);
+    assert.match(mergedSidecar, /current_state: MANUAL_CREATED/);
+    assert.match(mergedSidecar, /next_operation_id: manualNext/);
+    assert.match(mergedSidecar, /operationId: confirmOrder/);
+    assert.match(mergedSidecar, /operationId: archivedOrder/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-sdk typescript creates flow-aware resource classes", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-generate-sdk-"));
+  const outputDir = path.join(tempDir, "sdk");
+
+  try {
+    const result = runCli([
+      "generate-sdk",
+      "examples/order-api.yaml",
+      "--lang",
+      "typescript",
+      "--output",
+      outputDir,
+    ]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Resources generated:/);
+
+    const orderResourcePath = path.join(outputDir, "src", "resources", "Order.ts");
+    const indexPath = path.join(outputDir, "src", "index.ts");
+    const helpersPath = path.join(outputDir, "src", "flow-helpers.ts");
+    const modelPath = path.join(outputDir, "flow-model.json");
+
+    assert.equal(fs.existsSync(orderResourcePath), true);
+    assert.equal(fs.existsSync(indexPath), true);
+    assert.equal(fs.existsSync(helpersPath), true);
+    assert.equal(fs.existsSync(modelPath), true);
+
+    const orderResource = fs.readFileSync(orderResourcePath, "utf8");
+    assert.match(orderResource, /export class OrderResource/);
+    assert.match(orderResource, /export class OrderCreated/);
+    assert.match(orderResource, /async confirm\(params: OperationParams = \{\}\): Promise<OrderConfirmed>/);
+    assert.match(orderResource, /async cancel\(params: OperationParams = \{\}\): Promise<OrderCancelled>/);
+    assert.doesNotMatch(orderResource, /export class OrderCreated extends [^{]+\{\s*async ship\(/);
+
+    const helpers = fs.readFileSync(helpersPath, "utf8");
+    assert.match(helpers, /export async function runFlow/);
+
+    const model = JSON.parse(fs.readFileSync(modelPath, "utf8"));
+    assert.equal(Array.isArray(model.resources), true);
+    assert.equal(model.resources.length > 0, true);
+    assert.equal(Array.isArray(model.resources[0].operations), true);
+    assert.equal(Array.isArray(model.resources[0].states), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-sdk creates collection layer and lifecycle helper methods", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-generate-sdk-collection-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const outputDir = path.join(tempDir, "sdk");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Payments API\n  version: "1.0.0"\npaths:\n  /payments:\n    get:\n      operationId: listPayments\n      responses:\n        "200":\n          description: ok\n    post:\n      operationId: createPayment\n      x-openapi-flow:\n        version: "1.0"\n        id: create-payment\n        current_state: AUTHORIZED\n        transitions:\n          - target_state: CAPTURED\n            trigger_type: synchronous\n            next_operation_id: capturePayment\n      responses:\n        "201":\n          description: ok\n  /payments/{id}:\n    get:\n      operationId: retrievePayment\n      responses:\n        "200":\n          description: ok\n  /payments/{id}/capture:\n    post:\n      operationId: capturePayment\n      x-openapi-flow:\n        version: "1.0"\n        id: capture-payment\n        current_state: CAPTURED\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli([
+      "generate-sdk",
+      openapiPath,
+      "--lang",
+      "typescript",
+      "--output",
+      outputDir,
+    ]);
+
+    assert.equal(result.status, 0);
+
+    const paymentResourcePath = path.join(outputDir, "src", "resources", "Payment.ts");
+    assert.equal(fs.existsSync(paymentResourcePath), true);
+
+    const paymentResource = fs.readFileSync(paymentResourcePath, "utf8");
+    assert.match(paymentResource, /async create\(params: OperationParams = \{\}\): Promise<PaymentAuthorized>/);
+    assert.match(paymentResource, /async retrieve\(id: string, params: OperationParams = \{\}\): Promise<PaymentResourceInstance>/);
+    assert.match(paymentResource, /async list\(params: OperationParams = \{\}\): Promise<unknown>/);
+    assert.match(paymentResource, /async capture\(id: string, params: OperationParams = \{\}, options: LifecycleOptions = \{\}\): Promise<PaymentCaptured>/);
+    assert.match(paymentResource, /_executeTransition\(operationId: string, params: OperationParams, completedOperations: Set<string>\)/);
+    assert.match(paymentResource, /class PaymentAuthorized[\s\S]*async capture\(params: OperationParams = \{\}\): Promise<PaymentCaptured>/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("export-doc-flows generates markdown lifecycle page", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-doc-flows-"));
+  const outputPath = path.join(tempDir, "api-flows.md");
+
+  try {
+    const result = runCli([
+      "export-doc-flows",
+      "examples/order-api.yaml",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Format: markdown/);
+    assert.equal(fs.existsSync(outputPath), true);
+
+    const content = fs.readFileSync(outputPath, "utf8");
+    assert.match(content, /# API Flows/);
+    assert.match(content, /## Orders Lifecycle/);
+    assert.match(content, /```mermaid/);
+    assert.match(content, /createOrder/);
+    assert.match(content, /Next operations:/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-postman creates flow-oriented collection", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-postman-"));
+  const outputPath = path.join(tempDir, "flow.postman_collection.json");
+
+  try {
+    const result = runCli([
+      "generate-postman",
+      "examples/order-api.yaml",
+      "--output",
+      outputPath,
+      "--with-scripts",
+    ]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Scripts enabled: true/);
+    assert.equal(fs.existsSync(outputPath), true);
+
+    const collection = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    assert.equal(collection.info.schema.includes("collection/v2.1.0"), true);
+    assert.equal(Array.isArray(collection.item), true);
+    assert.equal(collection.item.length > 0, true);
+
+    const firstFolder = collection.item[0];
+    assert.equal(Array.isArray(firstFolder.item), true);
+    const firstJourney = firstFolder.item[0];
+    const firstRequest = firstJourney && Array.isArray(firstJourney.item) ? firstJourney.item[0] : null;
+    assert.equal(!!firstRequest, true);
+    assert.equal(Array.isArray(firstRequest.event), true);
+    assert.equal(firstRequest.event.length >= 2, true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-insomnia creates flow workspace export", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-insomnia-"));
+  const outputPath = path.join(tempDir, "flow.insomnia.json");
+
+  try {
+    const result = runCli([
+      "generate-insomnia",
+      "examples/order-api.yaml",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0);
+    assert.equal(fs.existsSync(outputPath), true);
+
+    const payload = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    assert.equal(payload._type, "export");
+    assert.equal(Array.isArray(payload.resources), true);
+    assert.equal(payload.resources.some((entry) => entry._type === "workspace"), true);
+    assert.equal(payload.resources.some((entry) => entry._type === "request_group"), true);
+    assert.equal(payload.resources.some((entry) => entry._type === "request"), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-redoc creates package with plugin and lifecycle model", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-redoc-"));
+  const outputDir = path.join(tempDir, "redoc-flow");
+
+  try {
+    const result = runCli([
+      "generate-redoc",
+      "examples/order-api.yaml",
+      "--output",
+      outputDir,
+    ]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Redoc index:/);
+
+    const indexPath = path.join(outputDir, "index.html");
+    const pluginPath = path.join(outputDir, "x-openapi-flow-redoc-plugin.js");
+    const modelPath = path.join(outputDir, "flow-model.json");
+    const specPath = path.join(outputDir, "openapi.yaml");
+
+    assert.equal(fs.existsSync(indexPath), true);
+    assert.equal(fs.existsSync(pluginPath), true);
+    assert.equal(fs.existsSync(modelPath), true);
+    assert.equal(fs.existsSync(specPath), true);
+
+    const index = fs.readFileSync(indexPath, "utf8");
+    assert.match(index, /<redoc spec-url="\.\/openapi\.yaml"><\/redoc>/);
+    assert.match(index, /x-openapi-flow-redoc-plugin\.js/);
+
+    const plugin = fs.readFileSync(pluginPath, "utf8");
+    assert.match(plugin, /window\.XOpenApiFlowRedocPlugin/);
+    assert.match(plugin, /Flow \/ Lifecycle/);
+
+    const model = JSON.parse(fs.readFileSync(modelPath, "utf8"));
+    assert.equal(Array.isArray(model.resources), true);
+    assert.equal(model.resources.length > 0, true);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

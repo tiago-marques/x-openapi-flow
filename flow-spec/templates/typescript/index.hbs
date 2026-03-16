@@ -1,0 +1,16 @@
+import type { HttpClient } from "./http-client";
+{{#each resources}}
+import { {{resourceClassName}}Resource } from "./resources/{{resourceClassName}}";
+{{/each}}
+
+export class FlowApiClient {
+{{#each resources}}
+  public readonly {{resourcePropertyName}}: {{resourceClassName}}Resource;
+{{/each}}
+
+  constructor(httpClient: HttpClient) {
+{{#each resources}}
+    this.{{resourcePropertyName}} = new {{resourceClassName}}Resource(httpClient);
+{{/each}}
+  }
+}
