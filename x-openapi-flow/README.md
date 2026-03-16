@@ -11,10 +11,8 @@
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
 ![copilot ready](https://img.shields.io/badge/Copilot-Ready-00BFA5?logo=githubcopilot&logoColor=white)
 
-# x-openapi-flow
-
-**OpenAPI describes APIs.**
-**x-openapi-flow describes how they actually work — for developers and AI.**
+# OpenAPI describes APIs.
+# x-openapi-flow describes how they actually work — for developers and AI.
 
 `x-openapi-flow` is an OpenAPI vendor extension and CLI for documenting and validating resource lifecycle workflows.
 It adds explicit state-machine metadata (`x-openapi-flow`) to operations and validates both schema and lifecycle graph consistency.
