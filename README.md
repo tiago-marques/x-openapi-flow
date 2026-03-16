@@ -179,8 +179,8 @@ Validation covers:
 
 Example images:
 
-![Guided graph example](docs/assets/x-openapi-flow-overview.png)
-![Swagger UI integration result](docs/assets/x-openapi-flow-extension.png)
+![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-overview.png)
+![Swagger UI integration result](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-extension.png)
 
 Integration docs:
 

@@ -420,14 +420,14 @@ Field reference format:
 - A ready HTML example is available at `../example/openapi-swagger-ui/examples/swagger-ui/index.html`.
 - The plugin renders a global **Flow Overview** (Mermaid image) near the top of the docs, plus operation-level flow cards.
 
-![Swagger UI integration result](../docs/assets/x-openapi-flow-extension.png)
+![Swagger UI integration result](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-extension.png)
 
 ### Graph Output Example
 
 `x-openapi-flow graph` includes transition guidance labels in Mermaid output when present (`next_operation_id`, `prerequisite_operation_ids`).
 The `graph` command accepts both full OpenAPI source files and sidecar files (`{context}.x.(json|yaml)` and legacy `{context}-openapi-flow.(json|yaml)`).
 
-![Guided graph example](../docs/assets/x-openapi-flow-overview.png)
+![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-overview.png)
 
 ## Repository and Documentation
 
