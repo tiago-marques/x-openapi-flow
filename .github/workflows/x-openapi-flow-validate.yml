@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: flow-spec
+        working-directory: x-openapi-flow
 
     steps:
       - name: Checkout
@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: flow-spec/package-lock.json
+          cache-dependency-path: x-openapi-flow/package-lock.json
 
       - name: Install dependencies
         run: npm ci

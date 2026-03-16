@@ -12,8 +12,8 @@ Date: 2026-03-16
   - `generate-insomnia`
   - `generate-redoc`
 - Reorganized project structure for scalability:
-  - core logic isolated in `flow-spec/lib`
-  - adapters centralized in `flow-spec/adapters`
+  - core logic isolated in `x-openapi-flow/lib`
+  - adapters centralized in `x-openapi-flow/adapters`
   - tests split into `tests/cli`, `tests/plugins`, `tests/integration`
 - Added dedicated wiki pages for integrations and adapter architecture:
   - Swagger UI, Redoc, Postman, Insomnia

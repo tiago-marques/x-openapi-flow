@@ -59,8 +59,8 @@ Requests use `{{ base_url }}` as the host. After importing, set the `base_url` e
 
 | File | Purpose |
 |---|---|
-| `flow-spec/adapters/collections/insomnia-adapter.js` | Generator that builds the workspace export JSON. |
-| `flow-spec/adapters/shared/helpers.js` | Lifecycle sequence walker and URL template helpers. |
+| `x-openapi-flow/adapters/collections/insomnia-adapter.js` | Generator that builds the workspace export JSON. |
+| `x-openapi-flow/adapters/shared/helpers.js` | Lifecycle sequence walker and URL template helpers. |
 
 ## Tip
 

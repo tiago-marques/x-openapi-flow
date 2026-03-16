@@ -2,7 +2,7 @@
 
 ## Overview
 
-Integration tests live in `flow-spec/tests/integration/` and validate end-to-end scenarios that span multiple features or commands. They complement the CLI unit tests in `tests/cli/` and the plugin UI tests in `tests/plugins/`.
+Integration tests live in `x-openapi-flow/tests/integration/` and validate end-to-end scenarios that span multiple features or commands. They complement the CLI unit tests in `tests/cli/` and the plugin UI tests in `tests/plugins/`.
 
 ## When to write an integration test
 
@@ -16,7 +16,7 @@ Use a CLI test (`tests/cli/`) for single-command assertions and output format va
 ## Structure
 
 ```
-flow-spec/tests/integration/
+x-openapi-flow/tests/integration/
 └── sdk-and-adapters.test.js   ← generate-sdk + export-doc-flows + collections coherence
 ```
 

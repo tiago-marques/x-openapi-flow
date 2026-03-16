@@ -36,7 +36,7 @@ This release improves sidecar workflow safety, Swagger UI overview UX, and CLI e
 ## Recommended Commands
 
 ```bash
-cd flow-spec
+cd x-openapi-flow
 npm test
 
 cd ../example-project

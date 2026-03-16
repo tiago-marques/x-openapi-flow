@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.3.2 - 2026-03-16
+
+### Added
+- Dedicated example suites by integration focus under `example/`:
+	- `openapi-swagger-ui`
+	- `redoc`
+	- `postman`
+	- `insomnia`
+- New integration test coverage for all example focuses in `x-openapi-flow/tests/integration/examples.test.js`.
+- Per-example npm scripts for apply/validate/generate workflows in Redoc/Postman/Insomnia folders.
+
+### Changed
+- Main package folder renamed from `flow-spec` to `x-openapi-flow`.
+- Repository paths, workflows, docs, and local package links updated to the new folder naming.
+- Swagger UI example moved to `example/openapi-swagger-ui` and documentation references updated.
+
 ## 1.3.1 - 2026-03-16
 
 ### Added
@@ -21,16 +37,16 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - Repository structure reorganized to isolate core from adapters:
-  - `flow-spec/lib` now contains only core logic (`validator`, graph checks, SDK generator).
-  - visualization/export adapters moved to `flow-spec/adapters` (Swagger UI, Redoc, Postman/Insomnia/doc exporters).
-- Tests reorganized into `flow-spec/tests/cli`, `flow-spec/tests/plugins`, and `flow-spec/tests/integration`.
-- Swagger UI demo moved to `example-project/examples/swagger-ui` to keep `flow-spec/examples` focused on test/fixture-like API examples.
+  - `x-openapi-flow/lib` now contains only core logic (`validator`, graph checks, SDK generator).
+  - visualization/export adapters moved to `x-openapi-flow/adapters` (Swagger UI, Redoc, Postman/Insomnia/doc exporters).
+- Tests reorganized into `x-openapi-flow/tests/cli`, `x-openapi-flow/tests/plugins`, and `x-openapi-flow/tests/integration`.
+- Swagger UI demo moved to `example-project/examples/swagger-ui` to keep `x-openapi-flow/examples` focused on test/fixture-like API examples.
 - Root/package/wiki CLI documentation now includes `analyze`, `generate-sdk`, and output adapter commands.
 
 ## 1.3.0 - 2026-02-25
 
 ### Added
-- UI plugin test suite (`flow-spec/tests/plugin-ui.test.js`) integrated into `npm test`.
+- UI plugin test suite (`x-openapi-flow/tests/plugin-ui.test.js`) integrated into `npm test`.
 - Sidecar positional usage in `apply` (for example: `x-openapi-flow apply examples/order-openapi-flow.yaml`).
 - Dedicated wiki page for sidecar schema: `docs/wiki/Sidecar-Contract.md`.
 
@@ -61,7 +77,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - `apply` now writes to `{context}.flow.(json|yaml)` by default (for example: `openapi.flow.yaml`, `swagger.flow.json`).
-- Swagger UI plugin moved from `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js` to `flow-spec/lib/swagger-ui/x-openapi-flow-plugin.js`.
+- Swagger UI plugin moved from `x-openapi-flow/examples/swagger-ui/x-openapi-flow-plugin.js` to `x-openapi-flow/lib/swagger-ui/x-openapi-flow-plugin.js`.
 - `example-project` now uses `swagger.flow.json` as default applied output with fallback to `swagger.json` in local Swagger UI server.
 - Documentation and local scripts updated for `.flow` output convention.
 
@@ -108,13 +124,13 @@ All notable changes to this project are documented in this file.
 - Local integration playground in `example-project/` with:
 	- OpenAPI sample (`openapi.yaml`)
 	- Swagger UI server (`server.js`)
-	- Local package wiring (`x-openapi-flow: file:../flow-spec`)
+	- Local package wiring (`x-openapi-flow: file:../x-openapi-flow`)
 - GitHub Packages publish workflow in `.github/workflows/publish-github-packages.yml`.
 - Structured `x-openapi-flow` rendering in Swagger UI plugin (metadata, transitions, operation-level graph lines).
 - DOM-based fallback enhancer in the Swagger UI plugin for `swagger-ui-express` and other late-load environments.
 
 ### Changed
-- `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js` now provides richer native visualization of `x-openapi-flow` content.
+- `x-openapi-flow/examples/swagger-ui/x-openapi-flow-plugin.js` now provides richer native visualization of `x-openapi-flow` content.
 - Root and package README files now document GitHub Packages as an optional scoped mirror while keeping unscoped npm usage as the default.
 
 ### Fixed
@@ -137,7 +153,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 - Swagger UI integration example with plugin for rendering `x-openapi-flow` operation details.
-- Ready-to-run Swagger UI sample page at `flow-spec/examples/swagger-ui/index.html`.
+- Ready-to-run Swagger UI sample page at `x-openapi-flow/examples/swagger-ui/index.html`.
 
 ### Changed
 - OpenAPI extension key renamed from `x-flow` to `x-openapi-flow` across validator, CLI sidecar apply flow, tests, fixtures, examples, and docs.

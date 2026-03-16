@@ -39,7 +39,7 @@ The example sidecars under `examples/` intentionally cover all supported `x-open
 ### 1) Install dependencies
 
 ```bash
-cd example-project
+cd example/openapi-swagger-ui
 npm install
 ```
 
@@ -81,7 +81,7 @@ Workflow summary:
 
 ## Development Notes
 
-- Dependency `x-openapi-flow` points to `../flow-spec`.
+- Dependency `x-openapi-flow` points to `../../x-openapi-flow`.
 - After making changes in the local CLI package, reinstall dependencies in this project to refresh the local link:
 
 ```bash

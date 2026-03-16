@@ -6,8 +6,8 @@ Render `x-openapi-flow` directly in Swagger UI to make per-operation lifecycle s
 
 ## Ready example in this repository
 
-- `example-project/examples/swagger-ui/index.html`
-- `flow-spec/adapters/ui/swagger-ui/x-openapi-flow-plugin.js`
+- `example/openapi-swagger-ui/examples/swagger-ui/index.html`
+- `x-openapi-flow/adapters/ui/swagger-ui/x-openapi-flow-plugin.js`
 
 ## Run locally
 
@@ -18,7 +18,7 @@ python3 -m http.server 8080
 
 Open:
 
-`http://localhost:8080/example-project/examples/swagger-ui/index.html`
+`http://localhost:8080/example/openapi-swagger-ui/examples/swagger-ui/index.html`
 
 ## How it works
 

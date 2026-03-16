@@ -406,7 +406,7 @@ Field reference format:
 
 - UI plugin behavior is covered by tests in `tests/plugins/plugin-ui.test.js`.
 - For UI interpretation of `x-openapi-flow`, use `showExtensions: true` with the plugin at `adapters/ui/swagger-ui/x-openapi-flow-plugin.js`.
-- A ready HTML example is available at `../example-project/examples/swagger-ui/index.html`.
+- A ready HTML example is available at `../example/openapi-swagger-ui/examples/swagger-ui/index.html`.
 - The plugin renders a global **Flow Overview** (Mermaid image) near the top of the docs, plus operation-level flow cards.
 
 ![Swagger UI integration result](../docs/assets/x-openapi-flow-extension.png)

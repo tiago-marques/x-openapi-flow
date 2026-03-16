@@ -27,7 +27,7 @@ This release introduces a complete local playground for testing the library with
 ## Quick verify
 
 ```bash
-cd flow-spec
+cd x-openapi-flow
 npm test
 
 cd ../example-project

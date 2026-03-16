@@ -62,17 +62,17 @@ Optional quality gate:
 ## Quickstart (Local Development)
 
 ```bash
-cd flow-spec
+cd x-openapi-flow
 npm install
 node bin/x-openapi-flow.js validate examples/order-api.yaml
 ```
 
 ## Repository Structure
 
-- `flow-spec/schema/flow-schema.json`: extension JSON Schema contract.
-- `flow-spec/lib/validator.js`: validation engine (schema + graph consistency).
-- `flow-spec/bin/x-openapi-flow.js`: validation CLI.
-- `flow-spec/examples/*.yaml`: OpenAPI examples with `x-openapi-flow`.
+- `x-openapi-flow/schema/flow-schema.json`: extension JSON Schema contract.
+- `x-openapi-flow/lib/validator.js`: validation engine (schema + graph consistency).
+- `x-openapi-flow/bin/x-openapi-flow.js`: validation CLI.
+- `x-openapi-flow/examples/*.yaml`: OpenAPI examples with `x-openapi-flow`.
 - `.github/workflows/x-openapi-flow-validate.yml`: CI validation workflow example.
 
 ## Extension Contract
@@ -149,7 +149,7 @@ Supported fields:
 	- Required: `target_state`, `trigger_type`
 	- Optional: `condition`, `next_operation_id`, `prerequisite_operation_ids`, `prerequisite_field_refs`, `propagated_field_refs`
 
-For package-focused details, see `flow-spec/README.md`.
+For package-focused details, see `x-openapi-flow/README.md`.
 
 ## Install and Run
 
@@ -162,7 +162,7 @@ npx x-openapi-flow init
 Run tests locally:
 
 ```bash
-cd flow-spec
+cd x-openapi-flow
 npm install
 npm test
 ```
@@ -204,7 +204,7 @@ npx x-openapi-flow doctor [--config path]
 
 Canonical command details are maintained in:
 
-- `flow-spec/README.md`
+- `x-openapi-flow/README.md`
 - `docs/wiki/CLI-Reference.md`
 
 Preferred `apply` usage in this repository is sidecar positional:
@@ -220,7 +220,7 @@ Supported OpenAPI 3 HTTP methods across `init`, `apply`, and `graph`:
 ### Common Commands
 
 ```bash
-npx x-openapi-flow validate flow-spec/examples/payment-api.yaml
+npx x-openapi-flow validate x-openapi-flow/examples/payment-api.yaml
 npx x-openapi-flow init
 npx x-openapi-flow apply openapi.x.yaml
 npx x-openapi-flow lint openapi.yaml
@@ -231,16 +231,16 @@ npx x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
 npx x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
 npx x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
 npx x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
-npx x-openapi-flow graph flow-spec/examples/order-api.yaml
+npx x-openapi-flow graph x-openapi-flow/examples/order-api.yaml
 npx x-openapi-flow doctor
 ```
 
 ### Advanced Options
 
 ```bash
-npx x-openapi-flow validate flow-spec/examples/order-api.yaml --profile relaxed
-npx x-openapi-flow validate flow-spec/examples/quality-warning-api.yaml --strict-quality
-npx x-openapi-flow validate flow-spec/examples/ticket-api.yaml --format json
+npx x-openapi-flow validate x-openapi-flow/examples/order-api.yaml --profile relaxed
+npx x-openapi-flow validate x-openapi-flow/examples/quality-warning-api.yaml --strict-quality
+npx x-openapi-flow validate x-openapi-flow/examples/ticket-api.yaml --format json
 npx x-openapi-flow init --dry-run
 npx x-openapi-flow diff openapi.yaml --format json
 npx x-openapi-flow apply openapi.x.yaml --out openapi.flow.yaml
@@ -330,7 +330,7 @@ You can use `x-openapi-flow.config.json` in the current directory (or pass it vi
 }
 ```
 
-Example file: `flow-spec/x-openapi-flow.config.example.json`.
+Example file: `x-openapi-flow/x-openapi-flow.config.example.json`.
 
 ### What Gets Validated
 
@@ -359,7 +359,7 @@ When transitions include `next_operation_id` and `prerequisite_operation_ids`, M
 Example:
 
 ```bash
-npx x-openapi-flow graph flow-spec/examples/order-api.yaml
+npx x-openapi-flow graph x-openapi-flow/examples/order-api.yaml
 ```
 
 Example graph image:
@@ -373,8 +373,8 @@ Current automated tests in this repository use only CLI execution (`node:test`) 
 To visualize and interpret `x-openapi-flow` in Swagger UI:
 
 1. Enable vendor extension rendering with `showExtensions: true`.
-2. Use the plugin in `flow-spec/adapters/ui/swagger-ui/x-openapi-flow-plugin.js`.
-3. Open `example-project/examples/swagger-ui/index.html` and point it to your OpenAPI source file.
+2. Use the plugin in `x-openapi-flow/adapters/ui/swagger-ui/x-openapi-flow-plugin.js`.
+3. Open `example/openapi-swagger-ui/examples/swagger-ui/index.html` and point it to your OpenAPI source file.
 
 This plugin adds a small operation summary panel showing key `x-openapi-flow` fields like `version` and `current_state`.
 It can also render a graph image if `graph_image_url` is present in `x-openapi-flow` (or if `window.XOpenApiFlowGraphImageUrl` is configured).

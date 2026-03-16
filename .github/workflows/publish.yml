@@ -1,4 +1,4 @@
-name: Publish to npm (Trusted Publishing)
+name: Publish to npm (Token)
 
 on:
   release:
@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   publish-npm:
@@ -15,7 +14,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: flow-spec
+        working-directory: x-openapi-flow
 
     steps:
       - name: Checkout repository
@@ -45,5 +44,16 @@ jobs:
             exit 1
           fi
 
-      - name: Publish to npm using trusted publishing
-        run: npm publish --provenance --access public
+      - name: Validate npm token
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "Missing GH_PACKAGES_TOKEN secret. Configure it in repository settings."
+            exit 1
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+      - name: Publish to npm using token
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

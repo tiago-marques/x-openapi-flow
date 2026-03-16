@@ -10,8 +10,8 @@ This release finalizes the extension naming migration to `x-openapi-flow` and ad
   - `x-flow` -> `x-openapi-flow`
 - Validator, CLI sidecar merge/apply flow, tests, fixtures, examples, and docs are aligned with the new key.
 - Swagger UI integration example added:
-  - Plugin: `flow-spec/examples/swagger-ui/x-openapi-flow-plugin.js`
-  - Demo page: `flow-spec/examples/swagger-ui/index.html`
+  - Plugin: `x-openapi-flow/examples/swagger-ui/x-openapi-flow-plugin.js`
+  - Demo page: `x-openapi-flow/examples/swagger-ui/index.html`
 
 ## Compatibility Notes
 
@@ -21,7 +21,7 @@ This release finalizes the extension naming migration to `x-openapi-flow` and ad
 ## Quick verify
 
 ```bash
-cd flow-spec
+cd x-openapi-flow
 npm test
 node bin/x-openapi-flow.js validate examples/payment-api.yaml --profile strict
 ```

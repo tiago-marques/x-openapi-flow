@@ -16,7 +16,8 @@ const nativePluginPath = path.join(
   __dirname,
   'node_modules',
   'x-openapi-flow',
-  'lib',
+  'adapters',
+  'ui',
   'swagger-ui',
   'x-openapi-flow-plugin.js'
 );

@@ -11,7 +11,7 @@ This release standardizes the apply output convention and improves Swagger UI pl
   - `swagger.json` -> `swagger.flow.json`
 - Added `--in-place` to preserve legacy behavior when needed.
 - Moved Swagger UI plugin from examples to a stable package path:
-  - `flow-spec/lib/swagger-ui/x-openapi-flow-plugin.js`
+  - `x-openapi-flow/lib/swagger-ui/x-openapi-flow-plugin.js`
 - Updated local example defaults to:
   - base: `swagger.json`
   - sidecar: `swagger-openapi-flow.json`

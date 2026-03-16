@@ -52,8 +52,8 @@ The panel is injected above the Redoc viewer via `#x-openapi-flow-panel`. It ren
 
 | File | Purpose |
 |---|---|
-| `flow-spec/adapters/ui/redoc/x-openapi-flow-redoc-plugin.js` | Browser-side panel renderer (no external dependencies). |
-| `flow-spec/adapters/ui/redoc-adapter.js` | Node.js generator that builds the output package. |
+| `x-openapi-flow/adapters/ui/redoc/x-openapi-flow-redoc-plugin.js` | Browser-side panel renderer (no external dependencies). |
+| `x-openapi-flow/adapters/ui/redoc-adapter.js` | Node.js generator that builds the output package. |
 
 ## Tip
 

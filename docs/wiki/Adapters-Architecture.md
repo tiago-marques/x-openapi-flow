@@ -2,12 +2,12 @@
 
 ## Overview
 
-Output adapters transform the x-openapi-flow intermediate model into format-specific outputs. They live under `flow-spec/adapters/` and are organized by subdomain so the core library stays isolated and each adapter can grow independently.
+Output adapters transform the x-openapi-flow intermediate model into format-specific outputs. They live under `x-openapi-flow/adapters/` and are organized by subdomain so the core library stays isolated and each adapter can grow independently.
 
 ## Folder structure
 
 ```
-flow-spec/adapters/
+x-openapi-flow/adapters/
 ├── shared/
 │   └── helpers.js          ← toTitleCase, pathToPostmanUrl, buildLifecycleSequences
 ├── docs/

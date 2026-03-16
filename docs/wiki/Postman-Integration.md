@@ -83,8 +83,8 @@ pm.collectionVariables.set("flowExecutedOps", JSON.stringify(executed));
 
 | File | Purpose |
 |---|---|
-| `flow-spec/adapters/collections/postman-adapter.js` | Generator that builds the collection JSON. |
-| `flow-spec/adapters/shared/helpers.js` | Lifecycle sequence walker and URL template helpers. |
+| `x-openapi-flow/adapters/collections/postman-adapter.js` | Generator that builds the collection JSON. |
+| `x-openapi-flow/adapters/shared/helpers.js` | Lifecycle sequence walker and URL template helpers. |
 
 ## Tip
 

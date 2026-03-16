@@ -43,7 +43,7 @@ This release focuses on developer experience (DX), with a more complete CLI, pro
 ## How to Validate Locally
 
 ```bash
-cd flow-spec
+cd x-openapi-flow
 npm install
 npm test
 ```

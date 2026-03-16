@@ -1,3 +1,9 @@
 node_modules/
-example-project/swagger.flow.json
+example/openapi-swagger-ui/swagger.flow.json
+example/redoc/swagger.flow.json
+example/redoc/redoc-flow/
+example/postman/swagger.flow.json
+example/postman/x-openapi-flow.postman_collection.json
+example/insomnia/swagger.flow.json
+example/insomnia/x-openapi-flow.insomnia.json
 *.backup*

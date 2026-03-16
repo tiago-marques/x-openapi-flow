@@ -21,7 +21,7 @@ This release improves developer workflow guidance and enriches graph output usin
 ## Quick verify
 
 ```bash
-cd flow-spec
+cd x-openapi-flow
 npm test
 node bin/x-openapi-flow.js graph examples/order-api.yaml
 ```
