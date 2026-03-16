@@ -240,7 +240,7 @@ More examples: `docs/wiki/Real-Examples.md`
 ## Changelog
 
 Version history: `CHANGELOG.md`
-Release notes: `RELEASE_NOTES_v1.3.2.md`
+Release notes: `RELEASE_NOTES_v1.3.3.md`
 
 ---
 
