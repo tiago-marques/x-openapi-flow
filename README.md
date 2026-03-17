@@ -390,6 +390,16 @@ npx x-openapi-flow validate openapi.yaml --profile strict
 - Postman and Insomnia: generated lifecycle-aware collections/workspaces
 - SDK generator: TypeScript available, other languages planned
 
+## Roadmap
+
+SDK generation is currently production-ready for TypeScript.
+Multi-language support is tracked publicly in GitHub issues:
+
+- Roadmap umbrella: [#2](https://github.com/tiago-marques/x-openapi-flow/issues/2)
+- Python SDK MVP: [#3](https://github.com/tiago-marques/x-openapi-flow/issues/3)
+- Go SDK MVP: [#4](https://github.com/tiago-marques/x-openapi-flow/issues/4)
+- Kotlin SDK MVP: [#5](https://github.com/tiago-marques/x-openapi-flow/issues/5)
+
 <!-- Demo media removed -->
 Integration docs:
 

@@ -1,11 +1,12 @@
 # x-openapi-flow Wiki
 
-`x-openapi-flow` is a CLI to validate and maintain resource lifecycle flows in OpenAPI using the `x-openapi-flow` vendor extension.
+`x-openapi-flow` is an OpenAPI vendor extension and CLI for modeling, documenting, and validating API resource lifecycle workflows.
+It adds explicit state-machine metadata (`x-openapi-flow`) to operations and validates both schema and lifecycle graph consistency.
 
 ## What problem it solves
 
 Real APIs change often, and lifecycle state transitions usually stay implicit.
-With `x-openapi-flow`, current states and transitions become explicit per operation, with automated validation.
+With `x-openapi-flow`, current states and transitions become explicit per operation, so teams can validate lifecycle behavior early and avoid integration regressions.
 
 ## Key capabilities
 
@@ -25,8 +26,14 @@ With `x-openapi-flow`, current states and transitions become explicit per operat
 ```bash
 npm install x-openapi-flow
 npx x-openapi-flow init
-npx x-openapi-flow validate openapi.yaml --profile strict
+npx x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
+npx x-openapi-flow validate openapi.flow.yaml --profile strict --strict-quality
 ```
+
+Sidecar workflow:
+
+- `{context}.x.(json|yaml)`: sidecar source (author/edit this file)
+- `{context}.flow.(json|yaml)`: generated OpenAPI output (validate and use this file)
 
 ## Wiki pages
 

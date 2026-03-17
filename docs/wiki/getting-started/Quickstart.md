@@ -1,5 +1,11 @@
 # Quickstart
 
+Use this flow as the default day-to-day workflow:
+
+- edit `{context}.x.(json|yaml)` (sidecar source)
+- generate `{context}.flow.(json|yaml)` with `apply`
+- validate and use the `.flow` file in docs, tests, and integrations
+
 ## 1) Initialize sidecar
 
 With your existing OpenAPI source file:
@@ -38,25 +44,25 @@ In `json`, these details are under `diff.changedOperationDetails`.
 ## 4) Apply to OpenAPI
 
 ```bash
-npx x-openapi-flow apply openapi.yaml
+npx x-openapi-flow apply openapi.yaml --out openapi.flow.yaml
 ```
 
 ## 5) Optional validate
 
 ```bash
-npx x-openapi-flow validate openapi.yaml --profile strict
+npx x-openapi-flow validate openapi.flow.yaml --profile strict --strict-quality
 ```
 
 ## 6) Optional lint
 
 ```bash
-npx x-openapi-flow lint openapi.yaml
+npx x-openapi-flow lint openapi.flow.yaml
 ```
 
 ## 7) Optional graph
 
 ```bash
-npx x-openapi-flow graph openapi.yaml --format mermaid
+npx x-openapi-flow graph openapi.flow.yaml --format mermaid
 ```
 
 ## Complete examples
