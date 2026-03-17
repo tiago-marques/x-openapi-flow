@@ -4,6 +4,36 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.4.0 - 2026-03-17
+
+### Added
+- Dedicated TypeScript SDK runnable example project under `example/sdk/typescript` with apply/validate/generate/build scripts.
+- New Redoc plugin test coverage in `x-openapi-flow/tests/plugins/redoc-plugin.test.js`.
+- Swagger UI example now includes sidecar fallback apply helper (`example/swagger-ui/scripts/apply-with-fallback.js`).
+
+### Changed
+- Wiki information architecture reorganized into thematic sections:
+	- `docs/wiki/getting-started`
+	- `docs/wiki/reference`
+	- `docs/wiki/integrations`
+	- `docs/wiki/engineering`
+	- `docs/wiki/releases`
+- Root docs navigation (`README.md`, `docs/index.md`, `docs/wiki/Home.md`) aligned with the new wiki structure.
+- `llm.txt` updated with current sidecar authoring workflow (`analyze`/`diff`/`apply`/`validate`/`lint`) and `request.path` field-ref support.
+- Swagger UI example `apply` flow now auto-selects sidecar from local `swagger.x.*` and falls back to `examples/swagger.x.yaml|json`.
+
+### Fixed
+- Redoc lifecycle graph edge labels no longer overlap arrows by applying Mermaid edge label styling consistently.
+- Postman adapter generation improved with:
+	- request body examples from schema/examples,
+	- journey names with operation path context,
+	- prerequisite rule sets with OR semantics,
+	- robust response identifier extraction (`id`/`*_id`) and safer JSON parsing in scripts.
+- Insomnia adapter generation improved with:
+	- journey grouping by lifecycle,
+	- richer operation descriptions (`current_state`, prerequisites, next transitions),
+	- schema-based request body examples.
+
 ## 1.3.4 - 2026-03-16
 
 ### Fixed
@@ -61,7 +91,7 @@ All notable changes to this project are documented in this file.
 ### Added
 - UI plugin test suite (`x-openapi-flow/tests/plugin-ui.test.js`) integrated into `npm test`.
 - Sidecar positional usage in `apply` (for example: `x-openapi-flow apply examples/order-openapi-flow.yaml`).
-- Dedicated wiki page for sidecar schema: `docs/wiki/Sidecar-Contract.md`.
+- Dedicated wiki page for sidecar schema: `docs/wiki/reference/Sidecar-Contract.md`.
 
 ### Changed
 - `init` now auto-generates `{context}.flow.(json|yaml)` when missing.
@@ -117,7 +147,7 @@ All notable changes to this project are documented in this file.
 ### Added
 - `llm.txt` guide for AI-assisted sidecar authoring.
 - Copilot-ready documentation section and badge in root README.
-- Wiki page: `docs/wiki/AI-Sidecar-Authoring.md`.
+- Wiki page: `docs/wiki/engineering/AI-Sidecar-Authoring.md`.
 - Sidecar JSON example in `example-project/examples/order-openapi-flow.json`.
 - `apply:yaml-example` and `apply:json-example` scripts in `example-project`.
 

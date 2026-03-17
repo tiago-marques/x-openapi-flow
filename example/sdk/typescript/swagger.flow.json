@@ -1,0 +1,501 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Kickstart Swagger API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Orders",
+      "description": "Order lifecycle operations"
+    },
+    {
+      "name": "Refunds",
+      "description": "Refund lifecycle operations"
+    }
+  ],
+  "paths": {
+    "/orders": {
+      "post": {
+        "operationId": "createOrder",
+        "summary": "Create order",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customer_id",
+                  "amount"
+                ],
+                "properties": {
+                  "customer_id": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "order_id",
+                    "status"
+                  ],
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "create-order",
+          "current_state": "created",
+          "description": "Creates an order and opens the lifecycle in CREATED",
+          "idempotency": {
+            "header": "Idempotency-Key",
+            "required": true
+          },
+          "transitions": [
+            {
+              "trigger_type": "synchronous",
+              "condition": "Payment is confirmed",
+              "target_state": "paid",
+              "next_operation_id": "payOrder",
+              "prerequisite_operation_ids": [
+                "createOrder"
+              ],
+              "prerequisite_field_refs": [
+                "createOrder:request.body.customer_id",
+                "createOrder:request.body.amount"
+              ],
+              "propagated_field_refs": [
+                "createOrder:response.201.body.order_id",
+                "createOrder:response.201.body.status"
+              ]
+            },
+            {
+              "trigger_type": "polling",
+              "condition": "Payment status polling confirms authorization",
+              "target_state": "paid",
+              "next_operation_id": "payOrder",
+              "prerequisite_operation_ids": [
+                "createOrder",
+                "getOrder"
+              ],
+              "prerequisite_field_refs": [
+                "createOrder:response.201.body.order_id"
+              ],
+              "propagated_field_refs": [
+                "createOrder:response.201.body.order_id"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "/orders/{id}/pay": {
+      "post": {
+        "operationId": "payOrder",
+        "summary": "Pay order",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order paid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "order_id",
+                    "payment_id",
+                    "payment_status"
+                  ],
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "payment_id": {
+                      "type": "string"
+                    },
+                    "payment_status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "pay-order",
+          "current_state": "paid",
+          "description": "Captures payment and waits for fulfillment completion callback",
+          "idempotency": {
+            "header": "Idempotency-Key",
+            "required": true
+          },
+          "transitions": [
+            {
+              "trigger_type": "webhook",
+              "condition": "Fulfillment provider callback is received",
+              "target_state": "fulfilled",
+              "next_operation_id": "fulfillOrder",
+              "prerequisite_operation_ids": [
+                "createOrder",
+                "payOrder"
+              ],
+              "prerequisite_field_refs": [
+                "createOrder:response.201.body.order_id",
+                "payOrder:request.path.id",
+                "payOrder:response.200.body.order_id",
+                "payOrder:response.200.body.payment_id"
+              ],
+              "propagated_field_refs": [
+                "payOrder:response.200.body.order_id",
+                "payOrder:response.200.body.payment_status"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "/orders/{id}/fulfill": {
+      "post": {
+        "operationId": "fulfillOrder",
+        "summary": "Fulfill order",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order fulfilled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "shipment_id",
+                    "delivery_date"
+                  ],
+                  "properties": {
+                    "shipment_id": {
+                      "type": "string"
+                    },
+                    "delivery_date": {
+                      "type": "string",
+                      "format": "date"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "fulfill-order",
+          "current_state": "fulfilled",
+          "description": "Terminal operation for FULFILLED; prerequisites are declared in the incoming transition from payOrder",
+          "idempotency": {
+            "header": "Idempotency-Key",
+            "required": false
+          },
+          "transitions": []
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "operationId": "getOrder",
+        "summary": "Get order by id",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "order_id",
+                    "status",
+                    "amount"
+                  ],
+                  "properties": {
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "created",
+                        "paid",
+                        "fulfilled"
+                      ]
+                    },
+                    "amount": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "get-order",
+          "current_state": "order_observed",
+          "description": "Read model operation used by polling transitions to observe order status",
+          "transitions": [
+            {
+              "trigger_type": "polling",
+              "condition": "Order status endpoint confirms payment status as paid",
+              "target_state": "paid",
+              "next_operation_id": "payOrder",
+              "prerequisite_operation_ids": [
+                "getOrder"
+              ],
+              "prerequisite_field_refs": [
+                "getOrder:response.200.body.order_id",
+                "getOrder:response.200.body.status"
+              ],
+              "propagated_field_refs": [
+                "getOrder:response.200.body.order_id",
+                "getOrder:response.200.body.status"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "/refunds": {
+      "post": {
+        "operationId": "createRefund",
+        "summary": "Create refund request",
+        "tags": [
+          "Refunds"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "order_id",
+                  "amount",
+                  "reason"
+                ],
+                "properties": {
+                  "order_id": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Refund request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "refund_id",
+                    "status"
+                  ],
+                  "properties": {
+                    "refund_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "requested",
+                        "approved"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "create-refund",
+          "current_state": "refund_requested",
+          "description": "Creates a refund request",
+          "transitions": [
+            {
+              "trigger_type": "synchronous",
+              "condition": "Refund request is approved",
+              "target_state": "refund_approved",
+              "next_operation_id": "approveRefund",
+              "prerequisite_operation_ids": [
+                "createRefund"
+              ],
+              "prerequisite_field_refs": [
+                "createRefund:request.body.order_id",
+                "createRefund:request.body.amount"
+              ],
+              "propagated_field_refs": [
+                "createRefund:response.201.body.refund_id"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "/refunds/{id}/approve": {
+      "post": {
+        "operationId": "approveRefund",
+        "summary": "Approve refund",
+        "tags": [
+          "Refunds"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "refund_id",
+                    "status"
+                  ],
+                  "properties": {
+                    "refund_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "approved"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "approve-refund",
+          "current_state": "refund_approved",
+          "description": "Terminal operation for approved refunds",
+          "transitions": []
+        }
+      }
+    }
+  }
+}

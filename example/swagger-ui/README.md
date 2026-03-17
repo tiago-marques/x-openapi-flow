@@ -8,6 +8,17 @@ Use this project to create and test `x-openapi-flow` output in a local Swagger U
 - Validate and inspect flow-enriched OpenAPI.
 - Render the result in Swagger UI for visual/manual checks.
 
+## File roles (`.x` vs `.flow`)
+
+- `swagger.x.*`: sidecar source of lifecycle metadata (the authoring/editing file).
+- `swagger.flow.*`: generated OpenAPI output with `x-openapi-flow` merged into operations.
+
+In short:
+
+- edit `.x`
+- generate `.flow` with `apply`
+- validate/use `.flow`
+
 ## Key files
 
 - `swagger.json`: base OpenAPI input.
@@ -31,6 +42,8 @@ npm run diff
 npm run apply
 npm run validate
 ```
+
+`npm run apply` now prefers local sidecars (`swagger.x.yaml|yml|json`) and falls back to `examples/swagger.x.yaml|json` when a local sidecar is not present.
 
 Optional checks:
 

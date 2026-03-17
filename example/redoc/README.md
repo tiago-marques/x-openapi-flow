@@ -2,6 +2,14 @@
 
 Use this project to create and test static Redoc documentation from `x-openapi-flow`.
 
+## Preview screenshots
+
+Flow / Lifecycle view rendered with Mermaid overview and lifecycle cards:
+
+![Redoc Flow Lifecycle 1](../../docs/assets/redoc-flow-lifecycle.png)
+![Redoc Flow Lifecycle 2](../../docs/assets/redoc-flow-lifecycle-2.png)
+![Redoc Flow Lifecycle 3](../../docs/assets/redoc-flow-lifecycle-3.png)
+
 ## What this project covers
 
 - Build `swagger.flow.json` from `swagger.json` + sidecar.
@@ -38,7 +46,11 @@ cd /workspaces/x-flow/example/redoc/redoc-flow
 python3 -m http.server 8080
 ```
 
-Open `http://localhost:8080/index.html` and verify endpoints, operation details, and flow metadata rendering.
+Open `http://localhost:8080/index.html` and verify endpoints, Mermaid overview, operation details, and flow metadata rendering.
+
+Use the top menu to switch between `API Reference` and `Flow / Lifecycle`.
+
+Inside `Flow / Lifecycle`, each operation card also exposes shortcuts to the API reference and related next operations.
 
 ## Equivalent direct CLI command
 

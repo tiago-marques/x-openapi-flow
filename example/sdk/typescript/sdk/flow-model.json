@@ -1,0 +1,272 @@
+{
+  "flowCount": 6,
+  "resources": [
+    {
+      "resource": "order",
+      "resourcePlural": "orders",
+      "resourceClassName": "Order",
+      "resourcePropertyName": "orders",
+      "operations": [
+        {
+          "operationId": "createOrder",
+          "methodName": "create",
+          "helperMethodName": null,
+          "kind": "create",
+          "httpMethod": "post",
+          "path": "/orders",
+          "pathParams": [],
+          "hasFlow": true,
+          "currentState": "created",
+          "prerequisites": [],
+          "nextOperations": [
+            {
+              "targetState": "paid",
+              "triggerType": "synchronous",
+              "nextOperationId": "payOrder",
+              "prerequisites": [
+                "createOrder"
+              ]
+            },
+            {
+              "targetState": "paid",
+              "triggerType": "polling",
+              "nextOperationId": "payOrder",
+              "prerequisites": [
+                "createOrder",
+                "getOrder"
+              ]
+            }
+          ]
+        },
+        {
+          "operationId": "payOrder",
+          "methodName": "pay",
+          "helperMethodName": "pay",
+          "kind": "action",
+          "httpMethod": "post",
+          "path": "/orders/{id}/pay",
+          "pathParams": [
+            "id"
+          ],
+          "hasFlow": true,
+          "currentState": "paid",
+          "prerequisites": [
+            "createOrder",
+            "getOrder"
+          ],
+          "nextOperations": [
+            {
+              "targetState": "fulfilled",
+              "triggerType": "webhook",
+              "nextOperationId": "fulfillOrder",
+              "prerequisites": [
+                "payOrder",
+                "createOrder"
+              ]
+            }
+          ]
+        },
+        {
+          "operationId": "fulfillOrder",
+          "methodName": "fulfill",
+          "helperMethodName": "fulfill",
+          "kind": "action",
+          "httpMethod": "post",
+          "path": "/orders/{id}/fulfill",
+          "pathParams": [
+            "id"
+          ],
+          "hasFlow": true,
+          "currentState": "fulfilled",
+          "prerequisites": [
+            "payOrder",
+            "createOrder"
+          ],
+          "nextOperations": []
+        },
+        {
+          "operationId": "getOrder",
+          "methodName": "get",
+          "helperMethodName": null,
+          "kind": "retrieve",
+          "httpMethod": "get",
+          "path": "/orders/{id}",
+          "pathParams": [
+            "id"
+          ],
+          "hasFlow": true,
+          "currentState": "order_observed",
+          "prerequisites": [],
+          "nextOperations": [
+            {
+              "targetState": "paid",
+              "triggerType": "polling",
+              "nextOperationId": "payOrder",
+              "prerequisites": [
+                "getOrder"
+              ]
+            }
+          ]
+        }
+      ],
+      "states": [
+        "created",
+        "fulfilled",
+        "order_observed",
+        "paid"
+      ],
+      "prerequisites": {
+        "createOrder": [],
+        "payOrder": [
+          "createOrder",
+          "getOrder"
+        ],
+        "fulfillOrder": [
+          "payOrder",
+          "createOrder"
+        ],
+        "getOrder": []
+      },
+      "nextOperations": {
+        "createOrder": [
+          {
+            "targetState": "paid",
+            "triggerType": "synchronous",
+            "nextOperationId": "payOrder",
+            "prerequisites": [
+              "createOrder"
+            ]
+          },
+          {
+            "targetState": "paid",
+            "triggerType": "polling",
+            "nextOperationId": "payOrder",
+            "prerequisites": [
+              "createOrder",
+              "getOrder"
+            ]
+          }
+        ],
+        "payOrder": [
+          {
+            "targetState": "fulfilled",
+            "triggerType": "webhook",
+            "nextOperationId": "fulfillOrder",
+            "prerequisites": [
+              "payOrder",
+              "createOrder"
+            ]
+          }
+        ],
+        "fulfillOrder": [],
+        "getOrder": [
+          {
+            "targetState": "paid",
+            "triggerType": "polling",
+            "nextOperationId": "payOrder",
+            "prerequisites": [
+              "getOrder"
+            ]
+          }
+        ]
+      },
+      "graph": {
+        "initialStates": [
+          "created",
+          "order_observed"
+        ],
+        "terminalStates": [
+          "fulfilled"
+        ],
+        "nodes": [
+          "created",
+          "paid",
+          "fulfilled",
+          "order_observed"
+        ]
+      }
+    },
+    {
+      "resource": "refund",
+      "resourcePlural": "refunds",
+      "resourceClassName": "Refund",
+      "resourcePropertyName": "refunds",
+      "operations": [
+        {
+          "operationId": "createRefund",
+          "methodName": "create",
+          "helperMethodName": null,
+          "kind": "create",
+          "httpMethod": "post",
+          "path": "/refunds",
+          "pathParams": [],
+          "hasFlow": true,
+          "currentState": "refund_requested",
+          "prerequisites": [],
+          "nextOperations": [
+            {
+              "targetState": "refund_approved",
+              "triggerType": "synchronous",
+              "nextOperationId": "approveRefund",
+              "prerequisites": [
+                "createRefund"
+              ]
+            }
+          ]
+        },
+        {
+          "operationId": "approveRefund",
+          "methodName": "approve",
+          "helperMethodName": "approve",
+          "kind": "action",
+          "httpMethod": "post",
+          "path": "/refunds/{id}/approve",
+          "pathParams": [
+            "id"
+          ],
+          "hasFlow": true,
+          "currentState": "refund_approved",
+          "prerequisites": [
+            "createRefund"
+          ],
+          "nextOperations": []
+        }
+      ],
+      "states": [
+        "refund_approved",
+        "refund_requested"
+      ],
+      "prerequisites": {
+        "createRefund": [],
+        "approveRefund": [
+          "createRefund"
+        ]
+      },
+      "nextOperations": {
+        "createRefund": [
+          {
+            "targetState": "refund_approved",
+            "triggerType": "synchronous",
+            "nextOperationId": "approveRefund",
+            "prerequisites": [
+              "createRefund"
+            ]
+          }
+        ],
+        "approveRefund": []
+      },
+      "graph": {
+        "initialStates": [
+          "refund_requested"
+        ],
+        "terminalStates": [
+          "refund_approved"
+        ],
+        "nodes": [
+          "refund_requested",
+          "refund_approved"
+        ]
+      }
+    }
+  ]
+}

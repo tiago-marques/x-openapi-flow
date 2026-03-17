@@ -9,7 +9,7 @@
     "dev": "node --watch server.js",
     "init": "x-openapi-flow init",
     "diff": "x-openapi-flow diff swagger.json --format pretty",
-    "apply": "x-openapi-flow apply swagger.json",
+    "apply": "node scripts/apply-with-fallback.js",
     "apply:yaml-example": "x-openapi-flow apply swagger.json --flows examples/swagger.x.yaml",
     "apply:json-example": "x-openapi-flow apply swagger.json --flows examples/swagger.x.json",
     "validate": "npm run apply && x-openapi-flow validate swagger.flow.json --profile strict",

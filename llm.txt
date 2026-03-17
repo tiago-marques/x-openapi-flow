@@ -34,6 +34,7 @@ Transition authoring rules
 
 Field reference format
 - `operationId:request.body.field`
+- `operationId:request.path.paramName`
 - `operationId:response.<status>.body.field`
 - Example: `createOrder:response.201.body.order_id`
 
@@ -54,9 +55,12 @@ Quality checklist before saving sidecar
 Suggested workflow
 1) `npx x-openapi-flow init`
 2) AI populates sidecar using this guide.
-3) `npx x-openapi-flow apply`
-4) `npx x-openapi-flow validate <openapi-file> --profile strict`
-5) Iterate until validation and quality checks are clean.
+3) Optional bootstrap for large specs: `npx x-openapi-flow analyze <openapi-file> --out <context>.x.yaml --merge --flows <context>.x.yaml`
+4) `npx x-openapi-flow diff <openapi-file> --flows <context>.x.yaml --format pretty`
+5) `npx x-openapi-flow apply <openapi-file> --flows <context>.x.yaml --out <context>.flow.yaml`
+6) `npx x-openapi-flow validate <context>.flow.yaml --profile strict --strict-quality`
+7) `npx x-openapi-flow lint <context>.flow.yaml`
+8) Iterate until validation and quality checks are clean.
 
 Do not
 - Do not modify endpoint paths/methods in base OpenAPI when task is sidecar authoring.

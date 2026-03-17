@@ -13,8 +13,11 @@ With `x-openapi-flow`, current states and transitions become explicit per operat
 - Graph consistency checks (orphans, reachability, cycles, terminal states)
 - Validation profiles (`core`, `relaxed`, `strict`)
 - Sidecar workflow for regenerated OpenAPI source files (`init` + `apply`)
+- Flow bootstrap with `analyze` (`--merge` and confidence scores in JSON output)
+- SDK generation (`generate-sdk` for TypeScript)
+- Lifecycle documentation export (`export-doc-flows`)
 - Graph export (`mermaid`/`json`)
-- Swagger UI integration example
+- Integration adapters for Swagger UI, Redoc, Postman, and Insomnia
 - AI-oriented sidecar authoring guidance (`llm.txt`)
 
 ## Quick start
@@ -27,13 +30,33 @@ npx x-openapi-flow validate openapi.yaml --profile strict
 
 ## Wiki pages
 
-- [Quickstart](Quickstart)
-- [Adoption Playbook](Adoption-Playbook)
-- [Sidecar Contract](Sidecar-Contract)
-- [CLI Reference](CLI-Reference)
-- [Troubleshooting](Troubleshooting)
-- [Flow Model](Flow-Model)
-- [AI Sidecar Authoring](AI-Sidecar-Authoring)
-- [Real-World Complete Examples](Real-Examples)
-- [Swagger-UI Integration](Swagger-UI-Integration)
-- [FAQ](FAQ)
+### Getting started
+
+- [Quickstart](getting-started/Quickstart.md)
+- [Adoption Playbook](getting-started/Adoption-Playbook.md)
+
+### Reference
+
+- [Sidecar Contract](reference/Sidecar-Contract.md)
+- [CLI Reference](reference/CLI-Reference.md)
+- [Flow Model](reference/Flow-Model.md)
+- [Troubleshooting](reference/Troubleshooting.md)
+- [FAQ](reference/FAQ.md)
+
+### Integrations
+
+- [Swagger-UI Integration](integrations/Swagger-UI-Integration.md)
+- [Redoc Integration](integrations/Redoc-Integration.md)
+- [Postman Integration](integrations/Postman-Integration.md)
+- [Insomnia Integration](integrations/Insomnia-Integration.md)
+
+### Engineering
+
+- [Adapters Architecture](engineering/Adapters-Architecture.md)
+- [Integration Testing](engineering/Integration-Testing.md)
+- [AI Sidecar Authoring](engineering/AI-Sidecar-Authoring.md)
+- [Real-World Complete Examples](engineering/Real-Examples.md)
+
+### Releases
+
+- [Release Notes and Checklist](releases/)

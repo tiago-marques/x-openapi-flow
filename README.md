@@ -48,14 +48,22 @@ Default adoption path:
 2. Run `init` to create/sync sidecar flow metadata.
 3. Run `apply` whenever the OpenAPI file is regenerated.
 
-Full rollout guide: [docs/wiki/Adoption-Playbook.md](docs/wiki/Adoption-Playbook.md)
-Troubleshooting: [docs/wiki/Troubleshooting.md](docs/wiki/Troubleshooting.md)
+Sidecar and output roles:
+
+- `{context}.x.(json|yaml)`: sidecar source of lifecycle metadata (the file you edit).
+- `{context}.flow.(json|yaml)`: generated OpenAPI output after merge (the file you validate and serve in docs/tools).
+
+Practical rule:
+
+1. edit `.x`
+2. run `apply`
+3. validate/use `.flow`
+
+Full rollout guide: [docs/wiki/getting-started/Adoption-Playbook.md](docs/wiki/getting-started/Adoption-Playbook.md)
+Troubleshooting: [docs/wiki/reference/Troubleshooting.md](docs/wiki/reference/Troubleshooting.md)
 
 ---
 
-## Day-to-Day Workflow (API Server Team)
-
-Typical routine when your OpenAPI source changes frequently:
 
 1. Bootstrap once per project.
 
@@ -68,8 +76,6 @@ npx x-openapi-flow init
 ```bash
 npx x-openapi-flow apply openapi.yaml
 ```
-
-3. Validate lifecycle quality before opening a PR.
 
 ```bash
 npx x-openapi-flow validate openapi.flow.yaml --profile strict --strict-quality
@@ -89,8 +95,6 @@ What this gives your team in practice:
 - explicit transition contracts instead of implicit tribal knowledge
 - safer API evolution with fewer integration regressions
 
----
-
 ## Integration Experience (What You See)
 
 ### Swagger UI
@@ -104,6 +108,8 @@ npm run apply
 npm start
 ```
 
+Note: in this example, `npm run apply` prefers local sidecars (`swagger.x.yaml|yml|json`) and falls back to `examples/swagger.x.yaml|json` when a local sidecar is not present.
+
 Experience outcome:
 
 - operation docs enriched with `x-openapi-flow` fields
@@ -111,8 +117,8 @@ Experience outcome:
 
 Demo media:
 
-- GIF slot: `docs/assets/demo-swagger-ui.gif`
-- Image slot: `docs/assets/demo-swagger-ui.png`
+![Swagger UI Flow Lifecycle 1](docs/assets/swagger-ui-flow-lifecycle.png)
+![Swagger UI Flow Lifecycle 2](docs/assets/swagger-ui-flow-lifecycle-2.png)
 
 ### Redoc
 
@@ -132,8 +138,9 @@ Experience outcome:
 
 Demo media:
 
-- GIF slot: `docs/assets/demo-redoc.gif`
-- Image slot: `docs/assets/demo-redoc.png`
+![Redoc Flow Lifecycle 1](docs/assets/redoc-flow-lifecycle.png)
+![Redoc Flow Lifecycle 2](docs/assets/redoc-flow-lifecycle-2.png)
+![Redoc Flow Lifecycle 3](docs/assets/redoc-flow-lifecycle-3.png)
 
 ### Postman
 
@@ -153,8 +160,8 @@ Experience outcome:
 
 Demo media:
 
-- GIF slot: `docs/assets/demo-postman.gif`
-- Image slot: `docs/assets/demo-postman.png`
+![Postman Flow Lifecycle 1](docs/assets/postman-flow-lifecycle.png)
+![Postman Flow Lifecycle 2](docs/assets/postman-flow-lifecycle-2.png)
 
 ### Insomnia
 
@@ -174,15 +181,37 @@ Experience outcome:
 
 Demo media:
 
-- GIF slot: `docs/assets/demo-insomnia.gif`
-- Image slot: `docs/assets/demo-insomnia.png`
+![Insomnia Flow Lifecycle 1](docs/assets/insomnia-flow-lifecycle.png)
+![Insomnia Flow Lifecycle 2](docs/assets/insomnia-flow-lifecycle-2.png)
+
+### SDK (TypeScript)
+
+Use this when you want a generated flow-aware SDK for application integration.
+
+```bash
+cd example/sdk/typescript
+npm install
+npm run apply
+npm run generate
+npm run run:sample
+```
+
+Experience outcome:
+
+- generated TypeScript SDK in `sdk/` from `x-openapi-flow` metadata
+- minimal runnable sample showing typed SDK usage in `src/sample.ts`
+- lifecycle-oriented methods and transition-aware resource instances
+
+Example project:
+
+- [example/sdk/typescript/README.md](example/sdk/typescript/README.md)
 
 More integration details:
 
-- [docs/wiki/Swagger-UI-Integration.md](docs/wiki/Swagger-UI-Integration.md)
-- [docs/wiki/Redoc-Integration.md](docs/wiki/Redoc-Integration.md)
-- [docs/wiki/Postman-Integration.md](docs/wiki/Postman-Integration.md)
-- [docs/wiki/Insomnia-Integration.md](docs/wiki/Insomnia-Integration.md)
+- [docs/wiki/integrations/Swagger-UI-Integration.md](docs/wiki/integrations/Swagger-UI-Integration.md)
+- [docs/wiki/integrations/Redoc-Integration.md](docs/wiki/integrations/Redoc-Integration.md)
+- [docs/wiki/integrations/Postman-Integration.md](docs/wiki/integrations/Postman-Integration.md)
+- [docs/wiki/integrations/Insomnia-Integration.md](docs/wiki/integrations/Insomnia-Integration.md)
 
 ---
 
@@ -244,11 +273,6 @@ const payment = await api.payments.create({ amount: 1000 });
 await payment.authorize();
 await payment.capture();
 ```
-
-Demo media:
-
-- GIF slot: `docs/assets/demo-sdk-generation.gif`
-- Image slot: `docs/assets/demo-sdk-generation.png`
 
 ---
 
@@ -312,10 +336,8 @@ npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 npx x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
 npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
 npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
-npx x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
-npx x-openapi-flow generate-insomnia [openapi-file] [--output path]
 npx x-openapi-flow generate-redoc [openapi-file] [--output path]
-npx x-openapi-flow graph <openapi-file> [--format mermaid|json]
+<!-- Demo media removed -->
 npx x-openapi-flow doctor [--config path]
 npx x-openapi-flow completion [bash|zsh]
 ```
@@ -328,14 +350,12 @@ npx x-openapi-flow <command> --verbose
 
 Full command details:
 
-- [docs/wiki/CLI-Reference.md](docs/wiki/CLI-Reference.md)
+- [docs/wiki/reference/CLI-Reference.md](docs/wiki/reference/CLI-Reference.md)
 - [x-openapi-flow/README.md](x-openapi-flow/README.md)
 
 ---
 
-## Initialization Behavior
-
-Running `init`:
+<!-- Demo media removed -->
 
 - Auto-detects OpenAPI source files (`openapi.yaml`, `openapi.json`, `swagger.yaml`, etc.)
 - Creates or syncs `{context}.x.(json|yaml)` (sidecar with lifecycle metadata)
@@ -353,12 +373,8 @@ npx x-openapi-flow validate openapi.yaml --profile strict
 
 ## Validation Profiles
 
-- `strict` (default): schema + advanced graph checks as errors; quality as warnings (or errors with `--strict-quality`)
-- `relaxed`: schema and orphan checks as errors; advanced/quality checks as warnings
 - `core`: schema and orphan checks only
-
-Validation covers:
-
+<!-- Demo media removed -->
 - Schema contract correctness
 - Orphan states
 - Initial/terminal state structure
@@ -374,20 +390,11 @@ Validation covers:
 - Postman and Insomnia: generated lifecycle-aware collections/workspaces
 - SDK generator: TypeScript available, other languages planned
 
-Example images:
-
-![Guided graph example](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-overview.png)
-![Swagger UI integration result](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-extension.png)
-
+<!-- Demo media removed -->
 Integration docs:
 
-- [docs/wiki/Swagger-UI-Integration.md](docs/wiki/Swagger-UI-Integration.md)
-- [docs/wiki/Redoc-Integration.md](docs/wiki/Redoc-Integration.md)
-- [docs/wiki/Postman-Integration.md](docs/wiki/Postman-Integration.md)
-- [docs/wiki/Insomnia-Integration.md](docs/wiki/Insomnia-Integration.md)
-
+- [docs/wiki/integrations/Swagger-UI-Integration.md](docs/wiki/integrations/Swagger-UI-Integration.md)
 ---
-
 ## Copilot Ready (AI Sidecar Authoring)
 
 Use [llm.txt](llm.txt) as authoring guidance for sidecar population.
@@ -431,7 +438,7 @@ npx x-openapi-flow apply openapi.x.yaml
 - `quality-warning-api.yaml` (quality warnings)
 - `non-terminating-api.yaml` (non-terminating states)
 
-More examples: [docs/wiki/Real-Examples.md](docs/wiki/Real-Examples.md)
+More examples: [docs/wiki/engineering/Real-Examples.md](docs/wiki/engineering/Real-Examples.md)
 
 ---
 
@@ -448,7 +455,7 @@ More examples: [docs/wiki/Real-Examples.md](docs/wiki/Real-Examples.md)
 ## Changelog
 
 Version history: [CHANGELOG.md](CHANGELOG.md)
-Release notes: [RELEASE_NOTES_v1.3.7.md](RELEASE_NOTES_v1.3.7.md)
+Release notes: [docs/wiki/releases/RELEASE_NOTES_v1.4.0.md](docs/wiki/releases/RELEASE_NOTES_v1.4.0.md)
 
 ---
 

@@ -489,10 +489,18 @@ test("generate-redoc creates package with plugin and lifecycle model", () => {
     const index = fs.readFileSync(indexPath, "utf8");
     assert.match(index, /<redoc spec-url="\.\/openapi\.yaml"><\/redoc>/);
     assert.match(index, /x-openapi-flow-redoc-plugin\.js/);
+    assert.match(index, /data-x-openapi-flow-target="reference"/);
+    assert.match(index, /data-x-openapi-flow-target="flow"/);
+    assert.match(index, /data-x-openapi-flow-view="flow"/);
 
     const plugin = fs.readFileSync(pluginPath, "utf8");
     assert.match(plugin, /window\.XOpenApiFlowRedocPlugin/);
+    assert.match(plugin, /window\.XOpenApiFlowRedocInternals/);
     assert.match(plugin, /Flow \/ Lifecycle/);
+    assert.match(plugin, /data-x-openapi-flow-target/);
+    assert.match(plugin, /data-x-openapi-flow-view/);
+    assert.match(plugin, /View in API Reference/);
+    assert.match(plugin, /Mermaid/);
 
     const model = JSON.parse(fs.readFileSync(modelPath, "utf8"));
     assert.equal(Array.isArray(model.resources), true);
