@@ -4,15 +4,15 @@ Use this project to create and test a Postman collection from `x-openapi-flow`.
 
 ## What this project covers
 
-- Build `swagger.flow.json` from `swagger.json` + sidecar.
+- Build `openapi.flow.json` from `openapi.json` + sidecar.
 - Validate flow-enriched OpenAPI with strict rules.
 - Generate `x-openapi-flow.postman_collection.json` for Postman import.
 
 ## Key files
 
-- `swagger.json`: base OpenAPI input.
-- `examples/swagger.x.yaml`: sidecar with `x-openapi-flow` metadata.
-- `swagger.flow.json` (generated): merged OpenAPI + flow data.
+- `openapi.json`: base OpenAPI input.
+- `examples/openapi.x.yaml`: sidecar with `x-openapi-flow` metadata.
+- `openapi.flow.json` (generated): merged OpenAPI + flow data.
 - `x-openapi-flow.postman_collection.json` (generated): Postman collection.
 
 ## Create flow output
@@ -42,5 +42,5 @@ npm run generate
 
 ```bash
 cd /workspaces/x-flow
-npx x-openapi-flow generate-postman example/postman/swagger.flow.json --output example/postman/x-openapi-flow.postman_collection.json --with-scripts
+npx x-openapi-flow generate-postman example/postman/openapi.flow.json --output example/postman/x-openapi-flow.postman_collection.json --with-scripts
 ```

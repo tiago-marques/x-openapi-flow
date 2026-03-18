@@ -4,14 +4,14 @@ Use this project to create and test `x-openapi-flow` output in a local Swagger U
 
 ## What this project covers
 
-- Build `swagger.flow.json` from `swagger.json`.
+- Build `openapi.flow.json` from `openapi.json`.
 - Validate and inspect flow-enriched OpenAPI.
 - Render the result in Swagger UI for visual/manual checks.
 
 ## File roles (`.x` vs `.flow`)
 
-- `swagger.x.*`: sidecar source of lifecycle metadata (the authoring/editing file).
-- `swagger.flow.*`: generated OpenAPI output with `x-openapi-flow` merged into operations.
+- `openapi.x.*`: sidecar source of lifecycle metadata (the authoring/editing file).
+- `openapi.flow.*`: generated OpenAPI output with `x-openapi-flow` merged into operations.
 
 In short:
 
@@ -21,11 +21,11 @@ In short:
 
 ## Key files
 
-- `swagger.json`: base OpenAPI input.
-- `swagger.x.json`: sidecar created by `init`.
-- `examples/swagger.x.yaml`: sidecar example with full extension coverage.
-- `examples/swagger.x.json`: JSON version of the full sidecar example.
-- `swagger.flow.json` (generated): merged OpenAPI + flow data used by the UI.
+- `openapi.json`: base OpenAPI input.
+- `openapi.x.json`: sidecar created by `init`.
+- `examples/openapi.x.yaml`: sidecar example with full extension coverage.
+- `examples/openapi.x.json`: JSON version of the full sidecar example.
+- `openapi.flow.json` (generated): merged OpenAPI + flow data used by the UI.
 
 ## Setup
 
@@ -43,7 +43,7 @@ npm run apply
 npm run validate
 ```
 
-`npm run apply` now prefers local sidecars (`swagger.x.yaml|yml|json`) and falls back to `examples/swagger.x.yaml|json` when a local sidecar is not present.
+`npm run apply` now prefers local sidecars (`openapi.x.yaml|yml|json`) and falls back to `examples/openapi.x.yaml|json` when a local sidecar is not present.
 
 Optional checks:
 
@@ -68,11 +68,11 @@ npm start
 
 Open http://localhost:3000/docs.
 
-The server loads `swagger.flow.json` when available, otherwise falls back to `swagger.json`.
+The server loads `openapi.flow.json` when available, otherwise falls back to `openapi.json`.
 To force a specific file:
 
 ```bash
-SWAGGER_SPEC_FILE=swagger.json npm start
+SWAGGER_SPEC_FILE=openapi.json npm start
 ```
 
 ## Development note

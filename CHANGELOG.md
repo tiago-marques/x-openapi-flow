@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.4.4 - 2026-03-18
+
+### Changed
+- Standardized example assets and commands from `swagger.*` naming to `openapi.*` naming across `example/` projects.
+- Updated example scripts, READMEs, ignore rules, and integration tests to use `openapi.json`, `openapi.flow.json`, and `openapi.x.*` paths.
+- Kept CLI compatibility and legacy behavior for `swagger.*` naming in command discovery and compatibility tests.
+
 ## 1.4.3 - 2026-03-18
 
 ### Changed

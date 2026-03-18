@@ -5,15 +5,15 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const cwd = process.cwd();
-const openapiFile = "swagger.json";
+const openapiFile = "openapi.json";
 
 const candidateSidecars = [
-  "swagger.x.yaml",
-  "swagger.x.yml",
-  "swagger.x.json",
-  path.join("examples", "swagger.x.yaml"),
-  path.join("examples", "swagger.x.yml"),
-  path.join("examples", "swagger.x.json"),
+  "openapi.x.yaml",
+  "openapi.x.yml",
+  "openapi.x.json",
+  path.join("examples", "openapi.x.yaml"),
+  path.join("examples", "openapi.x.yml"),
+  path.join("examples", "openapi.x.json"),
 ];
 
 const selectedSidecar = candidateSidecars.find((candidate) =>

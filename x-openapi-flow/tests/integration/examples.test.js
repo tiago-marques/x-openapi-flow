@@ -26,8 +26,8 @@ function runCli(args) {
 }
 
 function buildFlowSpecFromExample(exampleFolder, tempDir) {
-  const baseSpecPath = path.join(EXAMPLE_ROOT, exampleFolder, "swagger.json");
-  const sidecarPath = path.join(EXAMPLE_ROOT, exampleFolder, "examples", "swagger.x.yaml");
+  const baseSpecPath = path.join(EXAMPLE_ROOT, exampleFolder, "openapi.json");
+  const sidecarPath = path.join(EXAMPLE_ROOT, exampleFolder, "examples", "openapi.x.yaml");
   const flowSpecPath = path.join(tempDir, `${exampleFolder}.flow.json`);
 
   const applyResult = runCli([

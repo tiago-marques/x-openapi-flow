@@ -5,9 +5,9 @@ const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 const port = process.env.PORT || 3000;
-const specUrl = process.env.SWAGGER_SPEC_URL || '/swagger.json';
-const baseSpecPath = path.join(__dirname, 'swagger.json');
-const flowSpecPath = path.join(__dirname, 'swagger.flow.json');
+const specUrl = process.env.SWAGGER_SPEC_URL || '/openapi.json';
+const baseSpecPath = path.join(__dirname, 'openapi.json');
+const flowSpecPath = path.join(__dirname, 'openapi.flow.json');
 const configuredSpecFile = process.env.SWAGGER_SPEC_FILE;
 const defaultSpecPath = configuredSpecFile
   ? path.join(__dirname, configuredSpecFile)
@@ -32,7 +32,7 @@ app.get('/', (_req, res) => {
   res.send('x-openapi-flow local example is running. Open /docs');
 });
 
-app.get('/swagger.json', (_req, res) => {
+app.get('/openapi.json', (_req, res) => {
   res.sendFile(defaultSpecPath);
 });
 

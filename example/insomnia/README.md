@@ -4,15 +4,15 @@ Use this project to create and test an Insomnia export from `x-openapi-flow`.
 
 ## What this project covers
 
-- Build `swagger.flow.json` from `swagger.json` + sidecar.
+- Build `openapi.flow.json` from `openapi.json` + sidecar.
 - Validate flow-enriched OpenAPI with strict rules.
 - Generate `x-openapi-flow.insomnia.json` for Insomnia import.
 
 ## Key files
 
-- `swagger.json`: base OpenAPI input.
-- `examples/swagger.x.yaml`: sidecar with `x-openapi-flow` metadata.
-- `swagger.flow.json` (generated): merged OpenAPI + flow data.
+- `openapi.json`: base OpenAPI input.
+- `examples/openapi.x.yaml`: sidecar with `x-openapi-flow` metadata.
+- `openapi.flow.json` (generated): merged OpenAPI + flow data.
 - `x-openapi-flow.insomnia.json` (generated): Insomnia export.
 
 ## Create flow output
@@ -42,5 +42,5 @@ npm run generate
 
 ```bash
 cd /workspaces/x-flow
-npx x-openapi-flow generate-insomnia example/insomnia/swagger.flow.json --output example/insomnia/x-openapi-flow.insomnia.json
+npx x-openapi-flow generate-insomnia example/insomnia/openapi.flow.json --output example/insomnia/x-openapi-flow.insomnia.json
 ```

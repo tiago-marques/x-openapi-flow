@@ -57,7 +57,7 @@ npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 Example using the local example sidecar naming:
 
 ```bash
-npx x-openapi-flow apply swagger.json --flows examples/swagger.x.json
+npx x-openapi-flow apply openapi.json --flows examples/openapi.x.json
 ```
 
 ## `diff`

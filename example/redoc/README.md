@@ -12,15 +12,15 @@ Flow / Lifecycle view rendered with Mermaid overview and lifecycle cards:
 
 ## What this project covers
 
-- Build `swagger.flow.json` from `swagger.json` + sidecar.
+- Build `openapi.flow.json` from `openapi.json` + sidecar.
 - Validate flow-enriched OpenAPI with strict rules.
 - Generate static docs in `redoc-flow/`.
 
 ## Key files
 
-- `swagger.json`: base OpenAPI input.
-- `examples/swagger.x.yaml`: sidecar with `x-openapi-flow` metadata.
-- `swagger.flow.json` (generated): merged OpenAPI + flow data.
+- `openapi.json`: base OpenAPI input.
+- `examples/openapi.x.yaml`: sidecar with `x-openapi-flow` metadata.
+- `openapi.flow.json` (generated): merged OpenAPI + flow data.
 - `redoc-flow/` (generated): static Redoc package.
 
 ## Create flow output
@@ -56,5 +56,5 @@ Inside `Flow / Lifecycle`, each operation card also exposes shortcuts to the API
 
 ```bash
 cd /workspaces/x-flow
-npx x-openapi-flow generate-redoc example/redoc/swagger.flow.json --output example/redoc/redoc-flow
+npx x-openapi-flow generate-redoc example/redoc/openapi.flow.json --output example/redoc/redoc-flow
 ```

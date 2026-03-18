@@ -4,11 +4,11 @@
   "version": "1.3.1",
   "description": "Postman-focused example for x-openapi-flow",
   "scripts": {
-    "init": "x-openapi-flow init swagger.json",
-    "diff": "x-openapi-flow diff swagger.json --flows examples/swagger.x.yaml --format pretty",
-    "apply": "x-openapi-flow apply swagger.json --flows examples/swagger.x.yaml --out swagger.flow.json",
-    "validate": "x-openapi-flow validate swagger.flow.json --profile strict",
-    "generate": "x-openapi-flow generate-postman swagger.flow.json --output x-openapi-flow.postman_collection.json --with-scripts"
+    "init": "x-openapi-flow init openapi.json",
+    "diff": "x-openapi-flow diff openapi.json --flows examples/openapi.x.yaml --format pretty",
+    "apply": "x-openapi-flow apply openapi.json --flows examples/openapi.x.yaml --out openapi.flow.json",
+    "validate": "x-openapi-flow validate openapi.flow.json --profile strict",
+    "generate": "x-openapi-flow generate-postman openapi.flow.json --output x-openapi-flow.postman_collection.json --with-scripts"
   },
   "dependencies": {
     "x-openapi-flow": "file:../../x-openapi-flow"
