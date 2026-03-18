@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+node scripts/sync-package-readme.js
+
+if ! git diff --quiet -- x-openapi-flow/README.md; then
+  echo "ERROR: x-openapi-flow/README.md is out of sync with README.md."
+  echo "Run: node scripts/sync-package-readme.js"
+  echo "Then commit the generated file before pushing."
+  exit 1
+fi

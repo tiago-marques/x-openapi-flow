@@ -104,6 +104,12 @@ This will:
 
 💡 Tip: run this in CI to enforce API workflow correctness
 
+### Less Verbose DSL for Large Flows
+
+For larger APIs, you can define flow rules by resource (with shared transitions/defaults) and reduce duplication in sidecar files.
+
+See: [Sidecar Contract](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/Sidecar-Contract.md)
+
 <a id="mermaid-example"></a>
 ### Real Lifecycle Example
 
@@ -410,7 +416,7 @@ npx x-openapi-flow init [--flows path] [--force] [--dry-run]
 npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]  
 
 # validate transitions
-npx x-openapi-flow validate <openapi-file> [--profile core|relaxed|strict] [--strict-quality]  
+npx x-openapi-flow validate <openapi-file> [--profile core|relaxed|strict] [--strict-quality] [--semantic]  
 ```
 
 ### Visualization & Documentation

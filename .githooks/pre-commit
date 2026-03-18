@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+node scripts/sync-package-readme.js
+
+# Ensure generated package README is included in the same commit.
+git add x-openapi-flow/README.md
