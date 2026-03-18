@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.4.1 - 2026-03-18
+
+### Changed
+- Updated README headline section: renamed "What You Get" to "What This Enables" with clearer benefit descriptions.
+- Moved download milestone banner to top of README (after badges).
+- Updated download count from 1,300+ to 1,400+ in the first 3 weeks.
+
 ## 1.4.0 - 2026-03-17
 
 ### Added

@@ -1,6 +1,6 @@
 # Release Checklist
 
-## Version 1.4.0
+## Version 1.4.1
 
 - [ ] Confirm npm package name: `x-openapi-flow`.
 - [ ] Confirm optional GitHub Packages mirror target: `@tiago-marques/x-openapi-flow`.
