@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.4.3 - 2026-03-18
+
+### Changed
+- Replaced the static hero image in the root README with an animated GIF to showcase the tool in action.
+
 ## 1.4.2 - 2026-03-18
 
 ### Changed

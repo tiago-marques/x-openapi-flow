@@ -4,6 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/x-openapi-flow?label=npm%20version)](https://www.npmjs.com/package/x-openapi-flow)
 [![npm downloads](https://img.shields.io/npm/dm/x-openapi-flow?label=npm%20downloads)](https://www.npmjs.com/package/x-openapi-flow)
+![npm total downloads](https://img.shields.io/npm/dt/x-openapi-flow?style=flat-square)
 ![node](https://img.shields.io/badge/node-%3E%3D18-339933)
 ![license](https://img.shields.io/npm/l/x-openapi-flow)
 [![CI](https://github.com/tiago-marques/x-openapi-flow/actions/workflows/x-openapi-flow-validate.yml/badge.svg)](https://github.com/tiago-marques/x-openapi-flow/actions/workflows/x-openapi-flow-validate.yml)
@@ -14,8 +15,12 @@
 
 # OpenAPI describes APIs. x-openapi-flow describes their workflows — for developers and AI.
 
-![Swagger UI lifecycle panel with x-openapi-flow](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/swagger-ui-flow-lifecycle.png)
-> Visualizing API lifecycle directly from your OpenAPI spec
+![x-openapi-flow in action](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/ezgif.com-animated-gif-maker.gif)
+
+
+> See your API lifecycle come alive from your OpenAPI spec, with one simple command
+
+> Validate, document, and generate flow-aware SDKs automatically.
 
 `x-openapi-flow` adds a **declarative state machine** to your OpenAPI spec.
 

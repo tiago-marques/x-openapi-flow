@@ -13,8 +13,12 @@
 
 # OpenAPI describes APIs. x-openapi-flow describes their workflows — for developers and AI.
 
-![Swagger UI lifecycle panel with x-openapi-flow](docs/assets/swagger-ui-flow-lifecycle.png)
-> Visualizing API lifecycle directly from your OpenAPI spec
+![x-openapi-flow in action](docs/assets/ezgif.com-animated-gif-maker.gif)
+
+
+> See your API lifecycle come alive from your OpenAPI spec, with one simple command
+
+> Validate, document, and generate flow-aware SDKs automatically.
 
 `x-openapi-flow` adds a **declarative state machine** to your OpenAPI spec.
 
