@@ -1,6 +1,6 @@
 # Release Checklist
 
-## Version 1.4.1
+## Version 1.4.2
 
 - [ ] Confirm npm package name: `x-openapi-flow`.
 - [ ] Confirm optional GitHub Packages mirror target: `@tiago-marques/x-openapi-flow`.
@@ -27,5 +27,5 @@
   - [ ] `cd x-openapi-flow && npm run sync:readme` (keeps npm package README in sync with root README)
 - [ ] Validate local integration example:
   - [ ] `cd example/swagger-ui && npm install && npm run validate`
-- [ ] Create release tag (e.g., `v1.4.0`).
+- [ ] Create release tag (e.g., `v1.4.2`).
 - [ ] Publish release notes based on `CHANGELOG.md`.

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.4.2 - 2026-03-18
+
+### Changed
+- Added direct anchor links in the root README from the value summary section to the matching in-page sections for Swagger UI, Redoc, CLI commands, Mermaid lifecycle diagrams, SDK generation, Postman, Insomnia, and AI Sidecar Authoring.
+- Expanded AI Sidecar Authoring documentation with recommended workflows, a realistic sidecar example, prompt patterns, review guidance, and common AI authoring mistakes.
+
 ## 1.4.1 - 2026-03-18
 
 ### Changed

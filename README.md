@@ -19,16 +19,31 @@
 
 Model resource lifecycles, enforce valid transitions, and generate flow-aware artifacts for documentation, SDKs, and automation.
 
+## Why This Exists
+
+Building APIs is cheap. Building **complex, multi-step APIs that teams actually use correctly** is hard.  
+
+Teams face recurring problems:
+
+- 📄 **Manual documentation is brittle** – OpenAPI specs are static, often out of sync with real workflows  
+- 🤖 **AI agents can hallucinate** – LLMs and code-generating agents may produce invalid calls if workflows are unclear or undocumented  
+- 🤯 **Workflows are confusing** – multi-step operations are hard to track for humans and AI agents 
+- ⚠️ **Invalid calls slip through** – developers make mistakes because lifecycle rules aren’t enforced  
+- ⏱️ **Integration slows down** – SDKs, Postman collections, and docs need constant manual updates  
+- 🛡️ **Hard to prevent errors in production** – without explicit lifecycle rules, invalid operations can reach live systems, causing outages or inconsistencies  
+
+
+x-openapi-flow exists to **solve these pains**: it makes lifecycles explicit, validates transitions automatically, and generates flow-aware docs and SDKs — **so teams move faster, make fewer mistakes, and ship confident integrations**.
 
 ## What This Enables
 
 Turn your OpenAPI spec into a single source of truth for API behavior:
-- Visualize API lifecycles directly in Swagger UI and Redoc
-- Validate flows and state transitions in CI pipelines
-- Generate lifecycle diagrams automatically from your OpenAPI spec
-- Build SDKs that understand and respect API workflows
-- Export Postman/Insomnia collections organized by lifecycle
-- Create AI-ready API contracts for agentic integrations
+- Visualize API lifecycles directly in [Swagger UI](#swagger-ui-demo) and [Redoc](#redoc-demo)
+- Validate flows and state transitions in [CI pipelines](#cli-commands)
+- Generate [lifecycle diagrams automatically](#mermaid-example) from your OpenAPI spec
+- Build [SDKs](#sdk-generation) that understand and respect API workflows
+- Export [Postman](#postman-demo) and [Insomnia](#insomnia-demo) collections organized by lifecycle
+- Create [AI-ready API contracts](docs/wiki/engineering/AI-Sidecar-Authoring.md) for agentic integrations
 
 ## Quick Start
 
@@ -54,6 +69,7 @@ This will:
 
 💡 Tip: run this in CI to enforce API workflow correctness
 
+<a id="mermaid-example"></a>
 ### Real Lifecycle Example
 
 Here’s a real-world payment lifecycle represented in x-openapi-flow:
@@ -79,6 +95,7 @@ CAPTURED --> REFUNDED
 
 > This visualization makes your API workflow explicit, easy to communicate, and ready for documentation or demos.
 
+<a id="sdk-generation"></a>
 ## Generate Flow-Aware SDKs
 
 Create a TypeScript SDK that **respects your API’s lifecycle and transition rules**, following best practices seen in leading companies like **Stripe** and **Adyen**:
@@ -127,6 +144,7 @@ See how **x-openapi-flow extends OpenAPI** to make your API workflows explicit, 
 
 Explore how x-openapi-flow integrates with popular API tools, making lifecycles and flows explicit for documentation and testing.
 
+<a id="swagger-ui-demo"></a>
 ### Swagger UI – Visualize Flows in Your Docs
 
 ```bash
@@ -142,6 +160,7 @@ npm start
 ![Swagger UI Flow Lifecycle 2](docs/assets/swagger-ui-flow-lifecycle-2.png)
 > Detailed view of transitions per operation
 
+<a id="redoc-demo"></a>
 ### Redoc – Flow-Aware Documentation
 
 ```bash
@@ -156,6 +175,7 @@ npm run generate
 ![Redoc Flow Lifecycle 3](docs/assets/redoc-flow-lifecycle-3.png)
 > Auto-generated lifecycle diagrams make documentation clear and consistent
 
+<a id="postman-demo"></a>
 ### Postman – Organized API Collections
 
 ```bash
@@ -169,6 +189,7 @@ npm run generate
 ![Postman Flow Lifecycle 2](docs/assets/postman-flow-lifecycle-2.png)
 > Collections reflect lifecycle order, reducing integration errors
 
+<a id="insomnia-demo"></a>
 ### Insomnia – Organized API Collections
 
 ```bash
@@ -182,6 +203,7 @@ npm run generate
 ![Insomnia Flow Lifecycle 2](docs/assets/insomnia-flow-lifecycle-2.png)
 > Requests are pre-organized according to lifecycle transitions
 
+<a id="cli-commands"></a>
 ## CLI Reference – Common Commands
 
 Use x-openapi-flow from the command line to **manage, validate, visualize, and generate SDKs/docs for your API workflows**.  
