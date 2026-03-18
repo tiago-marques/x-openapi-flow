@@ -12,13 +12,17 @@ const {
   detectDuplicateTransitions,
   detectInvalidOperationReferences,
   detectTerminalCoverage,
+  detectSemanticModelingWarnings,
+  computeQualityReport,
 } = require("../lib/validator");
+const { CODES } = require("../lib/error-codes");
 const { generateSdk } = require("../lib/sdk-generator");
 const {
   exportDocFlows,
   generatePostmanCollection,
   generateInsomniaWorkspace,
   generateRedocPackage,
+  generateFlowTests,
 } = require("../adapters/flow-output-adapters");
 const pkg = require("../package.json");
 
@@ -26,16 +30,19 @@ const DEFAULT_CONFIG_NAME = "x-openapi-flow.config.json";
 const DEFAULT_FLOWS_FILE = "x-openapi-flow.flows.yaml";
 const KNOWN_COMMANDS = [
   "validate",
+  "quickstart",
   "init",
   "apply",
   "diff",
   "lint",
   "analyze",
+  "quality-report",
   "generate-sdk",
   "export-doc-flows",
   "generate-postman",
   "generate-insomnia",
   "generate-redoc",
+  "generate-flow-tests",
   "graph",
   "doctor",
   "completion",
@@ -43,7 +50,7 @@ const KNOWN_COMMANDS = [
 
 const COMMAND_SNIPPETS = {
   validate: {
-    usage: "x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]",
+    usage: "x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--semantic] [--config path]",
     examples: [
       "x-openapi-flow validate examples/order-api.yaml",
       "x-openapi-flow validate examples/order-api.yaml --profile relaxed",
@@ -57,6 +64,15 @@ const COMMAND_SNIPPETS = {
       "x-openapi-flow init openapi.yaml --flows openapi.x.yaml",
       "x-openapi-flow init openapi.yaml --force",
       "x-openapi-flow init openapi.yaml --dry-run",
+    ],
+  },
+  quickstart: {
+    usage: "x-openapi-flow quickstart [--dir path] [--runtime express|fastify] [--force]",
+    examples: [
+      "x-openapi-flow quickstart",
+      "x-openapi-flow quickstart --dir ./my-flow-demo",
+      "x-openapi-flow quickstart --runtime fastify",
+      "x-openapi-flow quickstart --dir ./my-flow-demo --force",
     ],
   },
   apply: {
@@ -75,10 +91,18 @@ const COMMAND_SNIPPETS = {
     ],
   },
   lint: {
-    usage: "x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]",
+    usage: "x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]",
     examples: [
       "x-openapi-flow lint openapi.yaml",
       "x-openapi-flow lint openapi.yaml --format json",
+    ],
+  },
+  "quality-report": {
+    usage: "x-openapi-flow quality-report <openapi-file> [--profile core|relaxed|strict] [--semantic] [--output path]",
+    examples: [
+      "x-openapi-flow quality-report openapi.flow.yaml",
+      "x-openapi-flow quality-report openapi.flow.yaml --profile strict --semantic",
+      "x-openapi-flow quality-report openapi.flow.yaml --output quality-report.json",
     ],
   },
   analyze: {
@@ -117,6 +141,14 @@ const COMMAND_SNIPPETS = {
     usage: "x-openapi-flow generate-redoc [openapi-file] [--output path]",
     examples: [
       "x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow",
+    ],
+  },
+  "generate-flow-tests": {
+    usage: "x-openapi-flow generate-flow-tests [openapi-file] [--format jest|vitest|postman] [--output path] [--with-scripts]",
+    examples: [
+      "x-openapi-flow generate-flow-tests openapi.flow.yaml --format jest --output ./flow.generated.test.js",
+      "x-openapi-flow generate-flow-tests openapi.flow.yaml --format vitest --output ./flow.generated.vitest.test.js",
+      "x-openapi-flow generate-flow-tests openapi.flow.yaml --format postman --output ./x-openapi-flow.flow-tests.postman_collection.json --with-scripts",
     ],
   },
   graph: {
@@ -183,10 +215,13 @@ _x_openapi_flow() {
 
   case "$words[2]" in
     validate)
-      _values 'options' --format --profile --strict-quality --config --help
+      _values 'options' --format --profile --strict-quality --semantic --config --help
       ;;
     init)
       _values 'options' --flows --force --dry-run --help
+      ;;
+    quickstart)
+      _values 'options' --dir --runtime --force --help
       ;;
     apply)
       _values 'options' --flows --out --in-place --help
@@ -195,7 +230,10 @@ _x_openapi_flow() {
       _values 'options' --flows --format --help
       ;;
     lint)
-      _values 'options' --format --config --help
+      _values 'options' --format --semantic --config --help
+      ;;
+    quality-report)
+      _values 'options' --profile --semantic --output --help
       ;;
     analyze)
       _values 'options' --format --out --merge --flows --help
@@ -214,6 +252,9 @@ _x_openapi_flow() {
       ;;
     generate-redoc)
       _values 'options' --output --help
+      ;;
+    generate-flow-tests)
+      _values 'options' --format --output --with-scripts --help
       ;;
     graph)
       _values 'options' --format --help
@@ -248,10 +289,13 @@ compdef _x_openapi_flow x-openapi-flow
 
   case "\${COMP_WORDS[1]}" in
     validate)
-      COMPREPLY=( $(compgen -W "--format --profile --strict-quality --config --help --verbose" -- "\$cur") )
+      COMPREPLY=( $(compgen -W "--format --profile --strict-quality --semantic --config --help --verbose" -- "\$cur") )
       ;;
     init)
       COMPREPLY=( $(compgen -W "--flows --force --dry-run --help --verbose" -- "\$cur") )
+      ;;
+    quickstart)
+      COMPREPLY=( $(compgen -W "--dir --runtime --force --help --verbose" -- "\$cur") )
       ;;
     apply)
       COMPREPLY=( $(compgen -W "--flows --out --in-place --help --verbose" -- "\$cur") )
@@ -260,7 +304,10 @@ compdef _x_openapi_flow x-openapi-flow
       COMPREPLY=( $(compgen -W "--flows --format --help --verbose" -- "\$cur") )
       ;;
     lint)
-      COMPREPLY=( $(compgen -W "--format --config --help --verbose" -- "\$cur") )
+      COMPREPLY=( $(compgen -W "--format --semantic --config --help --verbose" -- "\$cur") )
+      ;;
+    quality-report)
+      COMPREPLY=( $(compgen -W "--profile --semantic --output --help --verbose" -- "\$cur") )
       ;;
     analyze)
       COMPREPLY=( $(compgen -W "--format --out --merge --flows --help --verbose" -- "\$cur") )
@@ -279,6 +326,9 @@ compdef _x_openapi_flow x-openapi-flow
       ;;
     generate-redoc)
       COMPREPLY=( $(compgen -W "--output --help --verbose" -- "\$cur") )
+      ;;
+    generate-flow-tests)
+      COMPREPLY=( $(compgen -W "--format --output --with-scripts --help --verbose" -- "\$cur") )
       ;;
     graph)
       COMPREPLY=( $(compgen -W "--format --help --verbose" -- "\$cur") )
@@ -418,17 +468,20 @@ Global options:
 
 Usage:
   x-openapi-flow <command> [options]
-  x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--config path]
+  x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--semantic] [--config path]
+  x-openapi-flow quickstart [--dir path] [--runtime express|fastify] [--force]
   x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run]
   x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
   x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
-  x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
+  x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]
   x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
+  x-openapi-flow quality-report <openapi-file> [--profile core|relaxed|strict] [--semantic] [--output path]
   x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
   x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
   x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
   x-openapi-flow generate-insomnia [openapi-file] [--output path]
   x-openapi-flow generate-redoc [openapi-file] [--output path]
+  x-openapi-flow generate-flow-tests [openapi-file] [--format jest|vitest|postman] [--output path] [--with-scripts]
   x-openapi-flow graph <openapi-file> [--format mermaid|json]
   x-openapi-flow doctor [--config path]
   x-openapi-flow completion [bash|zsh]
@@ -441,6 +494,10 @@ Examples:
   x-openapi-flow validate examples/order-api.yaml
   x-openapi-flow validate examples/order-api.yaml --profile relaxed
   x-openapi-flow validate examples/order-api.yaml --strict-quality
+  x-openapi-flow validate examples/order-api.yaml --semantic
+  x-openapi-flow quickstart
+  x-openapi-flow quickstart --dir ./my-flow-demo
+  x-openapi-flow quickstart --runtime fastify
   x-openapi-flow init openapi.yaml --flows openapi.x.yaml
   x-openapi-flow init openapi.yaml --force
   x-openapi-flow init openapi.yaml --dry-run
@@ -452,6 +509,10 @@ Examples:
   x-openapi-flow diff openapi.yaml --format json
   x-openapi-flow lint openapi.yaml
   x-openapi-flow lint openapi.yaml --format json
+  x-openapi-flow lint openapi.yaml --semantic
+  x-openapi-flow quality-report openapi.flow.yaml
+  x-openapi-flow quality-report openapi.flow.yaml --profile strict --semantic
+  x-openapi-flow quality-report openapi.flow.yaml --output quality-report.json
   x-openapi-flow analyze openapi.yaml
   x-openapi-flow analyze openapi.yaml --out openapi.x.yaml
   x-openapi-flow analyze openapi.yaml --format json
@@ -461,10 +522,14 @@ Examples:
   x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
   x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
   x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
+  x-openapi-flow generate-flow-tests openapi.flow.yaml --format jest --output ./flow.generated.test.js
   x-openapi-flow graph examples/order-api.yaml
   x-openapi-flow doctor
 
 Quick Start:
+  # 0) Create a runnable starter project (recommended for first contact)
+  x-openapi-flow quickstart
+
   # 1) Initialize sidecar from your OpenAPI file
   x-openapi-flow init
 
@@ -598,7 +663,7 @@ function parseValidateArgs(args) {
   const unknown = findUnknownOptions(
     args,
     ["--format", "--profile", "--config"],
-    ["--strict-quality"]
+    ["--strict-quality", "--semantic"]
   );
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
@@ -620,6 +685,7 @@ function parseValidateArgs(args) {
   }
 
   const strictQuality = args.includes("--strict-quality");
+  const semantic = args.includes("--semantic");
   const format = formatOpt.found ? formatOpt.value : undefined;
   const profile = profileOpt.found ? profileOpt.value : undefined;
 
@@ -657,6 +723,7 @@ function parseValidateArgs(args) {
   return {
     filePath: path.resolve(positional[0]),
     strictQuality,
+    semantic,
     format,
     profile,
     configPath: configOpt.found ? configOpt.value : undefined,
@@ -699,6 +766,52 @@ function parseInitArgs(args) {
     flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
     force: args.includes("--force"),
     dryRun: args.includes("--dry-run"),
+  };
+}
+
+function parseQuickstartArgs(args) {
+  const unknown = findUnknownOptions(args, ["--dir", "--runtime"], ["--force"]);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const dirOpt = getOptionValue(args, "--dir");
+  if (dirOpt.error) {
+    return { error: dirOpt.error };
+  }
+
+  const runtimeOpt = getOptionValue(args, "--runtime");
+  if (runtimeOpt.error) {
+    return { error: `${runtimeOpt.error} Use 'express' or 'fastify'.` };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--dir" || token === "--runtime" || token === "--force") {
+      return false;
+    }
+    if (index > 0 && (args[index - 1] === "--dir" || args[index - 1] === "--runtime")) {
+      return false;
+    }
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  const targetDirRaw = dirOpt.found
+    ? dirOpt.value
+    : (positional[0] || "x-openapi-flow-quickstart");
+
+  const runtime = runtimeOpt.found ? String(runtimeOpt.value).toLowerCase() : "express";
+  if (!["express", "fastify"].includes(runtime)) {
+    return { error: `Invalid --runtime '${runtime}'. Use 'express' or 'fastify'.` };
+  }
+
+  return {
+    targetDir: path.resolve(targetDirRaw),
+    runtime,
+    force: args.includes("--force"),
   };
 }
 
@@ -853,7 +966,7 @@ function parseDiffArgs(args) {
 }
 
 function parseLintArgs(args) {
-  const unknown = findUnknownOptions(args, ["--format", "--config"], []);
+  const unknown = findUnknownOptions(args, ["--format", "--config"], ["--semantic"]);
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
   }
@@ -893,7 +1006,51 @@ function parseLintArgs(args) {
   return {
     openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
     format,
+    semantic: args.includes("--semantic"),
     configPath: configOpt.found ? configOpt.value : undefined,
+  };
+}
+
+function parseQualityReportArgs(args) {
+  const unknown = findUnknownOptions(args, ["--profile", "--output"], ["--semantic"]);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const profileOpt = getOptionValue(args, "--profile");
+  if (profileOpt.error) {
+    return { error: `${profileOpt.error} Use 'core', 'relaxed', or 'strict'.` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  const profile = profileOpt.found ? profileOpt.value : undefined;
+  if (profile && !["core", "relaxed", "strict"].includes(profile)) {
+    return { error: `Invalid --profile '${profile}'. Use 'core', 'relaxed', or 'strict'.` };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (["--profile", "--output"].includes(token)) return false;
+    if (index > 0 && ["--profile", "--output"].includes(args[index - 1])) return false;
+    return !token.startsWith("--") || token === "-";
+  });
+
+  if (positional.length === 0) {
+    return { error: "Missing OpenAPI file path. Usage: x-openapi-flow quality-report <openapi-file>" };
+  }
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    filePath: path.resolve(positional[0]),
+    profile,
+    semantic: args.includes("--semantic"),
+    outputPath: outputOpt.found ? path.resolve(outputOpt.value) : undefined,
   };
 }
 
@@ -1215,6 +1372,51 @@ function parseGenerateRedocArgs(args) {
   };
 }
 
+function parseGenerateFlowTestsArgs(args) {
+  const unknown = findUnknownOptions(args, ["--format", "--output"], ["--with-scripts"]);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const formatOpt = getOptionValue(args, "--format");
+  if (formatOpt.error) {
+    return { error: `${formatOpt.error} Use 'jest', 'vitest', or 'postman'.` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  const format = formatOpt.found ? String(formatOpt.value || "").toLowerCase() : "jest";
+  if (!["jest", "vitest", "postman"].includes(format)) {
+    return { error: `Invalid --format '${format}'. Use 'jest', 'vitest', or 'postman'.` };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--format" || token === "--output" || token === "--with-scripts") {
+      return false;
+    }
+
+    if (index > 0 && (args[index - 1] === "--format" || args[index - 1] === "--output")) {
+      return false;
+    }
+
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    format,
+    outputPath: outputOpt.found ? path.resolve(outputOpt.value) : undefined,
+    withScripts: args.includes("--with-scripts") ? true : undefined,
+  };
+}
+
 function parseArgs(argv) {
   const stripped = stripGlobalFlags(argv.slice(2));
   const args = stripped.args;
@@ -1257,6 +1459,11 @@ function parseArgs(argv) {
     return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
+  if (command === "quickstart") {
+    const parsed = parseQuickstartArgs(commandArgs);
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
+  }
+
   if (command === "graph") {
     const parsed = parseGraphArgs(commandArgs);
     return withVerbose(parsed.error ? parsed : { command, ...parsed });
@@ -1279,6 +1486,11 @@ function parseArgs(argv) {
 
   if (command === "lint") {
     const parsed = parseLintArgs(commandArgs);
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
+  }
+
+  if (command === "quality-report") {
+    const parsed = parseQualityReportArgs(commandArgs);
     return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
@@ -1309,6 +1521,11 @@ function parseArgs(argv) {
 
   if (command === "generate-redoc") {
     const parsed = parseGenerateRedocArgs(commandArgs);
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
+  }
+
+  if (command === "generate-flow-tests") {
+    const parsed = parseGenerateFlowTestsArgs(commandArgs);
     return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
@@ -1471,6 +1688,140 @@ function extractOperationEntries(api) {
   return entries;
 }
 
+function normalizeDslState(resourceDsl, stateValue) {
+  const stateAliases = resourceDsl && resourceDsl.states && typeof resourceDsl.states === "object"
+    ? resourceDsl.states
+    : {};
+
+  if (stateValue == null) {
+    return stateValue;
+  }
+
+  const raw = String(stateValue);
+  return stateAliases[raw] || raw;
+}
+
+function expandResourceDsl(resourceDsl) {
+  const defaults = resourceDsl && resourceDsl.defaults && typeof resourceDsl.defaults === "object"
+    ? resourceDsl.defaults
+    : {};
+  const flowDefaults = defaults.flow && typeof defaults.flow === "object"
+    ? defaults.flow
+    : {};
+  const { id_prefix: flowIdPrefix, ...flowDefaultsForPayload } = flowDefaults;
+  const transitionDefaults = defaults.transition && typeof defaults.transition === "object"
+    ? defaults.transition
+    : {};
+
+  const resourceTransitions = Array.isArray(resourceDsl && resourceDsl.transitions)
+    ? resourceDsl.transitions
+    : [];
+
+  const outgoingByState = new Map();
+  for (const transition of resourceTransitions) {
+    if (!transition || !transition.from || !transition.to) {
+      continue;
+    }
+
+    const fromState = normalizeDslState(resourceDsl, transition.from);
+    const targetState = normalizeDslState(resourceDsl, transition.to);
+
+    if (!outgoingByState.has(fromState)) {
+      outgoingByState.set(fromState, []);
+    }
+
+    outgoingByState.get(fromState).push({
+      ...transitionDefaults,
+      target_state: targetState,
+      trigger_type: transition.trigger_type || transitionDefaults.trigger_type || "synchronous",
+      condition: transition.condition,
+      next_operation_id: transition.next_operation_id,
+      prerequisite_operation_ids: Array.isArray(transition.prerequisite_operation_ids)
+        ? transition.prerequisite_operation_ids
+        : undefined,
+      prerequisite_field_refs: Array.isArray(transition.prerequisite_field_refs)
+        ? transition.prerequisite_field_refs
+        : undefined,
+      propagated_field_refs: Array.isArray(transition.propagated_field_refs)
+        ? transition.propagated_field_refs
+        : undefined,
+    });
+  }
+
+  const operations = Array.isArray(resourceDsl && resourceDsl.operations)
+    ? resourceDsl.operations
+    : [];
+
+  return operations
+    .filter((operationEntry) => operationEntry && operationEntry.operationId)
+    .map((operationEntry) => {
+      const currentState = normalizeDslState(
+        resourceDsl,
+        operationEntry.current_state != null ? operationEntry.current_state : operationEntry.state
+      );
+
+      const explicitFlow =
+        operationEntry["x-openapi-flow"] && typeof operationEntry["x-openapi-flow"] === "object"
+          ? operationEntry["x-openapi-flow"]
+          : null;
+
+      const explicitTransitions = Array.isArray(operationEntry.transitions)
+        ? operationEntry.transitions.map((transition) => ({
+          ...transitionDefaults,
+          ...transition,
+          target_state: normalizeDslState(resourceDsl, transition.target_state || transition.to),
+          trigger_type: transition.trigger_type || transitionDefaults.trigger_type || "synchronous",
+        }))
+        : null;
+
+      const inheritedTransitions = outgoingByState.has(currentState)
+        ? outgoingByState.get(currentState).map((transition) => ({ ...transition }))
+        : [];
+
+      const transitions = explicitTransitions || inheritedTransitions;
+      const defaultIdPrefix = flowIdPrefix ? String(flowIdPrefix) : "";
+      const generatedId = defaultIdPrefix
+        ? `${defaultIdPrefix}-${toKebabCase(operationEntry.operationId)}`
+        : toKebabCase(operationEntry.operationId);
+
+      const flow = {
+        version: "1.0",
+        ...flowDefaultsForPayload,
+        ...explicitFlow,
+        id: operationEntry.id || (explicitFlow && explicitFlow.id) || generatedId,
+        current_state: currentState,
+        description: operationEntry.description || (explicitFlow && explicitFlow.description),
+        idempotency: operationEntry.idempotency || (explicitFlow && explicitFlow.idempotency),
+        transitions,
+      };
+
+      if (!flow.description) {
+        delete flow.description;
+      }
+      if (!flow.idempotency) {
+        delete flow.idempotency;
+      }
+
+      return {
+        operationId: operationEntry.operationId,
+        "x-openapi-flow": flow,
+      };
+    });
+}
+
+function expandResourceDslOperations(parsed) {
+  const resourceDslEntries = Array.isArray(parsed && parsed.resources)
+    ? parsed.resources
+    : [];
+
+  const expanded = [];
+  for (const resourceDsl of resourceDslEntries) {
+    expanded.push(...expandResourceDsl(resourceDsl));
+  }
+
+  return expanded;
+}
+
 function readFlowsFile(flowsPath) {
   if (!fs.existsSync(flowsPath)) {
     return {
@@ -1486,9 +1837,12 @@ function readFlowsFile(flowsPath) {
     return { version: "1.0", operations: [] };
   }
 
+  const directOperations = Array.isArray(parsed.operations) ? parsed.operations : [];
+  const expandedOperations = expandResourceDslOperations(parsed);
+
   return {
     version: parsed.version || "1.0",
-    operations: Array.isArray(parsed.operations) ? parsed.operations : [],
+    operations: [...directOperations, ...expandedOperations],
   };
 }
 
@@ -1726,6 +2080,445 @@ function runInit(parsed) {
   return 0;
 }
 
+function isDirectoryEmpty(directoryPath) {
+  if (!fs.existsSync(directoryPath)) {
+    return true;
+  }
+
+  try {
+    const entries = fs.readdirSync(directoryPath);
+    return entries.length === 0;
+  } catch (_err) {
+    return false;
+  }
+}
+
+function buildQuickstartOpenApi() {
+  return {
+    openapi: "3.0.3",
+    info: {
+      title: "Quickstart Orders API",
+      version: "1.0.0",
+    },
+    paths: {
+      "/orders": {
+        post: {
+          operationId: "createOrder",
+          responses: {
+            201: { description: "Order created" },
+          },
+        },
+      },
+      "/orders/{id}/pay": {
+        post: {
+          operationId: "payOrder",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: { description: "Order paid" },
+          },
+        },
+      },
+      "/orders/{id}/ship": {
+        post: {
+          operationId: "shipOrder",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: { description: "Order shipped" },
+          },
+        },
+      },
+      "/orders/{id}": {
+        get: {
+          operationId: "getOrder",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: { description: "Order state" },
+            404: { description: "Order not found" },
+          },
+        },
+      },
+    },
+  };
+}
+
+function buildQuickstartSidecar() {
+  return {
+    version: "1.0",
+    operations: [
+      {
+        operationId: "createOrder",
+        "x-openapi-flow": {
+          version: "1.0",
+          id: "create-order-flow",
+          current_state: "CREATED",
+          transitions: [
+            {
+              target_state: "PAID",
+              trigger_type: "synchronous",
+              next_operation_id: "payOrder",
+            },
+          ],
+        },
+      },
+      {
+        operationId: "payOrder",
+        "x-openapi-flow": {
+          version: "1.0",
+          id: "pay-order-flow",
+          current_state: "PAID",
+          transitions: [
+            {
+              target_state: "SHIPPED",
+              trigger_type: "synchronous",
+              next_operation_id: "shipOrder",
+            },
+          ],
+        },
+      },
+      {
+        operationId: "shipOrder",
+        "x-openapi-flow": {
+          version: "1.0",
+          id: "ship-order-flow",
+          current_state: "SHIPPED",
+          transitions: [],
+        },
+      },
+    ],
+  };
+}
+
+function buildQuickstartServerJs(runtime) {
+  if (runtime === "fastify") {
+    return `"use strict";
+
+const fastify = require("fastify")({ logger: false });
+const openapi = require("./openapi.flow.json");
+const { createFastifyFlowGuard } = require("x-openapi-flow/lib/runtime-guard");
+
+const PORT = Number(process.env.PORT || 3110);
+const orderStore = new Map();
+
+fastify.addHook(
+  "preHandler",
+  createFastifyFlowGuard({
+    openapi,
+    async getCurrentState({ resourceId }) {
+      if (!resourceId) {
+        return null;
+      }
+
+      const order = orderStore.get(resourceId);
+      return order ? order.state : null;
+    },
+    resolveResourceId: ({ params }) => (params && params.id ? String(params.id) : null),
+    allowUnknownOperations: true,
+  })
+);
+
+fastify.post(
+  "/orders",
+  {
+    config: {
+      operationId: "createOrder",
+    },
+  },
+  async (_request, reply) => {
+    const id = \`ord_\${Date.now()}\`;
+    const order = { id, state: "CREATED" };
+    orderStore.set(id, order);
+    return reply.code(201).send(order);
+  }
+);
+
+fastify.post(
+  "/orders/:id/pay",
+  {
+    config: {
+      operationId: "payOrder",
+    },
+  },
+  async (request, reply) => {
+    const order = orderStore.get(request.params.id);
+    if (!order) {
+      return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Order not found." } });
+    }
+
+    order.state = "PAID";
+    orderStore.set(order.id, order);
+    return reply.code(200).send(order);
+  }
+);
+
+fastify.post(
+  "/orders/:id/ship",
+  {
+    config: {
+      operationId: "shipOrder",
+    },
+  },
+  async (request, reply) => {
+    const order = orderStore.get(request.params.id);
+    if (!order) {
+      return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Order not found." } });
+    }
+
+    order.state = "SHIPPED";
+    orderStore.set(order.id, order);
+    return reply.code(200).send(order);
+  }
+);
+
+fastify.get(
+  "/orders/:id",
+  {
+    config: {
+      operationId: "getOrder",
+    },
+  },
+  async (request, reply) => {
+    const order = orderStore.get(request.params.id);
+    if (!order) {
+      return reply.code(404).send({ error: { code: "NOT_FOUND", message: "Order not found." } });
+    }
+
+    return reply.code(200).send(order);
+  }
+);
+
+fastify.listen({ port: PORT, host: "0.0.0.0" }).then(() => {
+  console.log(\`Quickstart API running on http://localhost:\${PORT}\`);
+});
+`;
+  }
+
+  return `"use strict";
+
+const express = require("express");
+const openapi = require("./openapi.flow.json");
+const { createExpressFlowGuard } = require("x-openapi-flow/lib/runtime-guard");
+
+const app = express();
+app.use(express.json());
+
+const PORT = Number(process.env.PORT || 3110);
+const orderStore = new Map();
+
+function resolveOrderIdFromPath(req) {
+  const fromParams = req && req.params && req.params.id ? String(req.params.id) : null;
+  if (fromParams) {
+    return fromParams;
+  }
+
+  const rawPath = req && (req.path || (req.originalUrl ? req.originalUrl.split("?")[0] : null));
+  if (!rawPath) {
+    return null;
+  }
+
+  const match = String(rawPath).match(/^\\/orders\\/([^/]+)\\/(pay|ship)$/);
+  return match ? match[1] : null;
+}
+
+app.use(
+  createExpressFlowGuard({
+    openapi,
+    async getCurrentState({ resourceId }) {
+      if (!resourceId) {
+        return null;
+      }
+
+      const order = orderStore.get(resourceId);
+      return order ? order.state : null;
+    },
+    resolveResourceId: ({ req }) => resolveOrderIdFromPath(req),
+    allowUnknownOperations: true,
+  })
+);
+
+app.post("/orders", (_req, res) => {
+  const id = \`ord_\${Date.now()}\`;
+  const order = { id, state: "CREATED" };
+  orderStore.set(id, order);
+  return res.status(201).json(order);
+});
+
+app.post("/orders/:id/pay", (req, res) => {
+  const order = orderStore.get(req.params.id);
+  if (!order) {
+    return res.status(404).json({ error: { code: "NOT_FOUND", message: "Order not found." } });
+  }
+
+  order.state = "PAID";
+  orderStore.set(order.id, order);
+  return res.status(200).json(order);
+});
+
+app.post("/orders/:id/ship", (req, res) => {
+  const order = orderStore.get(req.params.id);
+  if (!order) {
+    return res.status(404).json({ error: { code: "NOT_FOUND", message: "Order not found." } });
+  }
+
+  order.state = "SHIPPED";
+  orderStore.set(order.id, order);
+  return res.status(200).json(order);
+});
+
+app.get("/orders/:id", (req, res) => {
+  const order = orderStore.get(req.params.id);
+  if (!order) {
+    return res.status(404).json({ error: { code: "NOT_FOUND", message: "Order not found." } });
+  }
+
+  return res.status(200).json(order);
+});
+
+app.listen(PORT, () => {
+  console.log(\`Quickstart API running on http://localhost:\${PORT}\`);
+});
+`;
+}
+
+function buildQuickstartReadme(runtime) {
+  return `# x-openapi-flow Quickstart Project
+
+This starter was generated by \`x-openapi-flow quickstart\`.
+
+Runtime: \`${runtime}\`
+
+## Fast path (under 5 minutes)
+
+1. Install and start:
+
+\`\`\`bash
+npm install
+npm start
+\`\`\`
+
+2. Create an order and try invalid shipping (blocked):
+
+\`\`\`bash
+curl -s -X POST http://localhost:3110/orders
+curl -i -X POST http://localhost:3110/orders/<id>/ship
+\`\`\`
+
+Expected: \`409 INVALID_STATE_TRANSITION\`.
+
+3. Follow the valid path:
+
+\`\`\`bash
+curl -s -X POST http://localhost:3110/orders/<id>/pay
+curl -s -X POST http://localhost:3110/orders/<id>/ship
+\`\`\`
+
+## About files (keep it simple)
+
+- \`openapi.flow.json\`: the file used at runtime right now.
+- \`openapi.json\`: base OpenAPI source.
+- \`openapi.x.yaml\`: sidecar flow metadata (you can ignore this file at first).
+
+When you are ready to edit flows manually:
+
+\`\`\`bash
+npx x-openapi-flow apply openapi.json --flows openapi.x.yaml --out openapi.flow.json
+npx x-openapi-flow validate openapi.flow.json --profile strict
+\`\`\`
+`;
+}
+
+function runQuickstart(parsed) {
+  const targetDir = parsed.targetDir;
+  const runtime = parsed.runtime || "express";
+  const exists = fs.existsSync(targetDir);
+
+  if (exists && !isDirectoryEmpty(targetDir) && !parsed.force) {
+    console.error(`ERROR: Target directory is not empty: ${targetDir}`);
+    console.error("Use --force to overwrite scaffold files in this directory.");
+    return 1;
+  }
+
+  fs.mkdirSync(targetDir, { recursive: true });
+
+  const openapiPath = path.join(targetDir, "openapi.json");
+  const sidecarPath = path.join(targetDir, "openapi.x.yaml");
+  const flowPath = path.join(targetDir, "openapi.flow.json");
+  const packagePath = path.join(targetDir, "package.json");
+  const serverPath = path.join(targetDir, "server.js");
+  const readmePath = path.join(targetDir, "README.md");
+  const gitignorePath = path.join(targetDir, ".gitignore");
+
+  const openapi = buildQuickstartOpenApi();
+  const sidecar = buildQuickstartSidecar();
+  const flowApi = JSON.parse(JSON.stringify(openapi));
+  applyFlowsToOpenApi(flowApi, sidecar);
+
+  fs.writeFileSync(openapiPath, `${JSON.stringify(openapi, null, 2)}\n`, "utf8");
+  fs.writeFileSync(sidecarPath, yaml.dump(sidecar, { noRefs: true, lineWidth: -1 }), "utf8");
+  fs.writeFileSync(flowPath, `${JSON.stringify(flowApi, null, 2)}\n`, "utf8");
+  fs.writeFileSync(
+    packagePath,
+    `${JSON.stringify({
+      name: `x-openapi-flow-quickstart-${runtime}`,
+      private: true,
+      version: "1.0.0",
+      description: `Quickstart scaffold generated by x-openapi-flow (${runtime})`,
+      main: "server.js",
+      scripts: {
+        start: "node server.js",
+        apply: "x-openapi-flow apply openapi.json --flows openapi.x.yaml --out openapi.flow.json",
+        validate: "x-openapi-flow validate openapi.flow.json --profile strict",
+      },
+      dependencies: {
+        ...(runtime === "fastify" ? { fastify: "^5.2.1" } : { express: "^4.21.2" }),
+        "x-openapi-flow": "latest",
+      },
+    }, null, 2)}\n`,
+    "utf8"
+  );
+  fs.writeFileSync(serverPath, buildQuickstartServerJs(runtime), "utf8");
+  fs.writeFileSync(readmePath, buildQuickstartReadme(runtime), "utf8");
+  fs.writeFileSync(gitignorePath, "node_modules\n", "utf8");
+
+  console.log(`Quickstart project created: ${targetDir}`);
+  console.log(`Runtime: ${runtime}`);
+  console.log("Generated files:");
+  console.log("- openapi.json (base spec)");
+  console.log("- openapi.x.yaml (sidecar metadata)");
+  console.log("- openapi.flow.json (runtime-ready spec)");
+  console.log(`- server.js (${runtime} runtime guard demo)`);
+  console.log("- package.json (scripts: start/apply/validate)");
+  console.log("---");
+  console.log("Next steps:");
+  console.log(`cd ${targetDir}`);
+  console.log("npm install");
+  console.log("npm start");
+  console.log("curl -s -X POST http://localhost:3110/orders");
+  console.log("curl -i -X POST http://localhost:3110/orders/<id>/ship");
+  console.log("(Expected: 409 INVALID_STATE_TRANSITION)");
+  return 0;
+}
+
 function runApply(parsed) {
   let targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
   let flowsPathFromPositional = null;
@@ -1923,11 +2716,13 @@ function runLint(parsed, configData = {}) {
 
   const flows = extractFlows(api);
   const lintConfig = (configData && configData.lint && configData.lint.rules) || {};
+  const semanticEnabled = parsed.semantic === true || lintConfig.semantic === true;
   const ruleConfig = {
     next_operation_id_exists: lintConfig.next_operation_id_exists !== false,
     prerequisite_operation_ids_exist: lintConfig.prerequisite_operation_ids_exist !== false,
     duplicate_transitions: lintConfig.duplicate_transitions !== false,
     terminal_path: lintConfig.terminal_path !== false,
+    semantic_consistency: semanticEnabled,
   };
 
   const operationsById = collectOperationIds(api);
@@ -1935,10 +2730,12 @@ function runLint(parsed, configData = {}) {
   const invalidOperationReferences = detectInvalidOperationReferences(operationsById, flows);
   const duplicateTransitions = detectDuplicateTransitions(flows);
   const terminalCoverage = detectTerminalCoverage(graph);
+  const semanticWarnings = semanticEnabled ? detectSemanticModelingWarnings(flows) : [];
 
   const nextOperationIssues = invalidOperationReferences
     .filter((entry) => entry.type === "next_operation_id")
     .map((entry) => ({
+      code: CODES.LINT_NEXT_OPERATION_ID_EXISTS.code,
       operation_id: entry.operation_id,
       declared_in: entry.declared_in,
     }));
@@ -1946,6 +2743,7 @@ function runLint(parsed, configData = {}) {
   const prerequisiteIssues = invalidOperationReferences
     .filter((entry) => entry.type === "prerequisite_operation_ids")
     .map((entry) => ({
+      code: CODES.LINT_PREREQUISITE_OPERATION_IDS_EXIST.code,
       operation_id: entry.operation_id,
       declared_in: entry.declared_in,
     }));
@@ -1953,18 +2751,22 @@ function runLint(parsed, configData = {}) {
   const issues = {
     next_operation_id_exists: ruleConfig.next_operation_id_exists ? nextOperationIssues : [],
     prerequisite_operation_ids_exist: ruleConfig.prerequisite_operation_ids_exist ? prerequisiteIssues : [],
-    duplicate_transitions: ruleConfig.duplicate_transitions ? duplicateTransitions : [],
+    duplicate_transitions: ruleConfig.duplicate_transitions
+      ? duplicateTransitions.map((entry) => ({ code: CODES.LINT_DUPLICATE_TRANSITIONS.code, ...entry }))
+      : [],
     terminal_path: {
       terminal_states: ruleConfig.terminal_path ? terminalCoverage.terminal_states : [],
       non_terminating_states: ruleConfig.terminal_path ? terminalCoverage.non_terminating_states : [],
     },
+    semantic_consistency: ruleConfig.semantic_consistency ? semanticWarnings : [],
   };
 
   const errorCount =
     issues.next_operation_id_exists.length +
     issues.prerequisite_operation_ids_exist.length +
     issues.duplicate_transitions.length +
-    issues.terminal_path.non_terminating_states.length;
+    issues.terminal_path.non_terminating_states.length +
+    issues.semantic_consistency.length;
 
   const result = {
     ok: errorCount === 0,
@@ -1979,6 +2781,7 @@ function runLint(parsed, configData = {}) {
         prerequisite_operation_ids_exist: issues.prerequisite_operation_ids_exist.length,
         duplicate_transitions: issues.duplicate_transitions.length,
         terminal_path: issues.terminal_path.non_terminating_states.length,
+        semantic_consistency: issues.semantic_consistency.length,
       })
         .filter(([, count]) => count > 0)
         .map(([rule]) => rule),
@@ -1986,7 +2789,25 @@ function runLint(parsed, configData = {}) {
   };
 
   if (parsed.format === "json") {
-    console.log(JSON.stringify(result, null, 2));
+    const jsonResult = {
+      ...result,
+      issues: {
+        ...result.issues,
+        terminal_path: {
+          ...result.issues.terminal_path,
+          non_terminating_states: result.issues.terminal_path.non_terminating_states.map((state) => ({
+            code: CODES.LINT_TERMINAL_PATH.code,
+            state,
+          })),
+        },
+        semantic_consistency: result.issues.semantic_consistency.map((message) => ({
+          code: CODES.LINT_SEMANTIC_CONSISTENCY.code,
+          message,
+        })),
+      },
+    };
+
+    console.log(JSON.stringify(jsonResult, null, 2));
     return result.ok ? 0 : 1;
   }
 
@@ -2035,6 +2856,17 @@ function runLint(parsed, configData = {}) {
     console.error(
       `✘ terminal_path: states without path to terminal -> ${issues.terminal_path.non_terminating_states.join(", ")}`
     );
+  }
+
+  if (ruleConfig.semantic_consistency) {
+    if (issues.semantic_consistency.length === 0) {
+      console.log("✔ semantic_consistency: no semantic ambiguities detected.");
+    } else {
+      console.error(`✘ semantic_consistency: ${issues.semantic_consistency.length} issue(s).`);
+      issues.semantic_consistency.forEach((entry) => {
+        console.error(`  - ${entry}`);
+      });
+    }
   }
 
   if (result.ok) {
@@ -2183,6 +3015,51 @@ function extractFlowsForGraph(filePath) {
   return sidecarFlows;
 }
 
+function runQualityReport(parsed) {
+  if (!parsed.filePath || !fs.existsSync(parsed.filePath)) {
+    const missing = parsed.filePath || "(unknown)";
+    console.error(`ERROR: File not found — ${missing}`);
+    return 1;
+  }
+
+  const options = {
+    output: "json",
+    strictQuality: false,
+    semantic: parsed.semantic === true,
+    profile: parsed.profile || "strict",
+  };
+
+  const originalLog = console.log;
+  let result;
+  try {
+    // run(..., { output: "json" }) prints its own JSON payload; suppress it so
+    // quality-report emits only the consolidated report.
+    console.log = () => {};
+    result = run(parsed.filePath, options);
+  } finally {
+    console.log = originalLog;
+  }
+
+  const report = computeQualityReport(result, { semantic: options.semantic });
+
+  const output = JSON.stringify(report, null, 2);
+
+  if (parsed.outputPath) {
+    try {
+      fs.mkdirSync(path.dirname(parsed.outputPath), { recursive: true });
+      fs.writeFileSync(parsed.outputPath, output + "\n", "utf8");
+      console.error(`Quality report written to ${parsed.outputPath}`);
+    } catch (err) {
+      console.error(`ERROR: Could not write output file — ${err.message}`);
+      return 1;
+    }
+  } else {
+    console.log(output);
+  }
+
+  return report.ok ? 0 : 1;
+}
+
 function runGraph(parsed) {
   try {
     const graphResult = buildMermaidGraph(parsed.filePath);
@@ -2226,7 +3103,6 @@ function inferCurrentState(entry) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-
   const keywordToState = [
     { match: /cancel|void/, state: "CANCELED" },
     { match: /refund/, state: "REFUNDED" },
@@ -2666,6 +3542,42 @@ function runGenerateRedoc(parsed) {
   }
 }
 
+function runGenerateFlowTests(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  try {
+    const result = generateFlowTests({
+      apiPath: targetOpenApiFile,
+      format: parsed.format,
+      outputPath: parsed.outputPath,
+      withScripts: parsed.withScripts,
+    });
+
+    console.log(`OpenAPI source: ${targetOpenApiFile}`);
+    console.log(`Test format: ${result.format}`);
+    console.log(`Output: ${result.outputPath}`);
+    console.log(`Flow transitions processed: ${result.flowCount}`);
+    if (result.happyPathTests != null) {
+      console.log(`Happy path tests: ${result.happyPathTests}`);
+    }
+    if (result.invalidCaseTests != null) {
+      console.log(`Invalid transition tests: ${result.invalidCaseTests}`);
+    }
+    if (result.withScripts != null) {
+      console.log(`Scripts enabled: ${result.withScripts}`);
+    }
+    return 0;
+  } catch (err) {
+    console.error(`ERROR: Could not generate flow tests — ${err.message}`);
+    return 1;
+  }
+}
+
 function main() {
   const parsed = parseArgs(process.argv);
   printVerbose(parsed);
@@ -2693,6 +3605,10 @@ function main() {
 
   if (parsed.command === "init") {
     process.exit(runInit(parsed));
+  }
+
+  if (parsed.command === "quickstart") {
+    process.exit(runQuickstart(parsed));
   }
 
   if (parsed.command === "doctor") {
@@ -2727,6 +3643,10 @@ function main() {
     process.exit(runGenerateRedoc(parsed));
   }
 
+  if (parsed.command === "generate-flow-tests") {
+    process.exit(runGenerateFlowTests(parsed));
+  }
+
   if (parsed.command === "completion") {
     process.exit(runCompletion(parsed));
   }
@@ -2748,6 +3668,10 @@ function main() {
     process.exit(runLint(parsed, config.data));
   }
 
+  if (parsed.command === "quality-report") {
+    process.exit(runQualityReport(parsed));
+  }
+
   const config = loadConfig(parsed.configPath);
   if (config.error) {
     console.error(`ERROR: ${config.error}`);
@@ -2759,6 +3683,9 @@ function main() {
     strictQuality:
       parsed.strictQuality ||
       config.data.strictQuality === true,
+    semantic:
+      parsed.semantic ||
+      config.data.semantic === true,
     profile: parsed.profile || config.data.profile || "strict",
   };
 

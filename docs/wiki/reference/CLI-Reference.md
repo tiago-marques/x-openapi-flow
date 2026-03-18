@@ -27,8 +27,29 @@ npx x-openapi-flow validate <openapi-file> \
   [--format pretty|json] \
   [--profile core|relaxed|strict] \
   [--strict-quality] \
+  [--semantic] \
   [--config path]
 ```
+
+## `quickstart`
+
+Creates a minimal runnable project with onboarding defaults:
+
+```bash
+npx x-openapi-flow quickstart [--dir path] [--force]
+
+# choose runtime scaffold
+npx x-openapi-flow quickstart [--dir path] [--runtime express|fastify] [--force]
+```
+
+Generated scaffold includes:
+
+- `openapi.json` (base OpenAPI)
+- `openapi.x.yaml` (sidecar metadata)
+- `openapi.flow.json` (runtime-ready output)
+- Runtime server scaffold (`express` default, or `fastify`) with runtime guard and ready scripts (`start`, `apply`, `validate`)
+
+Use this command when you want to experience value first and learn sidecar details later.
 
 ## `init`
 
@@ -101,10 +122,11 @@ if (changes > 0) process.exit(1);
 Runs semantic flow lint checks.
 
 ```bash
-npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
+npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]
 ```
 
 - Rules (MVP): `next_operation_id_exists`, `prerequisite_operation_ids_exist`, `duplicate_transitions`, `terminal_path`.
+- `--semantic` enables optional semantic checks (state naming consistency, ambiguous variants, ambiguous transition mappings).
 - `json` output is stable for CI parsing (`ok`, `ruleConfig`, `issues`, `summary`).
 - Rules can be enabled/disabled in `x-openapi-flow.config.json`:
 
@@ -115,7 +137,8 @@ npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--config path]
       "next_operation_id_exists": true,
       "prerequisite_operation_ids_exist": true,
       "duplicate_transitions": false,
-      "terminal_path": true
+      "terminal_path": true,
+      "semantic": false
     }
   }
 }
@@ -221,6 +244,19 @@ npx x-openapi-flow generate-redoc [openapi-file] [--output path]
 
 - Output includes `index.html`, `x-openapi-flow-redoc-plugin.js`, `flow-model.json`, and copied OpenAPI spec.
 - Useful when you want a Redoc experience similar to the Swagger UI plugin flow visualization.
+
+## `generate-flow-tests`
+
+Generates executable flow tests from `x-openapi-flow` lifecycle metadata.
+
+```bash
+npx x-openapi-flow generate-flow-tests [openapi-file] [--format jest|vitest|postman] [--output path] [--with-scripts]
+```
+
+- `jest` (default): emits a JS test file covering valid paths and invalid transitions.
+- `vitest`: emits a Vitest-compatible test file with the same coverage strategy.
+- `postman`: emits a Postman collection suitable for Newman-based CI pipelines (`--with-scripts` supported).
+- Generated tests validate transition determinism continuously in CI/CD with minimal manual setup.
 
 ## `doctor`
 

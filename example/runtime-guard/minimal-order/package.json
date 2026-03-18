@@ -1,0 +1,14 @@
+{
+  "name": "x-openapi-flow-example-runtime-guard-minimal-order",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Minimal runtime guard demo (order lifecycle block)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "x-openapi-flow": "file:../../../x-openapi-flow"
+  }
+}

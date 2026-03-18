@@ -19,6 +19,7 @@ Use a CLI test (`tests/cli/`) for single-command assertions and output format va
 x-openapi-flow/tests/integration/
 ├── sdk-and-adapters.test.js   ← generate-sdk + export-doc-flows + collections coherence
 └── examples.test.js           ← validates example folders under example/
+└── runtime-guard-examples.test.js ← validates runtime guard examples block invalid transitions
 ```
 
 ## Running integration tests
@@ -98,6 +99,7 @@ test("my integration scenario", () => {
 |---|---|
 | `sdk-and-adapters.test.js` | Validates that `generate-sdk`, `export-doc-flows`, `generate-postman`, and `generate-insomnia` all produce coherent outputs (same operationIds, states, resources) when run against the same spec. |
 | `examples.test.js` | Validates end-to-end example workflows across Swagger UI, Redoc, Postman, and Insomnia example folders. |
+| `runtime-guard-examples.test.js` | Validates runtime guard behavior using the Express/Fastify example specs, ensuring invalid transitions are blocked with explicit `409` payloads. |
 
 ## Related
 

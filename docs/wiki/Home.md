@@ -16,6 +16,7 @@ With `x-openapi-flow`, current states and transitions become explicit per operat
 - Sidecar workflow for regenerated OpenAPI source files (`init` + `apply`)
 - Flow bootstrap with `analyze` (`--merge` and confidence scores in JSON output)
 - SDK generation (`generate-sdk` for TypeScript)
+- Runtime enforcement for Node.js APIs (Express/Fastify middleware)
 - Lifecycle documentation export (`export-doc-flows`)
 - Graph export (`mermaid`/`json`)
 - Integration adapters for Swagger UI, Redoc, Postman, and Insomnia
@@ -47,6 +48,9 @@ Sidecar workflow:
 - [Sidecar Contract](reference/Sidecar-Contract.md)
 - [CLI Reference](reference/CLI-Reference.md)
 - [Flow Model](reference/Flow-Model.md)
+- [State Machine Engine](reference/State-Machine-Engine.md)
+- [OpenAPI State Machine Adapter](reference/OpenAPI-State-Machine-Adapter.md)
+- [Runtime Guard](reference/Runtime-Guard.md)
 - [Troubleshooting](reference/Troubleshooting.md)
 - [FAQ](reference/FAQ.md)
 

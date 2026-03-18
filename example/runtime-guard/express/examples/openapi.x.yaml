@@ -1,0 +1,17 @@
+version: "1.0"
+operations:
+  - operationId: createPayment
+    x-openapi-flow:
+      version: "1.0"
+      id: create-payment-flow
+      current_state: AUTHORIZED
+      transitions:
+        - target_state: CAPTURED
+          trigger_type: synchronous
+          next_operation_id: capturePayment
+  - operationId: capturePayment
+    x-openapi-flow:
+      version: "1.0"
+      id: capture-payment-flow
+      current_state: CAPTURED
+      transitions: []

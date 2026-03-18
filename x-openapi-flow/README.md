@@ -54,6 +54,34 @@ Turn your OpenAPI spec into a single source of truth for API behavior:
 
 ## Quick Start
 
+Fastest way to see value (guided scaffold):
+
+```bash
+npx x-openapi-flow quickstart
+cd x-openapi-flow-quickstart
+npm install
+npm start
+```
+
+Optional runtime:
+
+```bash
+npx x-openapi-flow quickstart --runtime fastify
+```
+
+Then run:
+
+```bash
+curl -s -X POST http://localhost:3110/orders
+curl -i -X POST http://localhost:3110/orders/<id>/ship
+```
+
+Expected: `409 INVALID_STATE_TRANSITION`.
+
+---
+
+If you already have an OpenAPI file, use the sidecar workflow:
+
 Initialize flow support in your project:
 
 ```bash
@@ -123,6 +151,147 @@ await payment.capture();
 ```
 
 > This SDK guides developers through valid transition paths, following patterns used by market leaders to ensure safe and intuitive integrations.
+
+## Runtime Enforcement (Express + Fastify)
+
+CI validation is important, but production safety needs request-time enforcement.
+
+`x-openapi-flow` now includes an official runtime guard for Node.js that can block invalid state transitions during request handling.
+
+- Works with **Express** and **Fastify**
+- Resolves operations by `operationId` (when available) or by method + route
+- Reads current resource state using your own persistence callback
+- Blocks invalid transitions with explicit `409` error payloads
+
+Install and use directly in your API server:
+
+```js
+const {
+  createExpressFlowGuard,
+  createFastifyFlowGuard,
+} = require("x-openapi-flow/lib/runtime-guard");
+```
+
+Express example:
+
+```js
+const express = require("express");
+const { createExpressFlowGuard } = require("x-openapi-flow/lib/runtime-guard");
+const openapi = require("./openapi.flow.json");
+
+const app = express();
+
+app.use(
+  createExpressFlowGuard({
+    openapi,
+    async getCurrentState({ resourceId }) {
+      if (!resourceId) return null;
+      return paymentStore.getState(resourceId); // your DB/service lookup
+    },
+    resolveResourceId: ({ params }) => params.id || null,
+  })
+);
+```
+
+Fastify example:
+
+```js
+const fastify = require("fastify")();
+const { createFastifyFlowGuard } = require("x-openapi-flow/lib/runtime-guard");
+const openapi = require("./openapi.flow.json");
+
+fastify.addHook(
+  "preHandler",
+  createFastifyFlowGuard({
+    openapi,
+    async getCurrentState({ resourceId }) {
+      if (!resourceId) return null;
+      return paymentStore.getState(resourceId);
+    },
+    resolveResourceId: ({ params }) => params.id || null,
+  })
+);
+```
+
+Error payload for blocked transition:
+
+```json
+{
+  "error": {
+    "code": "INVALID_STATE_TRANSITION",
+    "message": "Blocked invalid transition for operation 'capturePayment'. Current state 'CREATED' cannot transition to this operation.",
+    "operation_id": "capturePayment",
+    "current_state": "CREATED",
+    "allowed_from_states": ["AUTHORIZED"],
+    "resource_id": "pay_123"
+  }
+}
+```
+
+More details: [Runtime Guard](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/Runtime-Guard.md)
+
+### 5-Minute Demo: Real Runtime Block (E-commerce Orders)
+
+Want to see the value immediately? Use the official minimal demo:
+
+- [example/runtime-guard/minimal-order/README.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/example/runtime-guard/minimal-order/README.md)
+
+Run in under 5 minutes:
+
+```bash
+cd example/runtime-guard/minimal-order
+npm install
+npm start
+```
+
+Create an order, then try to ship before payment (must return `409 INVALID_STATE_TRANSITION`):
+
+```bash
+curl -s -X POST http://localhost:3110/orders
+curl -i -X POST http://localhost:3110/orders/<id>/ship
+```
+
+HTTPie equivalent:
+
+```bash
+http POST :3110/orders
+http -v POST :3110/orders/<id>/ship
+```
+
+## Programmatic State Machine Engine
+
+Use a reusable deterministic engine independently of CLI and OpenAPI parsing:
+
+```js
+const { createStateMachineEngine } = require("x-openapi-flow/lib/state-machine-engine");
+
+const engine = createStateMachineEngine({
+  transitions: [
+    { from: "CREATED", action: "confirm", to: "CONFIRMED" },
+    { from: "CONFIRMED", action: "ship", to: "SHIPPED" },
+  ],
+});
+
+engine.canTransition("CREATED", "confirm");
+engine.getNextState("CREATED", "confirm");
+engine.validateFlow({ startState: "CREATED", actions: ["confirm", "ship"] });
+```
+
+More details: [State Machine Engine](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/State-Machine-Engine.md)
+
+### OpenAPI to Engine Adapter
+
+Convert `x-openapi-flow` metadata to a pure engine definition:
+
+```js
+const { createStateMachineAdapterModel } = require("x-openapi-flow/lib/openapi-state-machine-adapter");
+const { createStateMachineEngine } = require("x-openapi-flow/lib/state-machine-engine");
+
+const model = createStateMachineAdapterModel({ openapiPath: "./openapi.flow.yaml" });
+const engine = createStateMachineEngine(model.definition);
+```
+
+More details: [OpenAPI State Machine Adapter](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/OpenAPI-State-Machine-Adapter.md)
 
 ## Who Benefits Most
 
@@ -227,6 +396,8 @@ npx x-openapi-flow version                # show version
 npx x-openapi-flow doctor [--config path] # check setup and config
 
 npx x-openapi-flow completion [bash|zsh]  # enable shell autocompletion
+
+npx x-openapi-flow quickstart [--dir path] [--runtime express|fastify] [--force] # scaffold runnable onboarding project
 ```
 
 ### Workflow Management
@@ -260,6 +431,16 @@ npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format mar
 ```bash
 # generate flow-aware SDK
 npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path] 
+```
+
+### Test Generation
+
+```bash
+# generate executable flow tests (happy path + invalid transitions)
+npx x-openapi-flow generate-flow-tests [openapi-file] [--format jest|vitest|postman] [--output path]
+
+# postman/newman-oriented collection with flow scripts
+npx x-openapi-flow generate-flow-tests [openapi-file] --format postman [--output path] [--with-scripts]
 ```
 
 Full details:  

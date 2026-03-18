@@ -29,12 +29,56 @@ operations:
             - createOrder:response.201.body.order_id
 ```
 
+## Resource-oriented DSL (less repetition)
+
+You can also define flows by resource and let `x-openapi-flow` expand them into per-operation `x-openapi-flow` payloads during `apply`/`diff`.
+
+```yaml
+version: "1.0"
+resources:
+  - name: orders
+    defaults:
+      flow:
+        version: "1.0"
+        id_prefix: order
+      transition:
+        trigger_type: synchronous
+    states:
+      created: CREATED
+      paid: PAID
+      shipped: SHIPPED
+    transitions:
+      - from: created
+        to: paid
+        next_operation_id: payOrder
+      - from: paid
+        to: shipped
+        next_operation_id: shipOrder
+    operations:
+      - operationId: createOrder
+        state: created
+      - operationId: payOrder
+        state: paid
+      - operationId: shipOrder
+        state: shipped
+```
+
+How expansion works:
+
+- `operations[].state` (or `current_state`) uses aliases from `states`.
+- Resource-level `transitions` are inherited by operations sharing the same state.
+- `defaults.flow` is merged into each generated `x-openapi-flow` object.
+- `defaults.transition` is merged into generated transitions.
+- Operation-level `transitions` overrides inherited transitions when explicitly provided.
+
 ## Document fields
 
 - `version` (optional, string)
   - Sidecar contract version. Current default: `"1.0"`.
 - `operations` (optional, array)
   - List of operation entries that carry `x-openapi-flow` metadata.
+- `resources` (optional, array)
+  - Resource-oriented DSL block that expands into operation entries (useful to reduce duplication in larger flows).
 
 ## Operation entry fields
 
@@ -44,6 +88,17 @@ operations:
   - Extension payload injected into the target operation.
 - `key` (optional, legacy string)
   - Backward-compatible fallback key used in older sidecars.
+
+Resource DSL operation fields (`resources[].operations[]`):
+
+- `operationId` (required, string)
+- `state` or `current_state` (required, string)
+- `transitions` (optional, array)
+  - Overrides inherited resource transitions for that operation.
+- `id`, `description`, `idempotency` (optional)
+  - Mapped to generated `x-openapi-flow` fields.
+- `x-openapi-flow` (optional object)
+  - Advanced override merged after defaults.
 
 ## x-openapi-flow fields
 

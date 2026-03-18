@@ -1,6 +1,38 @@
 # Quickstart
 
-Use this flow as the default day-to-day workflow:
+Start with the shortest guided path, then move to full sidecar workflow.
+
+## 0) Fast guided onboarding (recommended)
+
+Generate a runnable demo project automatically:
+
+```bash
+npx x-openapi-flow quickstart
+cd x-openapi-flow-quickstart
+npm install
+npm start
+```
+
+Optional runtime scaffold:
+
+```bash
+npx x-openapi-flow quickstart --runtime fastify
+```
+
+Validate runtime block immediately:
+
+```bash
+curl -s -X POST http://localhost:3110/orders
+curl -i -X POST http://localhost:3110/orders/<id>/ship
+```
+
+Expected: `409 INVALID_STATE_TRANSITION`.
+
+You can use `openapi.flow.json` directly at first. The sidecar file can be learned later.
+
+---
+
+Use this flow as the default day-to-day workflow once you're ready:
 
 - edit `{context}.x.(json|yaml)` (sidecar source)
 - generate `{context}.flow.(json|yaml)` with `apply`

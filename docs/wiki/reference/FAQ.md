@@ -28,6 +28,24 @@ Migrate to `x-openapi-flow` for compatibility with current versions.
 
 Yes. Run `x-openapi-flow validate ... --profile strict --strict-quality` in your pipeline.
 
+## Does this enforce transitions at runtime?
+
+Yes. Use the official Node.js runtime guard middleware for Express/Fastify.
+
+See [Runtime Guard](Runtime-Guard.md).
+
+## Can I use a state machine API programmatically without CLI?
+
+Yes. Use the reusable engine API in `x-openapi-flow/lib/state-machine-engine`.
+
+See [State Machine Engine](State-Machine-Engine.md).
+
+## Can I convert OpenAPI flow metadata to engine definition programmatically?
+
+Yes. Use `x-openapi-flow/lib/openapi-state-machine-adapter`.
+
+See [OpenAPI State Machine Adapter](OpenAPI-State-Machine-Adapter.md).
+
 ## Where is the full rollout guide (local + CI + PR checks)?
 
 See [Adoption Playbook](../getting-started/Adoption-Playbook.md).

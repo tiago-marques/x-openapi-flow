@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
 const Ajv = require("ajv");
+const { CODES, buildIssue } = require("./error-codes");
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -150,6 +151,7 @@ function defaultResult(pathValue, ok = true) {
       non_terminating_states: [],
       invalid_operation_references: [],
       invalid_field_references: [],
+      semantic_warnings: [],
       warnings: [],
     },
   };
@@ -701,6 +703,88 @@ function detectTerminalCoverage(graph) {
   };
 }
 
+function detectStateNamingStyle(state) {
+  if (/^[A-Z][A-Z0-9_]*$/.test(state)) {
+    return "upper_snake";
+  }
+  if (/^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/.test(state)) {
+    return "kebab_case";
+  }
+  if (/^[a-z][a-zA-Z0-9]*$/.test(state)) {
+    return "camelCase";
+  }
+  if (/^[A-Z][a-zA-Z0-9]*$/.test(state)) {
+    return "PascalCase";
+  }
+  return "other";
+}
+
+function canonicalizeStateName(state) {
+  return String(state || "")
+    .toLowerCase()
+    .replace(/[_\-\s]+/g, "");
+}
+
+function detectSemanticModelingWarnings(flows) {
+  const warnings = [];
+  const states = [...new Set(flows.map(({ flow }) => String(flow.current_state)).filter(Boolean))];
+
+  if (states.length > 0) {
+    const styleSet = new Set(states.map((state) => detectStateNamingStyle(state)));
+    if (styleSet.size > 1) {
+      warnings.push(
+        `Semantic: inconsistent state naming styles detected (${[...styleSet].sort().join(", ")}).`
+      );
+    }
+
+    const byCanonical = new Map();
+    for (const state of states) {
+      const key = canonicalizeStateName(state);
+      if (!byCanonical.has(key)) {
+        byCanonical.set(key, new Set());
+      }
+      byCanonical.get(key).add(state);
+    }
+
+    for (const variants of byCanonical.values()) {
+      if (variants.size > 1) {
+        warnings.push(
+          `Semantic: ambiguous state variants found (${[...variants].sort().join(", ")}).`
+        );
+      }
+    }
+  }
+
+  const transitionSignature = new Map();
+  for (const { flow } of flows) {
+    const from = String(flow.current_state || "");
+    const transitions = Array.isArray(flow.transitions) ? flow.transitions : [];
+
+    for (const transition of transitions) {
+      if (!transition || !transition.next_operation_id) {
+        continue;
+      }
+
+      const key = `${from}::${transition.next_operation_id}`;
+      if (!transitionSignature.has(key)) {
+        transitionSignature.set(key, new Set());
+      }
+      transitionSignature.get(key).add(String(transition.target_state || ""));
+    }
+  }
+
+  for (const [signature, targetStates] of transitionSignature.entries()) {
+    if (targetStates.size > 1) {
+      const [signatureFrom, signatureOperation] = signature.split("::");
+      warnings.push(
+        `Semantic: ambiguous transition mapping from state '${signatureFrom}' to next_operation_id '${signatureOperation}' with multiple target states (${[...targetStates].sort().join(", ")}).`
+      );
+    }
+  }
+
+  return [...new Set(warnings)];
+}
+
 // ---------------------------------------------------------------------------
 // Main runner
 // ---------------------------------------------------------------------------
@@ -708,12 +792,13 @@ function detectTerminalCoverage(graph) {
 /**
  * Run all validations against an OAS file and print results.
  * @param {string} [apiPath] - Path to the OAS YAML file (defaults to payment-api.yaml).
- * @param {{ output?: "pretty" | "json", strictQuality?: boolean, profile?: "core" | "relaxed" | "strict" }} [options]
+ * @param {{ output?: "pretty" | "json", strictQuality?: boolean, profile?: "core" | "relaxed" | "strict", semantic?: boolean }} [options]
  * @returns {{ ok: boolean, path: string, flowCount: number, schemaFailures: object[], orphans: object[], graphChecks: object }}
  */
 function run(apiPath, options = {}) {
   const output = options.output || "pretty";
   const strictQuality = options.strictQuality === true;
+  const semantic = options.semantic === true;
   const profile = options.profile || "strict";
   const profiles = {
     core: { runAdvanced: false, failAdvanced: false, runQuality: false },
@@ -861,6 +946,7 @@ function run(apiPath, options = {}) {
   }
 
   const qualityWarnings = [];
+  const semanticWarnings = semantic ? detectSemanticModelingWarnings(flows) : [];
 
   if (profileConfig.runQuality && multipleInitialStates.length > 0) {
     qualityWarnings.push(
@@ -893,6 +979,10 @@ function run(apiPath, options = {}) {
     qualityWarnings.push(
       `Transition field references not found/invalid: ${invalidFieldReferences.length}`
     );
+  }
+
+  if (profileConfig.runQuality && semanticWarnings.length > 0) {
+    qualityWarnings.push(...semanticWarnings);
   }
 
   if (strictQuality && qualityWarnings.length > 0) {
@@ -985,9 +1075,13 @@ function run(apiPath, options = {}) {
       non_terminating_states: terminalCoverage.non_terminating_states,
       invalid_operation_references: invalidOperationReferences,
       invalid_field_references: invalidFieldReferences,
+      semantic_warnings: semanticWarnings,
       warnings: qualityWarnings,
     },
   };
+
+  // Attach structured issues list to JSON output
+  result.issues = buildStructuredIssues(result);
 
   if (output === "json") {
     console.log(JSON.stringify(result, null, 2));
@@ -1001,6 +1095,286 @@ function run(apiPath, options = {}) {
   }
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Structured issue builder (maps raw results → standard issue objects)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert raw validation result into a flat array of structured issue objects,
+ * each with a stable XFLOW error code.
+ */
+function buildStructuredIssues(result) {
+  const issues = [];
+
+  // Schema failures
+  for (const failure of (result.schemaFailures || [])) {
+    for (const err of (failure.errors || [])) {
+      const isAdditional = err.keyword === "additionalProperties" && err.params && err.params.additionalProperty;
+      const isMissing = err.keyword === "required" && err.params && err.params.missingProperty;
+      const isEnum = err.keyword === "enum";
+
+      let def;
+      if (isAdditional) {
+        def = CODES.SCHEMA_ADDITIONAL_PROPERTY;
+      } else if (isMissing) {
+        def = CODES.SCHEMA_MISSING_REQUIRED;
+      } else if (isEnum) {
+        def = CODES.SCHEMA_INVALID_ENUM;
+      } else {
+        def = CODES.SCHEMA_VALIDATION_FAILED;
+      }
+
+      const msg = isMissing
+        ? `Missing required property '${err.params.missingProperty}'.`
+        : isAdditional
+          ? `Property '${err.params.additionalProperty}' is not allowed.`
+          : err.message || def.title;
+
+      const suggestion = isMissing && err.params.missingProperty === "version"
+        ? "Add `version: \"1.0\"` to the x-openapi-flow object."
+        : isMissing && err.params.missingProperty === "current_state"
+          ? "Add `current_state` to describe the operation state."
+          : isAdditional
+            ? `Remove unsupported property \`${err.params.additionalProperty}\` from x-openapi-flow payload.`
+            : undefined;
+
+      issues.push(buildIssue(def, msg, { location: failure.endpoint, suggestion }));
+    }
+  }
+
+  // Orphan states
+  for (const orphan of (result.orphans || [])) {
+    issues.push(buildIssue(
+      CODES.GRAPH_ORPHAN_STATES,
+      `Orphan state: '${orphan}'.`,
+      {
+        location: orphan,
+        suggestion: "Connect this state to the flow graph using transitions.",
+      }
+    ));
+  }
+
+  const gc = result.graphChecks || {};
+
+  // Graph: no initial state
+  if (Array.isArray(gc.initial_states) && gc.initial_states.length === 0 && (result.flowCount || 0) > 0) {
+    issues.push(buildIssue(
+      CODES.GRAPH_NO_INITIAL_STATE,
+      "No initial state detected (every state has incoming transitions).",
+      { suggestion: "Ensure at least one state has no incoming transitions (flow entry point)." }
+    ));
+  }
+
+  // Graph: no terminal state
+  if (Array.isArray(gc.terminal_states) && gc.terminal_states.length === 0 && (result.flowCount || 0) > 0) {
+    issues.push(buildIssue(
+      CODES.GRAPH_NO_TERMINAL_STATE,
+      "No terminal state detected (every state has outgoing transitions).",
+      { suggestion: "Ensure at least one state has no outgoing transitions (flow end point)." }
+    ));
+  }
+
+  // Graph: unreachable
+  for (const state of (gc.unreachable_states || [])) {
+    issues.push(buildIssue(
+      CODES.GRAPH_UNREACHABLE_STATES,
+      `State '${state}' is unreachable from any initial state.`,
+      { location: state, suggestion: `Add a transition leading to '${state}' or remove it.` }
+    ));
+  }
+
+  // Graph: cycle
+  if (gc.cycle && gc.cycle.has_cycle) {
+    const cyclePath = Array.isArray(gc.cycle.cycle_path) ? gc.cycle.cycle_path.join(" → ") : "";
+    issues.push(buildIssue(
+      CODES.GRAPH_CYCLE_DETECTED,
+      `Cycle detected in flow graph: ${cyclePath}.`,
+      {
+        suggestion: "Remove the back-edge creating the cycle or use profile 'relaxed' to allow cycles.",
+        details: { cycle_path: gc.cycle.cycle_path },
+      }
+    ));
+  }
+
+  const qc = result.qualityChecks || {};
+
+  // Quality: multiple initial states
+  for (const state of (qc.multiple_initial_states || [])) {
+    issues.push(buildIssue(
+      CODES.QUALITY_MULTIPLE_INITIAL_STATES,
+      `State '${state}' is an additional initial state — the flow has multiple entry points.`,
+      { location: state, suggestion: "Consolidate into a single initial state if possible." }
+    ));
+  }
+
+  // Quality: duplicate transitions
+  for (const dup of (qc.duplicate_transitions || [])) {
+    issues.push(buildIssue(
+      CODES.QUALITY_DUPLICATE_TRANSITIONS,
+      `Duplicate transition from '${dup.from}' to '${dup.to}' (count: ${dup.count}).`,
+      { location: `${dup.from} → ${dup.to}`, suggestion: "Remove redundant transition entries." }
+    ));
+  }
+
+  // Quality: non-terminating states
+  for (const state of (qc.non_terminating_states || [])) {
+    issues.push(buildIssue(
+      CODES.QUALITY_NON_TERMINATING_STATES,
+      `State '${state}' has no path to a terminal state.`,
+      { location: state, suggestion: "Add a transition from this state to a terminal state." }
+    ));
+  }
+
+  // Quality: invalid operation references
+  for (const ref of (qc.invalid_operation_references || [])) {
+    issues.push(buildIssue(
+      CODES.QUALITY_INVALID_OPERATION_REF,
+      `Transition in '${ref.declared_in}' references unknown operationId '${ref.operation_id}' (type: ${ref.type}).`,
+      {
+        location: ref.declared_in,
+        suggestion: `Check that '${ref.operation_id}' is defined in the OpenAPI spec with an operationId.`,
+        details: { operation_id: ref.operation_id, ref_type: ref.type },
+      }
+    ));
+  }
+
+  // Quality: invalid field references
+  for (const ref of (qc.invalid_field_refs || qc.invalid_field_references || [])) {
+    if (!ref) continue;
+    issues.push(buildIssue(
+      CODES.QUALITY_INVALID_FIELD_REF,
+      typeof ref === "string"
+        ? `Invalid field reference: ${ref}`
+        : `Invalid field reference '${ref.ref || ref.message}' in '${ref.endpoint || ref.declared_in || "unknown"}'.`,
+      { suggestion: "Verify the field path and operationId in the field reference." }
+    ));
+  }
+
+  // Semantic warnings
+  for (const warning of (qc.semantic_warnings || [])) {
+    const isAmbiguous = warning.includes("ambiguous state variants") || warning.includes("ambiguous transition");
+    const def = isAmbiguous ? CODES.QUALITY_SEMANTIC_AMBIGUOUS_VARIANTS : CODES.QUALITY_SEMANTIC_INCONSISTENT_NAMING;
+    issues.push(buildIssue(
+      def,
+      warning,
+      { suggestion: "Adopt a single consistent naming convention for all state names (e.g. UPPER_SNAKE_CASE)." }
+    ));
+  }
+
+  return issues;
+}
+
+// ---------------------------------------------------------------------------
+// Quality report
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute a quality score and structured report from a validation result.
+ *
+ * @param {object} result - Result returned by `run()`.
+ * @param {{ semantic?: boolean }} [options]
+ * @returns {object} Quality report with score, grade, issues, suggestions, breakdown.
+ */
+function computeQualityReport(result, options = {}) {
+  const semantic = options.semantic === true;
+  const issues = result.issues && result.issues.length > 0 ? result.issues : buildStructuredIssues(result);
+  const flowCount = result.flowCount || 0;
+
+  // ── Schema score (weight 40 pts) ────────────────────────────────────────
+  const schemaErrors = (result.schemaFailures || []).length;
+  const schemaScore = flowCount === 0 ? 100 : Math.max(0, Math.round((1 - schemaErrors / flowCount) * 100));
+
+  // ── Graph score (weight 30 pts) ──────────────────────────────────────────
+  const gc = result.graphChecks || {};
+  const graphChecksTotal = 4;
+  let graphPassed = 0;
+  if (!Array.isArray(gc.initial_states) || gc.initial_states.length > 0 || flowCount === 0) graphPassed += 1;
+  if (!Array.isArray(gc.terminal_states) || gc.terminal_states.length > 0 || flowCount === 0) graphPassed += 1;
+  if (!Array.isArray(gc.unreachable_states) || gc.unreachable_states.length === 0) graphPassed += 1;
+  if (!gc.cycle || !gc.cycle.has_cycle) graphPassed += 1;
+  const graphScore = Math.round((graphPassed / graphChecksTotal) * 100);
+
+  // ── Quality score (weight 20 pts) ────────────────────────────────────────
+  const qc = result.qualityChecks || {};
+  const qualityIssueCount =
+    (qc.multiple_initial_states || []).length +
+    (qc.duplicate_transitions || []).length +
+    (qc.non_terminating_states || []).length +
+    (qc.invalid_operation_references || []).length +
+    (qc.invalid_field_references || []).length;
+  const qualityScore = flowCount === 0 ? 100 : Math.max(0, Math.round((1 - Math.min(1, qualityIssueCount / Math.max(1, flowCount))) * 100));
+
+  // ── Semantic score (weight 10 pts) ───────────────────────────────────────
+  const semanticIssueCount = semantic ? (qc.semantic_warnings || []).length : 0;
+  const semanticScore = flowCount === 0 ? 100 : Math.max(0, Math.round((1 - Math.min(1, semanticIssueCount / Math.max(1, flowCount))) * 100));
+
+  // ── Overall weighted score ───────────────────────────────────────────────
+  const semanticWeight = semantic ? 0.10 : 0;
+  const qualityWeight = semantic ? 0.20 : 0.25;
+  const graphWeight = semantic ? 0.30 : 0.35;
+  const schemaWeight = semantic ? 0.40 : 0.40;
+
+  const weightedScore =
+    schemaScore * schemaWeight +
+    graphScore * graphWeight +
+    qualityScore * qualityWeight +
+    (semantic ? semanticScore * semanticWeight : 0);
+
+  const score = Math.round(weightedScore);
+
+  let grade;
+  if (score >= 90) grade = "A";
+  else if (score >= 80) grade = "B";
+  else if (score >= 70) grade = "C";
+  else if (score >= 60) grade = "D";
+  else grade = "F";
+
+  const suggestions = [...new Set(
+    issues.map((issue) => issue.suggestion).filter(Boolean)
+  )];
+
+  const breakdown = {
+    schema: {
+      score: schemaScore,
+      weight: Math.round(schemaWeight * 100),
+      failed: schemaErrors,
+      passed: flowCount - schemaErrors,
+    },
+    graph: {
+      score: graphScore,
+      weight: Math.round(graphWeight * 100),
+      checks_passed: graphPassed,
+      checks_total: graphChecksTotal,
+    },
+    quality: {
+      score: qualityScore,
+      weight: Math.round(qualityWeight * 100),
+      issues: qualityIssueCount,
+    },
+  };
+
+  if (semantic) {
+    breakdown.semantic = {
+      score: semanticScore,
+      weight: Math.round(semanticWeight * 100),
+      issues: semanticIssueCount,
+    };
+  }
+
+  return {
+    generated_at: new Date().toISOString(),
+    path: result.path,
+    profile: result.profile,
+    score,
+    grade,
+    flow_count: flowCount,
+    ok: result.ok,
+    issues: issues.filter((issue) => semantic || issue.category !== "quality" || !issue.code.startsWith("XFLOW_W20")),
+    suggestions,
+    breakdown,
+  };
 }
 
 // Allow the module to be required by tests without side-effects.
@@ -1018,5 +1392,8 @@ module.exports = {
   detectDuplicateTransitions,
   detectInvalidOperationReferences,
   detectTerminalCoverage,
+  detectSemanticModelingWarnings,
+  buildStructuredIssues,
+  computeQualityReport,
   run,
 };

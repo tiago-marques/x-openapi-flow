@@ -1,0 +1,18 @@
+{
+  "name": "x-openapi-flow-example-runtime-guard-fastify",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Fastify runtime guard example for x-openapi-flow",
+  "main": "server.js",
+  "scripts": {
+    "init": "x-openapi-flow init openapi.json",
+    "diff": "x-openapi-flow diff openapi.json --flows examples/openapi.x.yaml --format pretty",
+    "apply": "x-openapi-flow apply openapi.json --flows examples/openapi.x.yaml --out openapi.flow.json",
+    "validate": "x-openapi-flow validate openapi.flow.json --profile strict",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.1",
+    "x-openapi-flow": "file:../../../x-openapi-flow"
+  }
+}

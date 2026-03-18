@@ -47,3 +47,30 @@ jobs:
             echo "Expected non-terminating-api.yaml to fail in strict profile, but it passed."
             exit 1
           fi
+
+  runtime-enforcement:
+    name: runtime-enforcement
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: x-openapi-flow
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: x-openapi-flow/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate runtime guard unit tests
+        run: npm run test:runtime
+
+      - name: Validate runtime guard integration examples
+        run: node --test tests/integration/runtime-guard-examples.test.js

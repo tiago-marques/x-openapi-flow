@@ -510,12 +510,219 @@ test("generate-redoc creates package with plugin and lifecycle model", () => {
   }
 });
 
+test("generate-flow-tests creates Jest suite with happy and invalid transition cases", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-generate-flow-tests-jest-"));
+  const openapiPath = path.join(tempDir, "openapi.flow.yaml");
+  const outputPath = path.join(tempDir, "flow.generated.test.js");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Flow Tests API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: CONFIRMED\n            trigger_type: synchronous\n            next_operation_id: confirmOrder\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: confirm-order\n        current_state: CONFIRMED\n        transitions:\n          - target_state: SHIPPED\n            trigger_type: synchronous\n            next_operation_id: shipOrder\n  /orders/{id}/ship:\n    post:\n      operationId: shipOrder\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: ship-order\n        current_state: SHIPPED\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli([
+      "generate-flow-tests",
+      openapiPath,
+      "--format",
+      "jest",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Test format: jest/);
+    assert.match(result.stdout, /Happy path tests:/);
+    assert.match(result.stdout, /Invalid transition tests:/);
+    assert.equal(fs.existsSync(outputPath), true);
+
+    const content = fs.readFileSync(outputPath, "utf8");
+    assert.match(content, /createStateMachineEngine/);
+    assert.match(content, /describe\("happy paths"/);
+    assert.match(content, /describe\("invalid transitions"/);
+    assert.match(content, /INVALID_TRANSITION/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-flow-tests supports postman/newman-oriented output", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-generate-flow-tests-postman-"));
+  const outputPath = path.join(tempDir, "flow-tests.postman_collection.json");
+
+  try {
+    const result = runCli([
+      "generate-flow-tests",
+      "examples/order-api.yaml",
+      "--format",
+      "postman",
+      "--output",
+      outputPath,
+      "--with-scripts",
+    ]);
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Test format: postman/);
+    assert.match(result.stdout, /Scripts enabled: true/);
+    assert.equal(fs.existsSync(outputPath), true);
+
+    const collection = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    assert.equal(Array.isArray(collection.item), true);
+    assert.equal(collection.item.length > 0, true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("apply supports expressive resource-based sidecar DSL", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-resource-dsl-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+  const flowPath = path.join(tempDir, "openapi.flow.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Resource DSL API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      responses:\n        "200":\n          description: ok\n  /orders/{id}/ship:\n    post:\n      operationId: shipOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: "1.0"\nresources:\n  - name: orders\n    defaults:\n      flow:\n        version: "1.0"\n        id_prefix: order\n      transition:\n        trigger_type: synchronous\n    states:\n      created: CREATED\n      paid: PAID\n      shipped: SHIPPED\n    transitions:\n      - from: created\n        to: paid\n        next_operation_id: payOrder\n      - from: paid\n        to: shipped\n        next_operation_id: shipOrder\n    operations:\n      - operationId: createOrder\n        state: created\n      - operationId: payOrder\n        state: paid\n      - operationId: shipOrder\n        state: shipped\n`,
+      "utf8"
+    );
+
+    const applyResult = runCli(["apply", openapiPath, "--flows", sidecarPath, "--out", flowPath]);
+    assert.equal(applyResult.status, 0, `apply failed:\n${applyResult.stderr}`);
+
+    const validateResult = runCli(["validate", flowPath, "--profile", "strict"]);
+    assert.equal(validateResult.status, 0, `validate failed:\n${validateResult.stderr}`);
+
+    const flowContent = fs.readFileSync(flowPath, "utf8");
+    assert.match(flowContent, /operationId: createOrder[\s\S]*current_state: CREATED/);
+    assert.match(flowContent, /operationId: payOrder[\s\S]*current_state: PAID/);
+    assert.match(flowContent, /operationId: shipOrder[\s\S]*current_state: SHIPPED/);
+    assert.match(flowContent, /next_operation_id: payOrder/);
+    assert.match(flowContent, /next_operation_id: shipOrder/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate --semantic reports semantic modeling warnings", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-semantic-validate-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Semantic Validate API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: created\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            next_operation_id: payOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["validate", openapiPath, "--profile", "strict", "--semantic"]);
+    assert.equal(result.status, 0);
+    assert.match(result.stderr, /Semantic: inconsistent state naming styles detected/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint --semantic fails on ambiguous semantic modeling", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-semantic-lint-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Semantic Lint API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: created\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            next_operation_id: payOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--semantic"]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /semantic_consistency/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("doctor command runs successfully", () => {
   const result = runCli(["doctor"]);
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /x-openapi-flow doctor/);
   assert.match(result.stdout, /Validator engine: OK/);
+});
+
+test("quickstart scaffolds a runnable onboarding project with base/sidecar/flow files", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-quickstart-"));
+  const scaffoldDir = path.join(tempDir, "demo");
+
+  try {
+    const result = runCli(["quickstart", "--dir", scaffoldDir]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Quickstart project created:/);
+    assert.match(result.stdout, /openapi\.json/);
+    assert.match(result.stdout, /openapi\.x\.yaml/);
+    assert.match(result.stdout, /openapi\.flow\.json/);
+
+    const openapiPath = path.join(scaffoldDir, "openapi.json");
+    const sidecarPath = path.join(scaffoldDir, "openapi.x.yaml");
+    const flowPath = path.join(scaffoldDir, "openapi.flow.json");
+    const serverPath = path.join(scaffoldDir, "server.js");
+    const packagePath = path.join(scaffoldDir, "package.json");
+    const readmePath = path.join(scaffoldDir, "README.md");
+
+    assert.equal(fs.existsSync(openapiPath), true);
+    assert.equal(fs.existsSync(sidecarPath), true);
+    assert.equal(fs.existsSync(flowPath), true);
+    assert.equal(fs.existsSync(serverPath), true);
+    assert.equal(fs.existsSync(packagePath), true);
+    assert.equal(fs.existsSync(readmePath), true);
+
+    const readmeContent = fs.readFileSync(readmePath, "utf8");
+    assert.match(readmeContent, /you can ignore this file at first/i);
+
+    const validate = runCli(["validate", flowPath, "--profile", "strict"]);
+    assert.equal(validate.status, 0, `validate failed:\n${validate.stderr}`);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("quickstart supports fastify runtime scaffold", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-quickstart-fastify-"));
+  const scaffoldDir = path.join(tempDir, "demo-fastify");
+
+  try {
+    const result = runCli(["quickstart", "--dir", scaffoldDir, "--runtime", "fastify"]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Runtime: fastify/);
+
+    const packagePath = path.join(scaffoldDir, "package.json");
+    const serverPath = path.join(scaffoldDir, "server.js");
+    const flowPath = path.join(scaffoldDir, "openapi.flow.json");
+
+    assert.equal(fs.existsSync(packagePath), true);
+    assert.equal(fs.existsSync(serverPath), true);
+    assert.equal(fs.existsSync(flowPath), true);
+
+    const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    assert.equal(typeof pkg.dependencies.fastify, "string");
+    assert.equal(pkg.dependencies.express, undefined);
+
+    const serverContent = fs.readFileSync(serverPath, "utf8");
+    assert.match(serverContent, /createFastifyFlowGuard/);
+    assert.match(serverContent, /fastify\.addHook/);
+
+    const validate = runCli(["validate", flowPath, "--profile", "strict"]);
+    assert.equal(validate.status, 0, `validate failed:\n${validate.stderr}`);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("init succeeds with explicit existing OpenAPI file", () => {
@@ -1254,6 +1461,84 @@ test("validate reads options from config file", () => {
     assert.equal(result.status, 0);
     assert.doesNotMatch(result.stdout, /Validating:/);
     assert.match(result.stdout, /"profile": "relaxed"/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("quality-report emits consolidated JSON with score, grade and breakdown", () => {
+  const result = runCli(["quality-report", "examples/order-api.yaml"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(typeof payload.generated_at, "string");
+  assert.equal(payload.ok, true);
+  assert.equal(typeof payload.score, "number");
+  assert.equal(payload.score >= 0 && payload.score <= 100, true);
+  assert.match(payload.grade, /^[ABCDF]$/);
+  assert.equal(Array.isArray(payload.issues), true);
+  assert.equal(typeof payload.breakdown, "object");
+  assert.equal(typeof payload.breakdown.schema, "object");
+  assert.equal(typeof payload.breakdown.graph, "object");
+  assert.equal(typeof payload.breakdown.quality, "object");
+});
+
+test("quality-report score drops when schema errors exist", () => {
+  const badSpec = path.resolve(FIXTURES_DIR, "missing-version.yaml");
+  const result = runCli(["quality-report", badSpec]);
+
+  assert.equal(result.status, 1);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.ok, false);
+  assert.equal(payload.score < 100, true);
+  assert.equal(Array.isArray(payload.issues), true);
+  assert.equal(payload.issues.length > 0, true);
+});
+
+test("validate --format json includes structured issues with XFLOW codes", () => {
+  const badSpec = path.resolve(FIXTURES_DIR, "missing-version.yaml");
+  const result = runCli(["validate", badSpec, "--format", "json"]);
+
+  assert.equal(result.status, 1);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(Array.isArray(payload.issues), true);
+  assert.equal(payload.issues.length > 0, true);
+  assert.match(payload.issues[0].code, /^XFLOW_[A-Z0-9]+$/);
+});
+
+test("lint --format json includes code fields for duplicate and terminal issues", () => {
+  const duplicateResult = runCli(["lint", "examples/quality-warning-api.yaml", "--format", "json"]);
+  assert.equal(duplicateResult.status, 1);
+  const duplicatePayload = JSON.parse(duplicateResult.stdout);
+  assert.equal(Array.isArray(duplicatePayload.issues.duplicate_transitions), true);
+  assert.equal(duplicatePayload.issues.duplicate_transitions.length > 0, true);
+  assert.equal(duplicatePayload.issues.duplicate_transitions[0].code, "XFLOW_L303");
+
+  const terminalResult = runCli(["lint", "examples/non-terminating-api.yaml", "--format", "json"]);
+  assert.equal(terminalResult.status, 1);
+  const terminalPayload = JSON.parse(terminalResult.stdout);
+  assert.equal(Array.isArray(terminalPayload.issues.terminal_path.non_terminating_states), true);
+  assert.equal(terminalPayload.issues.terminal_path.non_terminating_states.length > 0, true);
+  assert.equal(terminalPayload.issues.terminal_path.non_terminating_states[0].code, "XFLOW_L304");
+});
+
+test("lint --format json --semantic includes code field for semantic issues", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-semantic-json-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Semantic JSON Lint API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: created\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            next_operation_id: payOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 1);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(Array.isArray(payload.issues.semantic_consistency), true);
+    assert.equal(payload.issues.semantic_consistency.length > 0, true);
+    assert.equal(payload.issues.semantic_consistency[0].code, "XFLOW_L305");
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
