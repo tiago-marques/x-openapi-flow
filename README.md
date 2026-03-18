@@ -9,11 +9,15 @@
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
 ![copilot ready](https://img.shields.io/badge/Copilot-Ready-00BFA5?logo=githubcopilot&logoColor=white)
 
-# OpenAPI describes APIs. x-openapi-flow describes how they actually work — for developers and AI.
+# OpenAPI describes APIs. x-openapi-flow describes their workflows — for developers and AI.
 
 ![Swagger UI lifecycle panel with x-openapi-flow](docs/assets/swagger-ui-flow-lifecycle.png)
+> Visualizing API lifecycle directly from your OpenAPI spec
 
-`x-openapi-flow` is an OpenAPI vendor extension + CLI that adds explicit lifecycle/state-machine metadata to your API operations, validates transition consistency, and generates flow-aware artifacts for docs, SDKs, and tooling.
+`x-openapi-flow` adds a **declarative state machine** to your OpenAPI spec.
+Model resource lifecycles, enforce valid transitions, and generate flow-aware artifacts for documentation, SDKs, and automation.
+
+🚀 1,300+ downloads in the first 3 weeks
 
 ## What You Get
 
