@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.5.0 - 2026-03-18
+
+### Added
+- Introduced runtime guard runtime components for stateful API lifecycle enforcement, including `runtime-guard` core modules for Express and Fastify.
+- Added reusable runtime primitives and adapters: `openapi-state-machine-adapter`, `state-machine-engine`, and centralized `error-codes`.
+- Added runtime-focused automated coverage with new tests for runtime guard, state machine engine, and OpenAPI state machine adapter.
+- Added complete runtime guard runnable examples under `example/runtime-guard/` for Express, Fastify, and a minimal order flow.
+- Added new reference docs for Runtime Guard, OpenAPI State Machine Adapter, and State Machine Engine in the wiki.
+
+### Changed
+- Updated CLI and validator flow to support runtime guard and state-machine-oriented validation pathways.
+- Expanded and aligned documentation across root README and wiki pages (Quickstart, CLI Reference, FAQ, Sidecar Contract, and integration testing guidance).
+- Refined adapter test support with a dedicated flow test adapter and updated flow output adapter plumbing.
+
 ## 1.4.4 - 2026-03-18
 
 ### Changed
