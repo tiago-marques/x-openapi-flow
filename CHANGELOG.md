@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.5.1 - 2026-03-28
+
+### Changed
+- Refreshed root README messaging and examples to improve first-run onboarding and product positioning.
+- Synchronized package README content with root README updates.
+
+### Fixed
+- Corrected npm publish workflow to validate and use `NPM_TOKEN` instead of GitHub Packages secrets.
+- Kept dedicated GitHub Packages publish workflow for scoped mirror publication via GitHub Actions.
+
 ## 1.5.0 - 2026-03-18
 
 ### Added

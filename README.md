@@ -1,3 +1,7 @@
+# OpenAPI describes APIs. x-openapi-flow turns them into executable workflows — for developers and AI agents.
+
+## Define your API workflows in openapi.x.json and execute them without writing custom clients or orchestration logic.
+
 ![x-openapi-flow logo](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-logo.svg)
 
 [![npm version](https://img.shields.io/npm/v/x-openapi-flow?label=npm%20version)](https://www.npmjs.com/package/x-openapi-flow)
@@ -9,20 +13,68 @@
 [![open issues](https://img.shields.io/github/issues/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/issues)
 [![last commit](https://img.shields.io/github/last-commit/tiago-marques/x-openapi-flow)](https://github.com/tiago-marques/x-openapi-flow/commits/main)
 ![copilot ready](https://img.shields.io/badge/Copilot-Ready-00BFA5?logo=githubcopilot&logoColor=white)
-> 🚀 1,400+ downloads in the first 3 weeks!
+> 🚀 2,100+ downloads in the first 3 weeks!
 
-# OpenAPI describes APIs. x-openapi-flow describes their workflows — for developers and AI.
+## ⚡ Get started in seconds
+> npx x-openapi-flow init
 
-![x-openapi-flow in action](docs/assets/ezgif.com-animated-gif-maker.gif)
-
+### This generates an openapi.x.json file where you can declaratively define how your API should be executed — not just described.
 
 > See your API lifecycle come alive from your OpenAPI spec, with one simple command
 
 > Validate, document, and generate flow-aware SDKs automatically.
 
+![x-openapi-flow in action](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/ezgif.com-animated-gif-maker.gif)
+
+## What is this?
+
+### x-openapi-flow extends your OpenAPI specification with a workflow layer.
+
+> openapi.json → describes your API  
+> openapi.x.json → describes how to use it (flows)
+
+### Instead of writing imperative code to orchestrate API calls, you define workflows declaratively and run them anywhere.
+
 `x-openapi-flow` adds a **declarative state machine** to your OpenAPI spec.
 
 Model resource lifecycles, enforce valid transitions, and generate flow-aware artifacts for documentation, SDKs, and automation.
+
+## 🚀 Example
+
+> Define stateful workflows and lifecycle transitions directly inside your OpenAPI operations:
+
+```json
+{
+  "operationId": "createOrder",
+  "x-openapi-flow": {
+    "id": "create-order",
+    "current_state": "created",
+    "description": "Creates an order and starts the lifecycle",
+    "transitions": [
+      {
+        "trigger_type": "synchronous",
+        "condition": "Payment is confirmed",
+        "target_state": "paid",
+        "next_operation_id": "payOrder",
+        "prerequisite_operation_ids": ["createOrder"],
+        "propagated_field_refs": [
+          "createOrder:response.201.body.order_id"
+        ]
+      }
+    ]
+  }
+}
+```
+
+This flow defines an order lifecycle directly inside your OpenAPI:
+
+* Starts in the `created` state
+* Transitions to `paid` when payment is confirmed
+* Supports both synchronous and polling-based transitions
+* Propagates data between operations automatically
+
+Instead of manually orchestrating API calls, the workflow is fully described alongside your API specification.
+
 
 ## Why This Exists
 
@@ -48,9 +100,9 @@ Turn your OpenAPI spec into a single source of truth for API behavior:
 - Generate [lifecycle diagrams automatically](#mermaid-example) from your OpenAPI spec
 - Build [SDKs](#sdk-generation) that understand and respect API workflows
 - Export [Postman](#postman-demo) and [Insomnia](#insomnia-demo) collections organized by lifecycle
-- Create [AI-ready API contracts](docs/wiki/engineering/AI-Sidecar-Authoring.md) for agentic integrations
+- Create [AI-ready API contracts](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/engineering/AI-Sidecar-Authoring.md) for agentic integrations
 
-## Quick Start
+## Quick Start (without OpenAPI file)
 
 Fastest way to see value (guided scaffold):
 
@@ -77,8 +129,10 @@ curl -i -X POST http://localhost:3110/orders/<id>/ship
 Expected: `409 INVALID_STATE_TRANSITION`.
 
 ---
+### If you already have an OpenAPI file, use the sidecar workflow:
 
-If you already have an OpenAPI file, use the sidecar workflow:
+
+
 
 Initialize flow support in your project:
 
@@ -106,7 +160,7 @@ This will:
 
 For larger APIs, you can define flow rules by resource (with shared transitions/defaults) and reduce duplication in sidecar files.
 
-See: [Sidecar Contract](docs/wiki/reference/Sidecar-Contract.md)
+See: [Sidecar Contract](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/Sidecar-Contract.md)
 
 <a id="mermaid-example"></a>
 ### Real Lifecycle Example
@@ -232,13 +286,13 @@ Error payload for blocked transition:
 }
 ```
 
-More details: [Runtime Guard](docs/wiki/reference/Runtime-Guard.md)
+More details: [Runtime Guard](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/Runtime-Guard.md)
 
 ### 5-Minute Demo: Real Runtime Block (E-commerce Orders)
 
 Want to see the value immediately? Use the official minimal demo:
 
-- [example/runtime-guard/minimal-order/README.md](example/runtime-guard/minimal-order/README.md)
+- [example/runtime-guard/minimal-order/README.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/example/runtime-guard/minimal-order/README.md)
 
 Run in under 5 minutes:
 
@@ -281,7 +335,7 @@ engine.getNextState("CREATED", "confirm");
 engine.validateFlow({ startState: "CREATED", actions: ["confirm", "ship"] });
 ```
 
-More details: [State Machine Engine](docs/wiki/reference/State-Machine-Engine.md)
+More details: [State Machine Engine](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/State-Machine-Engine.md)
 
 ### OpenAPI to Engine Adapter
 
@@ -295,7 +349,7 @@ const model = createStateMachineAdapterModel({ openapiPath: "./openapi.flow.yaml
 const engine = createStateMachineEngine(model.definition);
 ```
 
-More details: [OpenAPI State Machine Adapter](docs/wiki/reference/OpenAPI-State-Machine-Adapter.md)
+More details: [OpenAPI State Machine Adapter](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/OpenAPI-State-Machine-Adapter.md)
 
 ## Who Benefits Most
 
@@ -334,10 +388,10 @@ npm run apply
 npm start
 ```
 
-![Swagger UI Flow Lifecycle 1](docs/assets/swagger-ui-flow-lifecycle.png)
+![Swagger UI Flow Lifecycle 1](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/swagger-ui-flow-lifecycle.png)
 > Lifecycle panel shows valid states and transitions
 
-![Swagger UI Flow Lifecycle 2](docs/assets/swagger-ui-flow-lifecycle-2.png)
+![Swagger UI Flow Lifecycle 2](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/swagger-ui-flow-lifecycle-2.png)
 > Detailed view of transitions per operation
 
 <a id="redoc-demo"></a>
@@ -350,9 +404,9 @@ npm run apply
 npm run generate
 ```
 
-![Redoc Flow Lifecycle 1](docs/assets/redoc-flow-lifecycle.png)
-![Redoc Flow Lifecycle 2](docs/assets/redoc-flow-lifecycle-2.png)
-![Redoc Flow Lifecycle 3](docs/assets/redoc-flow-lifecycle-3.png)
+![Redoc Flow Lifecycle 1](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/redoc-flow-lifecycle.png)
+![Redoc Flow Lifecycle 2](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/redoc-flow-lifecycle-2.png)
+![Redoc Flow Lifecycle 3](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/redoc-flow-lifecycle-3.png)
 > Auto-generated lifecycle diagrams make documentation clear and consistent
 
 <a id="postman-demo"></a>
@@ -365,8 +419,8 @@ npm run apply
 npm run generate
 ```
 
-![Postman Flow Lifecycle 1](docs/assets/postman-flow-lifecycle.png)
-![Postman Flow Lifecycle 2](docs/assets/postman-flow-lifecycle-2.png)
+![Postman Flow Lifecycle 1](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/postman-flow-lifecycle.png)
+![Postman Flow Lifecycle 2](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/postman-flow-lifecycle-2.png)
 > Collections reflect lifecycle order, reducing integration errors
 
 <a id="insomnia-demo"></a>
@@ -379,8 +433,8 @@ npm run apply
 npm run generate
 ```
 
-![Insomnia Flow Lifecycle 1](docs/assets/insomnia-flow-lifecycle.png)
-![Insomnia Flow Lifecycle 2](docs/assets/insomnia-flow-lifecycle-2.png)
+![Insomnia Flow Lifecycle 1](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/insomnia-flow-lifecycle.png)
+![Insomnia Flow Lifecycle 2](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/insomnia-flow-lifecycle-2.png)
 > Requests are pre-organized according to lifecycle transitions
 
 <a id="cli-commands"></a>
@@ -449,30 +503,30 @@ npx x-openapi-flow generate-flow-tests [openapi-file] --format postman [--output
 
 Full details:  
 
-- [CLI-Reference.md](docs/wiki/reference/CLI-Reference.md)  
-- [README.md](x-openapi-flow/README.md)
+- [CLI-Reference.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/CLI-Reference.md)  
+- [README.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/x-openapi-flow/README.md)
 
 ## Documentation and Guides
 
 Get the most out of x-openapi-flow with detailed guides, examples, and integration instructions:
 
-- **Adoption Guide** – [docs/wiki/getting-started/Adoption-Playbook.md](docs/wiki/getting-started/Adoption-Playbook.md)  
+- **Adoption Guide** – [docs/wiki/getting-started/Adoption-Playbook.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/getting-started/Adoption-Playbook.md)  
   Learn how to introduce x-openapi-flow into your API workflow efficiently
 
-- **Troubleshooting** – [docs/wiki/reference/Troubleshooting.md](docs/wiki/reference/Troubleshooting.md)  
+- **Troubleshooting** – [docs/wiki/reference/Troubleshooting.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/Troubleshooting.md)  
   Quick solutions to common issues and validation errors
 
-- **Real Examples** – [docs/wiki/engineering/Real-Examples.md](docs/wiki/engineering/Real-Examples.md)  
+- **Real Examples** – [docs/wiki/engineering/Real-Examples.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/engineering/Real-Examples.md)  
   Explore real OpenAPI specs enhanced with lifecycle metadata
 
 - **Integrations**:  
-  - **Swagger UI** – [docs/wiki/integrations/Swagger-UI-Integration.md](docs/wiki/integrations/Swagger-UI-Integration.md)  
+  - **Swagger UI** – [docs/wiki/integrations/Swagger-UI-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/Swagger-UI-Integration.md)  
     See flow-aware panels in Swagger UI  
-  - **Redoc** – [docs/wiki/integrations/Redoc-Integration.md](docs/wiki/integrations/Redoc-Integration.md)  
+  - **Redoc** – [docs/wiki/integrations/Redoc-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/Redoc-Integration.md)  
     Generate lifecycle diagrams in Redoc documentation  
-  - **Postman** – [docs/wiki/integrations/Postman-Integration.md](docs/wiki/integrations/Postman-Integration.md)  
+  - **Postman** – [docs/wiki/integrations/Postman-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/Postman-Integration.md)  
     Organize collections according to valid transitions  
-  - **Insomnia** – [docs/wiki/integrations/Insomnia-Integration.md](docs/wiki/integrations/Insomnia-Integration.md)  
+  - **Insomnia** – [docs/wiki/integrations/Insomnia-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/Insomnia-Integration.md)  
     Pre-configure requests according to lifecycle flows
 
 ## Roadmap
@@ -495,10 +549,10 @@ We’re actively expanding x-openapi-flow to support multiple platforms and SDKs
 
 Keep track of updates and improvements in x-openapi-flow:
 
-- **Version History** – [CHANGELOG.md](CHANGELOG.md)  
+- **Version History** – [CHANGELOG.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/CHANGELOG.md)  
   Review the full version history and past updates
 
-- **Release Notes** – [docs/wiki/releases/RELEASE_NOTES_v1.4.0.md](docs/wiki/releases/RELEASE_NOTES_v1.4.0.md)  
+- **Release Notes** – [docs/wiki/releases/RELEASE_NOTES_v1.4.0.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/releases/RELEASE_NOTES_v1.4.0.md)  
   See detailed notes for the latest release, including new features and fixes
 
 ## Documentation Language Policy

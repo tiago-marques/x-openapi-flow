@@ -47,13 +47,13 @@ jobs:
       - name: Validate npm token
         run: |
           if [ -z "${NODE_AUTH_TOKEN}" ]; then
-            echo "Missing GH_PACKAGES_TOKEN secret. Configure it in repository settings."
+            echo "Missing NPM_TOKEN secret. Configure it in repository settings."
             exit 1
           fi
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm using token
         run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
