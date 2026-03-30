@@ -13,13 +13,19 @@ operations:
       id: create-order
       current_state: CREATED
       description: Creates an order and starts the lifecycle
+      terminal: false
       idempotency:
         header: Idempotency-Key
         required: true
       transitions:
-        - target_state: PAID
+        - transition_id: order-created-to-paid
+          from_state: CREATED
+          target_state: PAID
           trigger_type: synchronous
           condition: Payment approved
+          decision_rule: payOrder:response.200.body.payment_status == 'approved'
+          operation_role: mutate
+          transition_priority: 10
           next_operation_id: payOrder
           prerequisite_operation_ids:
             - createOrder
@@ -27,6 +33,17 @@ operations:
             - createOrder:request.body.customer_id
           propagated_field_refs:
             - createOrder:response.201.body.order_id
+          evidence_refs:
+            - payOrder:response.200.body.payment_status
+          failure_paths:
+            - reason: Payment denied
+              target_state: PAYMENT_FAILED
+              next_operation_id: getOrder
+          compensation_operation_id: cancelOrder
+          async_contract:
+            timeout_ms: 120000
+            max_retries: 5
+            backoff: exponential
 ```
 
 ## Resource-oriented DSL (less repetition)
@@ -120,6 +137,8 @@ Optional:
   - `required` (optional, boolean): whether header is mandatory.
 - `transitions` (array)
   - List of transitions from `current_state`.
+- `terminal` (boolean)
+  - Explicitly marks this operation as terminal in the lifecycle.
 
 ## Transition fields
 
@@ -136,6 +155,35 @@ Optional:
 - `prerequisite_operation_ids` (array of strings)
 - `prerequisite_field_refs` (array of strings)
 - `propagated_field_refs` (array of strings)
+
+## AI clarity fields (v1.1 draft, optional)
+
+The fields below are optional and backward compatible. They are intended to improve deterministic orchestration for AI agents.
+
+- `transition_id` (string)
+  - Stable transition identifier for traceability, graph reasoning, and test mapping.
+- `from_state` (string)
+  - Explicit source state when transitions are authored independently from `current_state`.
+- `decision_rule` (string)
+  - Machine-readable decision condition used to evaluate transition eligibility.
+- `operation_role` (string enum)
+  - Suggested values: `mutate`, `read`, `callback`, `async-worker`.
+- `transition_priority` (number)
+  - Tie-breaker when multiple transitions are valid at the same time.
+- `compensation_operation_id` (string)
+  - Operation used to compensate/rollback failed distributed steps.
+- `evidence_refs` (array of strings)
+  - Field references that prove a transition happened.
+- `failure_paths` (array)
+  - Explicit non-happy-path outcomes:
+    - `reason` (string)
+    - `target_state` (string)
+    - `next_operation_id` (optional string)
+- `async_contract` (object)
+  - Runtime expectations for async transitions:
+    - `timeout_ms` (number)
+    - `max_retries` (number)
+    - `backoff` (string: `fixed` or `exponential`)
 
 ## Field reference format
 
@@ -156,3 +204,4 @@ Examples:
 - Keep your base OpenAPI file clean, and store lifecycle metadata in sidecar.
 - Run `init` to create/sync sidecar and `apply` to inject flows into regenerated OpenAPI.
 - The sidecar can be JSON or YAML.
+- The v1.1 draft fields above are optional guidance metadata for AI/runtime orchestration and can coexist with current `1.0` payloads.

@@ -13,6 +13,7 @@ const {
   detectInvalidOperationReferences,
   detectTerminalCoverage,
   detectSemanticModelingWarnings,
+  detectTransitionDeterminismIssues,
   computeQualityReport,
 } = require("../lib/validator");
 const { CODES } = require("../lib/error-codes");
@@ -2723,6 +2724,9 @@ function runLint(parsed, configData = {}) {
     duplicate_transitions: lintConfig.duplicate_transitions !== false,
     terminal_path: lintConfig.terminal_path !== false,
     semantic_consistency: semanticEnabled,
+    decision_rule_clarity: semanticEnabled && lintConfig.decision_rule_clarity !== false,
+    evidence_refs_for_decisions: semanticEnabled && lintConfig.evidence_refs_for_decisions !== false,
+    transition_priority_determinism: semanticEnabled && lintConfig.transition_priority_determinism !== false,
   };
 
   const operationsById = collectOperationIds(api);
@@ -2731,6 +2735,13 @@ function runLint(parsed, configData = {}) {
   const duplicateTransitions = detectDuplicateTransitions(flows);
   const terminalCoverage = detectTerminalCoverage(graph);
   const semanticWarnings = semanticEnabled ? detectSemanticModelingWarnings(flows) : [];
+  const transitionDeterminismIssues = semanticEnabled
+    ? detectTransitionDeterminismIssues(flows)
+    : {
+      decision_rule_clarity: [],
+      evidence_refs_for_decisions: [],
+      transition_priority_determinism: [],
+    };
 
   const nextOperationIssues = invalidOperationReferences
     .filter((entry) => entry.type === "next_operation_id")
@@ -2759,6 +2770,24 @@ function runLint(parsed, configData = {}) {
       non_terminating_states: ruleConfig.terminal_path ? terminalCoverage.non_terminating_states : [],
     },
     semantic_consistency: ruleConfig.semantic_consistency ? semanticWarnings : [],
+    decision_rule_clarity: ruleConfig.decision_rule_clarity
+      ? transitionDeterminismIssues.decision_rule_clarity.map((entry) => ({
+        code: CODES.LINT_DECISION_RULE_CLARITY.code,
+        ...entry,
+      }))
+      : [],
+    evidence_refs_for_decisions: ruleConfig.evidence_refs_for_decisions
+      ? transitionDeterminismIssues.evidence_refs_for_decisions.map((entry) => ({
+        code: CODES.LINT_EVIDENCE_REFS_FOR_DECISIONS.code,
+        ...entry,
+      }))
+      : [],
+    transition_priority_determinism: ruleConfig.transition_priority_determinism
+      ? transitionDeterminismIssues.transition_priority_determinism.map((entry) => ({
+        code: CODES.LINT_TRANSITION_PRIORITY_DETERMINISM.code,
+        ...entry,
+      }))
+      : [],
   };
 
   const errorCount =
@@ -2766,7 +2795,10 @@ function runLint(parsed, configData = {}) {
     issues.prerequisite_operation_ids_exist.length +
     issues.duplicate_transitions.length +
     issues.terminal_path.non_terminating_states.length +
-    issues.semantic_consistency.length;
+    issues.semantic_consistency.length +
+    issues.decision_rule_clarity.length +
+    issues.evidence_refs_for_decisions.length +
+    issues.transition_priority_determinism.length;
 
   const result = {
     ok: errorCount === 0,
@@ -2782,6 +2814,9 @@ function runLint(parsed, configData = {}) {
         duplicate_transitions: issues.duplicate_transitions.length,
         terminal_path: issues.terminal_path.non_terminating_states.length,
         semantic_consistency: issues.semantic_consistency.length,
+        decision_rule_clarity: issues.decision_rule_clarity.length,
+        evidence_refs_for_decisions: issues.evidence_refs_for_decisions.length,
+        transition_priority_determinism: issues.transition_priority_determinism.length,
       })
         .filter(([, count]) => count > 0)
         .map(([rule]) => rule),
@@ -2865,6 +2900,46 @@ function runLint(parsed, configData = {}) {
       console.error(`✘ semantic_consistency: ${issues.semantic_consistency.length} issue(s).`);
       issues.semantic_consistency.forEach((entry) => {
         console.error(`  - ${entry}`);
+      });
+    }
+  }
+
+  if (ruleConfig.decision_rule_clarity) {
+    if (issues.decision_rule_clarity.length === 0) {
+      console.log("✔ decision_rule_clarity: branching transitions include decision_rule.");
+    } else {
+      console.error(`✘ decision_rule_clarity: ${issues.decision_rule_clarity.length} issue(s).`);
+      issues.decision_rule_clarity.forEach((entry) => {
+        const target = entry.target_state || "<unknown-target>";
+        console.error(`  - missing decision_rule for ${entry.source_state} -> ${target} (${entry.endpoint})`);
+      });
+    }
+  }
+
+  if (ruleConfig.evidence_refs_for_decisions) {
+    if (issues.evidence_refs_for_decisions.length === 0) {
+      console.log("✔ evidence_refs_for_decisions: decision rules are backed by evidence refs.");
+    } else {
+      console.error(`✘ evidence_refs_for_decisions: ${issues.evidence_refs_for_decisions.length} issue(s).`);
+      issues.evidence_refs_for_decisions.forEach((entry) => {
+        const target = entry.target_state || "<unknown-target>";
+        console.error(`  - decision_rule without evidence_refs for ${entry.source_state} -> ${target} (${entry.endpoint})`);
+      });
+    }
+  }
+
+  if (ruleConfig.transition_priority_determinism) {
+    if (issues.transition_priority_determinism.length === 0) {
+      console.log("✔ transition_priority_determinism: branching transitions have deterministic priority.");
+    } else {
+      console.error(`✘ transition_priority_determinism: ${issues.transition_priority_determinism.length} issue(s).`);
+      issues.transition_priority_determinism.forEach((entry) => {
+        const target = entry.target_state || "<unknown-target>";
+        if (entry.reason === "duplicate_priority") {
+          console.error(`  - duplicate transition_priority=${entry.priority} for ${entry.source_state} -> ${target} (${entry.endpoint})`);
+        } else {
+          console.error(`  - missing transition_priority for ${entry.source_state} -> ${target} (${entry.endpoint})`);
+        }
       });
     }
   }

@@ -54,6 +54,64 @@ function normalizeAnalyzeJsonOutput(stdout) {
   return JSON.stringify(payload, null, 2).trimEnd();
 }
 
+function normalizeValidateJsonOutput(stdout) {
+  const payload = JSON.parse(stdout);
+  payload.path = "<OPENAPI_FILE>";
+  if (Array.isArray(payload.issues)) {
+    payload.issues = payload.issues.map((issue) => {
+      const normalized = { ...issue };
+      if (typeof normalized.location === "string" && normalized.location.includes("/")) {
+        normalized.location = "<ENDPOINT>";
+      }
+      return normalized;
+    });
+  }
+  if (Array.isArray(payload.schemaFailures)) {
+    payload.schemaFailures = payload.schemaFailures.map((failure) => ({
+      ...failure,
+      endpoint: "<ENDPOINT>",
+    }));
+  }
+
+  return JSON.stringify(payload, null, 2).trimEnd();
+}
+
+function normalizeLintJsonOutput(stdout) {
+  const payload = JSON.parse(stdout);
+  payload.path = "<OPENAPI_FILE>";
+
+  const normalizeEntry = (entry) => {
+    const normalized = { ...entry };
+    if (typeof normalized.endpoint === "string") {
+      normalized.endpoint = "<ENDPOINT>";
+    }
+    if (typeof normalized.declared_in === "string") {
+      normalized.declared_in = "<ENDPOINT>";
+    }
+    return normalized;
+  };
+
+  if (payload.issues && Array.isArray(payload.issues.transition_priority_determinism)) {
+    payload.issues.transition_priority_determinism = payload.issues.transition_priority_determinism
+      .map(normalizeEntry)
+      .sort((a, b) => (String(a.target_state || "")).localeCompare(String(b.target_state || "")));
+  }
+
+  if (payload.issues && Array.isArray(payload.issues.decision_rule_clarity)) {
+    payload.issues.decision_rule_clarity = payload.issues.decision_rule_clarity
+      .map(normalizeEntry)
+      .sort((a, b) => (String(a.target_state || "")).localeCompare(String(b.target_state || "")));
+  }
+
+  if (payload.issues && Array.isArray(payload.issues.evidence_refs_for_decisions)) {
+    payload.issues.evidence_refs_for_decisions = payload.issues.evidence_refs_for_decisions
+      .map(normalizeEntry)
+      .sort((a, b) => (String(a.target_state || "")).localeCompare(String(b.target_state || "")));
+  }
+
+  return JSON.stringify(payload, null, 2).trimEnd();
+}
+
 function buildOpenApiWithAllHttpMethods() {
   const pathEntries = HTTP_METHODS.map((method) => {
     const operationId = `${method}Op`;
@@ -1539,6 +1597,258 @@ test("lint --format json --semantic includes code field for semantic issues", ()
     assert.equal(Array.isArray(payload.issues.semantic_consistency), true);
     assert.equal(payload.issues.semantic_consistency.length > 0, true);
     assert.equal(payload.issues.semantic_consistency[0].code, "XFLOW_L305");
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate accepts AI clarity optional fields in x-openapi-flow schema", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-ai-clarity-schema-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: AI Clarity Schema API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  order_id:\n                    type: string\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        terminal: false\n        transitions:\n          - transition_id: order-created-to-paid\n            from_state: CREATED\n            target_state: PAID\n            trigger_type: synchronous\n            decision_rule: payOrder:response.200.body.status == 'approved'\n            operation_role: mutate\n            transition_priority: 10\n            next_operation_id: payOrder\n            prerequisite_operation_ids:\n              - createOrder\n            prerequisite_field_refs:\n              - createOrder:response.201.body.order_id\n            propagated_field_refs:\n              - createOrder:response.201.body.order_id\n            evidence_refs:\n              - payOrder:response.200.body.status\n            failure_paths:\n              - reason: Payment denied\n                target_state: PAYMENT_FAILED\n                next_operation_id: getOrder\n            compensation_operation_id: cancelOrder\n            async_contract:\n              timeout_ms: 120000\n              max_retries: 5\n              backoff: exponential\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        terminal: true\n        transitions: []\n  /orders/{id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+      x-openapi-flow:
+        version: "1.0"
+        id: get-order
+        current_state: PAYMENT_FAILED
+        terminal: true
+        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["validate", openapiPath, "--profile", "strict"]);
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint --semantic validates decision_rule, evidence_refs and transition_priority determinism", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-semantic-determinism-lint-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Determinism Lint API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            next_operation_id: payOrder\n          - target_state: PAYMENT_FAILED\n            trigger_type: synchronous\n            decision_rule: getOrder:response.200.body.status == 'payment_failed'\n            transition_priority: 1\n            next_operation_id: getOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n  /orders/{id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+      x-openapi-flow:
+        version: "1.0"
+        id: get-order
+        current_state: PAYMENT_FAILED
+        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 1);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(Array.isArray(payload.issues.decision_rule_clarity), true);
+    assert.equal(Array.isArray(payload.issues.evidence_refs_for_decisions), true);
+    assert.equal(Array.isArray(payload.issues.transition_priority_determinism), true);
+    assert.equal(payload.issues.decision_rule_clarity.length > 0, true);
+    assert.equal(payload.issues.evidence_refs_for_decisions.length > 0, true);
+    assert.equal(payload.issues.transition_priority_determinism.length > 0, true);
+    assert.equal(payload.issues.decision_rule_clarity[0].code, "XFLOW_L306");
+    assert.equal(payload.issues.evidence_refs_for_decisions[0].code, "XFLOW_L307");
+    assert.equal(payload.issues.transition_priority_determinism[0].code, "XFLOW_L308");
+    assert.equal(payload.summary.violated_rules.includes("decision_rule_clarity"), true);
+    assert.equal(payload.summary.violated_rules.includes("evidence_refs_for_decisions"), true);
+    assert.equal(payload.summary.violated_rules.includes("transition_priority_determinism"), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate strict succeeds on ai-clarity example with new fields", () => {
+  const result = runCli(["validate", "examples/ai-clarity-order-api.yaml", "--profile", "strict"]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /All validations passed/);
+});
+
+test("validate fails for invalid enum in new AI clarity fields", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-invalid-ai-enum-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Invalid AI Enum API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            operation_role: mutate-now\n            async_contract:\n              timeout_ms: 1000\n              max_retries: 1\n              backoff: jitter\n            next_operation_id: payOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["validate", openapiPath, "--profile", "strict"]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /operation_role/);
+    assert.match(result.stderr, /async_contract\/backoff/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint semantic passes when new determinism rules are disabled via config", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-semantic-rules-disabled-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const configPath = path.join(tempDir, "x-openapi-flow.config.json");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Semantic Rules Disabled API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            next_operation_id: payOrder\n          - target_state: PAYMENT_FAILED\n            trigger_type: synchronous\n            next_operation_id: getOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: get-order\n        current_state: PAYMENT_FAILED\n        transitions: []\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(
+        {
+          lint: {
+            rules: {
+              semantic: true,
+              decision_rule_clarity: false,
+              evidence_refs_for_decisions: false,
+              transition_priority_determinism: false,
+            },
+          },
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--config", configPath]);
+    assert.equal(result.status, 0, result.stderr);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.ruleConfig.semantic_consistency, true);
+    assert.equal(payload.ruleConfig.decision_rule_clarity, false);
+    assert.equal(payload.ruleConfig.evidence_refs_for_decisions, false);
+    assert.equal(payload.ruleConfig.transition_priority_determinism, false);
+    assert.equal(payload.issues.decision_rule_clarity.length, 0);
+    assert.equal(payload.issues.evidence_refs_for_decisions.length, 0);
+    assert.equal(payload.issues.transition_priority_determinism.length, 0);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("validate fails when failure_paths entry misses required fields", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-invalid-failure-path-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Invalid Failure Path API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            next_operation_id: payOrder\n            failure_paths:\n              - target_state: PAYMENT_FAILED\n                next_operation_id: getOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: get-order\n        current_state: PAYMENT_FAILED\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["validate", openapiPath, "--profile", "strict", "--format", "json"]);
+    assert.equal(result.status, 1);
+
+    const normalized = normalizeValidateJsonOutput(result.stdout);
+    const snapshot = readFixture("validate-invalid-failure-path.snapshot.json");
+    assert.equal(normalized, snapshot);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint semantic flags duplicate transition_priority across 3 branching transitions", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-duplicate-priority-3-branches-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Duplicate Priority API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            decision_rule: payOrder:response.200.body.status == 'approved'\n            transition_priority: 1\n            next_operation_id: payOrder\n            evidence_refs:\n              - payOrder:response.200.body.status\n          - target_state: PAYMENT_FAILED\n            trigger_type: synchronous\n            decision_rule: getOrder:response.200.body.status == 'failed'\n            transition_priority: 1\n            next_operation_id: getOrder\n            evidence_refs:\n              - getOrder:response.200.body.status\n          - target_state: REVIEW\n            trigger_type: synchronous\n            decision_rule: reviewOrder:response.200.body.status == 'review'\n            transition_priority: 1\n            next_operation_id: reviewOrder\n            evidence_refs:\n              - reviewOrder:response.200.body.status\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: get-order\n        current_state: PAYMENT_FAILED\n        transitions: []\n  /orders/{id}/review:\n    post:\n      operationId: reviewOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: review-order\n        current_state: REVIEW\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 1);
+
+    const normalized = normalizeLintJsonOutput(result.stdout);
+    const snapshot = readFixture("lint-duplicate-priority-3-branches.snapshot.json");
+    assert.equal(normalized, snapshot);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint semantic snapshots decision_rule_clarity violations", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-decision-rule-clarity-snapshot-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Decision Rule Clarity API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            transition_priority: 10\n            next_operation_id: payOrder\n            evidence_refs:\n              - payOrder:response.200.body.status\n          - target_state: PAYMENT_FAILED\n            trigger_type: synchronous\n            transition_priority: 20\n            next_operation_id: getOrder\n            evidence_refs:\n              - getOrder:response.200.body.status\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: get-order\n        current_state: PAYMENT_FAILED\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 1);
+
+    const normalized = normalizeLintJsonOutput(result.stdout);
+    const snapshot = readFixture("lint-decision-rule-clarity.snapshot.json");
+    assert.equal(normalized, snapshot);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint semantic snapshots evidence_refs_for_decisions violations", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-evidence-refs-snapshot-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Evidence Refs API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-order\n        current_state: CREATED\n        transitions:\n          - target_state: PAID\n            trigger_type: synchronous\n            decision_rule: payOrder:response.200.body.status == 'approved'\n            transition_priority: 10\n            next_operation_id: payOrder\n          - target_state: PAYMENT_FAILED\n            trigger_type: synchronous\n            decision_rule: getOrder:response.200.body.status == 'failed'\n            transition_priority: 20\n            next_operation_id: getOrder\n  /orders/{id}/pay:\n    post:\n      operationId: payOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: pay-order\n        current_state: PAID\n        transitions: []\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n      x-openapi-flow:\n        version: "1.0"\n        id: get-order\n        current_state: PAYMENT_FAILED\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 1);
+
+    const normalized = normalizeLintJsonOutput(result.stdout);
+    const snapshot = readFixture("lint-evidence-refs-for-decisions.snapshot.json");
+    assert.equal(normalized, snapshot);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

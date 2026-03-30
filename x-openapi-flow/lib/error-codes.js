@@ -169,6 +169,27 @@ const CODES = {
     severity: "error",
     title: "Semantic modeling inconsistency",
   },
+  /** Branching transitions should declare explicit decision rules. */
+  LINT_DECISION_RULE_CLARITY: {
+    code: "XFLOW_L306",
+    category: "lint",
+    severity: "error",
+    title: "Missing or invalid decision rule in branching transition",
+  },
+  /** Transitions with decision rules should declare evidence refs. */
+  LINT_EVIDENCE_REFS_FOR_DECISIONS: {
+    code: "XFLOW_L307",
+    category: "lint",
+    severity: "error",
+    title: "Missing evidence refs for decision rule",
+  },
+  /** Branching transitions should be disambiguated with deterministic priorities. */
+  LINT_TRANSITION_PRIORITY_DETERMINISM: {
+    code: "XFLOW_L308",
+    category: "lint",
+    severity: "error",
+    title: "Ambiguous or missing transition priority in branching transitions",
+  },
 
   // ── Runtime ──────────────────────────────────────────────────────────────
   /** Request blocked because the resource is not in a state that allows this operation. */

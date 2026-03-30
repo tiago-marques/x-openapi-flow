@@ -1,0 +1,185 @@
+openapi: "3.0.3"
+info:
+  title: AI Clarity Order API
+  version: "1.0.0"
+  description: >
+    Example with happy path + failure path and AI-clarity metadata
+    (decision_rule, evidence_refs, transition_priority, failure_paths).
+
+paths:
+  /orders:
+    post:
+      summary: Create a new order
+      operationId: createOrder
+      x-openapi-flow:
+        version: "1.0"
+        id: create-order-flow
+        current_state: CREATED
+        description: Order created and waiting for payment decision.
+        terminal: false
+        transitions:
+          - transition_id: order-created-to-paid
+            from_state: CREATED
+            target_state: PAID
+            trigger_type: synchronous
+            decision_rule: payOrder:response.200.body.payment_status == 'approved'
+            operation_role: mutate
+            transition_priority: 10
+            next_operation_id: payOrder
+            prerequisite_operation_ids:
+              - createOrder
+            prerequisite_field_refs:
+              - createOrder:request.body.customer_id
+              - createOrder:request.body.amount
+            propagated_field_refs:
+              - createOrder:response.201.body.order_id
+            evidence_refs:
+              - payOrder:response.200.body.payment_status
+          - transition_id: order-created-to-payment-failed
+            from_state: CREATED
+            target_state: PAYMENT_FAILED
+            trigger_type: synchronous
+            decision_rule: payOrder:response.200.body.payment_status == 'denied'
+            operation_role: mutate
+            transition_priority: 20
+            next_operation_id: getOrder
+            prerequisite_operation_ids:
+              - createOrder
+            prerequisite_field_refs:
+              - createOrder:response.201.body.order_id
+            propagated_field_refs:
+              - createOrder:response.201.body.order_id
+            evidence_refs:
+              - payOrder:response.200.body.payment_status
+            failure_paths:
+              - reason: Payment gateway denied authorization
+                target_state: PAYMENT_FAILED
+                next_operation_id: getOrder
+            compensation_operation_id: cancelOrder
+            async_contract:
+              timeout_ms: 120000
+              max_retries: 3
+              backoff: exponential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /orders/{id}/pay:
+    post:
+      summary: Attempt order payment
+      operationId: payOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayOrderRequest"
+      x-openapi-flow:
+        version: "1.0"
+        id: pay-order-flow
+        current_state: PAID
+        description: Successful payment finalizes order as paid.
+        terminal: true
+        transitions: []
+      responses:
+        "200":
+          description: Payment attempt processed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [payment_status]
+                properties:
+                  payment_status:
+                    type: string
+                    enum: [approved, denied]
+
+  /orders/{id}:
+    get:
+      summary: Get order status
+      operationId: getOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      x-openapi-flow:
+        version: "1.0"
+        id: get-order-flow
+        current_state: PAYMENT_FAILED
+        description: Read-model endpoint for failure branch inspection.
+        terminal: true
+        transitions: []
+      responses:
+        "200":
+          description: Order status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /orders/{id}/cancel:
+    post:
+      summary: Cancel order (compensation)
+      operationId: cancelOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order canceled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+components:
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required: [customer_id, amount, currency]
+      properties:
+        customer_id:
+          type: string
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+
+    PayOrderRequest:
+      type: object
+      required: [payment_method]
+      properties:
+        payment_method:
+          type: string
+
+    Order:
+      type: object
+      required: [order_id, status]
+      properties:
+        order_id:
+          type: string
+        status:
+          type: string
+          enum: [CREATED, PAID, PAYMENT_FAILED, CANCELED]

@@ -1,0 +1,69 @@
+{
+  "ok": false,
+  "path": "<OPENAPI_FILE>",
+  "flowCount": 4,
+  "ruleConfig": {
+    "next_operation_id_exists": true,
+    "prerequisite_operation_ids_exist": true,
+    "duplicate_transitions": true,
+    "terminal_path": true,
+    "semantic_consistency": true,
+    "decision_rule_clarity": true,
+    "evidence_refs_for_decisions": true,
+    "transition_priority_determinism": true
+  },
+  "issues": {
+    "next_operation_id_exists": [],
+    "prerequisite_operation_ids_exist": [],
+    "duplicate_transitions": [],
+    "terminal_path": {
+      "terminal_states": [
+        "PAID",
+        "PAYMENT_FAILED",
+        "REVIEW"
+      ],
+      "non_terminating_states": []
+    },
+    "semantic_consistency": [],
+    "decision_rule_clarity": [],
+    "evidence_refs_for_decisions": [],
+    "transition_priority_determinism": [
+      {
+        "code": "XFLOW_L308",
+        "endpoint": "<ENDPOINT>",
+        "source_state": "CREATED",
+        "target_state": "PAID",
+        "transition_id": null,
+        "transition_index": 0,
+        "reason": "duplicate_priority",
+        "priority": 1
+      },
+      {
+        "code": "XFLOW_L308",
+        "endpoint": "<ENDPOINT>",
+        "source_state": "CREATED",
+        "target_state": "PAYMENT_FAILED",
+        "transition_id": null,
+        "transition_index": 1,
+        "reason": "duplicate_priority",
+        "priority": 1
+      },
+      {
+        "code": "XFLOW_L308",
+        "endpoint": "<ENDPOINT>",
+        "source_state": "CREATED",
+        "target_state": "REVIEW",
+        "transition_id": null,
+        "transition_index": 2,
+        "reason": "duplicate_priority",
+        "priority": 1
+      }
+    ]
+  },
+  "summary": {
+    "errors": 3,
+    "violated_rules": [
+      "transition_priority_determinism"
+    ]
+  }
+}

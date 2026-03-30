@@ -95,6 +95,19 @@ When available, the assistant should also infer:
 - `prerequisite_field_refs`
 - `propagated_field_refs`
 
+For stronger AI determinism (v1.1 draft, optional), the assistant should add when justified:
+
+- `terminal`
+- `transition_id`
+- `from_state`
+- `decision_rule`
+- `operation_role`
+- `transition_priority`
+- `evidence_refs`
+- `failure_paths`
+- `compensation_operation_id`
+- `async_contract`
+
 ## Field reference quick rules
 
 Use references that can be verified from the OpenAPI source:
@@ -125,14 +138,20 @@ operations:
       id: create-order
       current_state: created
       description: Creates an order and opens the lifecycle in CREATED
+      terminal: false
       idempotency:
         header: Idempotency-Key
         required: true
       transitions:
-        - trigger_type: synchronous
+        - transition_id: order-created-to-paid
+          from_state: created
+          trigger_type: synchronous
           condition: Payment is confirmed
+          decision_rule: payOrder:response.200.body.payment_status == 'approved'
           target_state: paid
           next_operation_id: payOrder
+          operation_role: mutate
+          transition_priority: 10
           prerequisite_operation_ids:
             - createOrder
           prerequisite_field_refs:
@@ -141,6 +160,17 @@ operations:
           propagated_field_refs:
             - createOrder:response.201.body.order_id
             - createOrder:response.201.body.status
+          evidence_refs:
+            - payOrder:response.200.body.payment_status
+          failure_paths:
+            - reason: Payment denied
+              target_state: payment_failed
+              next_operation_id: getOrder
+          compensation_operation_id: cancelOrder
+          async_contract:
+            timeout_ms: 120000
+            max_retries: 5
+            backoff: exponential
 ```
 
 What this example shows:
@@ -150,6 +180,9 @@ What this example shows:
 - transitions describe how the lifecycle moves forward
 - field refs identify what data must exist and what data is carried into the next step
 - `next_operation_id` points to the operation a developer or agent will likely call next
+- `decision_rule` and `evidence_refs` reduce ambiguous transition decisions
+- `failure_paths` and `compensation_operation_id` make non-happy paths explicit
+- `operation_role` and `transition_priority` improve deterministic step ordering
 
 ## How to think about transitions
 
@@ -161,6 +194,8 @@ When asking AI to author transitions, instruct it to reason in this order:
 4. Which operation is typically called after this one?
 5. Which identifiers or status fields must be present before the transition is valid?
 6. Which identifiers need to be propagated forward to keep later calls grounded?
+7. If multiple transitions are possible, what priority resolves ties deterministically?
+8. Which fields prove the transition happened (evidence), and what are the explicit failure paths?
 
 This usually produces better results than asking for "all flows" in one generic prompt.
 
@@ -172,6 +207,7 @@ Read my OpenAPI file and populate {context}.x.yaml only.
 Do not change endpoint paths/methods.
 Generate x-openapi-flow for each operationId with coherent states/transitions,
 including next_operation_id, prerequisite_field_refs, and propagated_field_refs when applicable.
+When ambiguity exists, add transition_id, decision_rule, evidence_refs, and transition_priority.
 ```
 
 ## Prompt patterns that work well
@@ -187,6 +223,7 @@ Do not edit paths, methods, schemas, or operationIds in the base OpenAPI.
 For each operationId, add x-openapi-flow with version, id, current_state, description, and transitions.
 Only use field refs that exist in the OpenAPI request/response schemas.
 If a transition is uncertain, leave it minimal rather than inventing data.
+When multiple transitions can fire, set transition_priority and a decision_rule to remove ambiguity.
 ```
 
 ### Prompt for refinement pass
@@ -198,6 +235,7 @@ Fix only invalid or weak lifecycle metadata.
 Verify next_operation_id values point to real operationIds.
 Verify prerequisite_field_refs and propagated_field_refs point to real request/response fields.
 Remove duplicate transitions and improve descriptions where needed.
+Ensure transition_id is stable and evidence_refs exist for critical transitions.
 ```
 
 ### Prompt for a single resource
@@ -219,6 +257,8 @@ Review every AI-authored sidecar with the following checks:
 - Every `next_operation_id` points to a real next step.
 - Field refs map to real request or response fields.
 - No transition duplicates the same `target_state` and `trigger_type` without purpose.
+- Critical transitions have stable `transition_id` and verifiable `evidence_refs`.
+- Competing transitions are disambiguated with `decision_rule` and `transition_priority`.
 - Terminal operations intentionally have `transitions: []`.
 - Polling transitions use read-model or status endpoints rather than mutating operations.
 - Webhook transitions represent external callbacks, not normal synchronous requests.

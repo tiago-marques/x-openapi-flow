@@ -138,7 +138,10 @@ npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--co
       "prerequisite_operation_ids_exist": true,
       "duplicate_transitions": false,
       "terminal_path": true,
-      "semantic": false
+      "semantic": false,
+      "decision_rule_clarity": true,
+      "evidence_refs_for_decisions": true,
+      "transition_priority_determinism": true
     }
   }
 }

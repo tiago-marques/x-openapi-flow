@@ -785,6 +785,133 @@ function detectSemanticModelingWarnings(flows) {
   return [...new Set(warnings)];
 }
 
+function getTransitionSourceState(flow, transition) {
+  if (transition && typeof transition.from_state === "string" && transition.from_state.trim()) {
+    return transition.from_state.trim();
+  }
+
+  return String((flow && flow.current_state) || "").trim();
+}
+
+function detectTransitionDeterminismIssues(flows) {
+  const decisionRuleIssues = [];
+  const evidenceRefIssues = [];
+  const transitionPriorityIssues = [];
+
+  const groupedBySource = new Map();
+
+  for (const { endpoint, flow } of flows) {
+    const transitions = Array.isArray(flow && flow.transitions) ? flow.transitions : [];
+
+    for (let index = 0; index < transitions.length; index += 1) {
+      const transition = transitions[index];
+      if (!transition || typeof transition !== "object") {
+        continue;
+      }
+
+      const sourceState = getTransitionSourceState(flow, transition);
+      if (!groupedBySource.has(sourceState)) {
+        groupedBySource.set(sourceState, []);
+      }
+
+      groupedBySource.get(sourceState).push({
+        endpoint,
+        source_state: sourceState,
+        transition,
+        transition_index: index,
+      });
+
+      const decisionRule = typeof transition.decision_rule === "string"
+        ? transition.decision_rule.trim()
+        : "";
+
+      if (decisionRule.length > 0) {
+        const evidenceRefs = Array.isArray(transition.evidence_refs)
+          ? transition.evidence_refs.filter((entry) => typeof entry === "string" && entry.trim())
+          : [];
+
+        if (evidenceRefs.length === 0) {
+          evidenceRefIssues.push({
+            endpoint,
+            source_state: sourceState,
+            target_state: transition.target_state || null,
+            transition_id: transition.transition_id || null,
+            transition_index: index,
+            decision_rule: decisionRule,
+          });
+        }
+      }
+    }
+  }
+
+  for (const entries of groupedBySource.values()) {
+    if (entries.length <= 1) {
+      continue;
+    }
+
+    const priorityGroups = new Map();
+
+    for (const entry of entries) {
+      const decisionRule = typeof entry.transition.decision_rule === "string"
+        ? entry.transition.decision_rule.trim()
+        : "";
+
+      if (!decisionRule) {
+        decisionRuleIssues.push({
+          endpoint: entry.endpoint,
+          source_state: entry.source_state,
+          target_state: entry.transition.target_state || null,
+          transition_id: entry.transition.transition_id || null,
+          transition_index: entry.transition_index,
+        });
+      }
+
+      const hasPriority = Number.isFinite(entry.transition.transition_priority);
+      if (!hasPriority) {
+        transitionPriorityIssues.push({
+          endpoint: entry.endpoint,
+          source_state: entry.source_state,
+          target_state: entry.transition.target_state || null,
+          transition_id: entry.transition.transition_id || null,
+          transition_index: entry.transition_index,
+          reason: "missing_priority",
+        });
+        continue;
+      }
+
+      const priority = entry.transition.transition_priority;
+      if (!priorityGroups.has(priority)) {
+        priorityGroups.set(priority, []);
+      }
+      priorityGroups.get(priority).push(entry);
+    }
+
+    for (const [priority, collidingEntries] of priorityGroups.entries()) {
+      if (collidingEntries.length <= 1) {
+        continue;
+      }
+
+      for (const collidingEntry of collidingEntries) {
+        transitionPriorityIssues.push({
+          endpoint: collidingEntry.endpoint,
+          source_state: collidingEntry.source_state,
+          target_state: collidingEntry.transition.target_state || null,
+          transition_id: collidingEntry.transition.transition_id || null,
+          transition_index: collidingEntry.transition_index,
+          reason: "duplicate_priority",
+          priority,
+        });
+      }
+    }
+  }
+
+  return {
+    decision_rule_clarity: decisionRuleIssues,
+    evidence_refs_for_decisions: evidenceRefIssues,
+    transition_priority_determinism: transitionPriorityIssues,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Main runner
 // ---------------------------------------------------------------------------
@@ -1393,6 +1520,7 @@ module.exports = {
   detectInvalidOperationReferences,
   detectTerminalCoverage,
   detectSemanticModelingWarnings,
+  detectTransitionDeterminismIssues,
   buildStructuredIssues,
   computeQualityReport,
   run,

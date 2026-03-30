@@ -1,0 +1,54 @@
+{
+  "ok": false,
+  "path": "<OPENAPI_FILE>",
+  "flowCount": 3,
+  "ruleConfig": {
+    "next_operation_id_exists": true,
+    "prerequisite_operation_ids_exist": true,
+    "duplicate_transitions": true,
+    "terminal_path": true,
+    "semantic_consistency": true,
+    "decision_rule_clarity": true,
+    "evidence_refs_for_decisions": true,
+    "transition_priority_determinism": true
+  },
+  "issues": {
+    "next_operation_id_exists": [],
+    "prerequisite_operation_ids_exist": [],
+    "duplicate_transitions": [],
+    "terminal_path": {
+      "terminal_states": [
+        "PAID",
+        "PAYMENT_FAILED"
+      ],
+      "non_terminating_states": []
+    },
+    "semantic_consistency": [],
+    "decision_rule_clarity": [
+      {
+        "code": "XFLOW_L306",
+        "endpoint": "<ENDPOINT>",
+        "source_state": "CREATED",
+        "target_state": "PAID",
+        "transition_id": null,
+        "transition_index": 0
+      },
+      {
+        "code": "XFLOW_L306",
+        "endpoint": "<ENDPOINT>",
+        "source_state": "CREATED",
+        "target_state": "PAYMENT_FAILED",
+        "transition_id": null,
+        "transition_index": 1
+      }
+    ],
+    "evidence_refs_for_decisions": [],
+    "transition_priority_determinism": []
+  },
+  "summary": {
+    "errors": 2,
+    "violated_rules": [
+      "decision_rule_clarity"
+    ]
+  }
+}

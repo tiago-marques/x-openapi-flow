@@ -1,0 +1,79 @@
+{
+  "ok": false,
+  "path": "<OPENAPI_FILE>",
+  "profile": "strict",
+  "flowCount": 3,
+  "schemaFailures": [
+    {
+      "endpoint": "<ENDPOINT>",
+      "errors": [
+        {
+          "instancePath": "/transitions/0/failure_paths/0",
+          "schemaPath": "#/properties/transitions/items/properties/failure_paths/items/required",
+          "keyword": "required",
+          "params": {
+            "missingProperty": "reason"
+          },
+          "message": "must have required property 'reason'"
+        }
+      ]
+    }
+  ],
+  "orphans": [],
+  "graphChecks": {
+    "initial_states": [
+      "CREATED",
+      "PAYMENT_FAILED"
+    ],
+    "terminal_states": [
+      "PAID",
+      "PAYMENT_FAILED"
+    ],
+    "unreachable_states": [],
+    "cycle": {
+      "has_cycle": false
+    }
+  },
+  "qualityChecks": {
+    "multiple_initial_states": [
+      "CREATED",
+      "PAYMENT_FAILED"
+    ],
+    "duplicate_transitions": [],
+    "non_terminating_states": [],
+    "invalid_operation_references": [],
+    "invalid_field_references": [],
+    "semantic_warnings": [],
+    "warnings": [
+      "Multiple initial states detected: CREATED, PAYMENT_FAILED"
+    ]
+  },
+  "issues": [
+    {
+      "code": "XFLOW_E002",
+      "category": "schema",
+      "severity": "error",
+      "title": "Missing required field",
+      "message": "Missing required property 'reason'.",
+      "location": "<ENDPOINT>"
+    },
+    {
+      "code": "XFLOW_W201",
+      "category": "quality",
+      "severity": "warning",
+      "title": "Multiple initial states",
+      "message": "State 'CREATED' is an additional initial state — the flow has multiple entry points.",
+      "location": "CREATED",
+      "suggestion": "Consolidate into a single initial state if possible."
+    },
+    {
+      "code": "XFLOW_W201",
+      "category": "quality",
+      "severity": "warning",
+      "title": "Multiple initial states",
+      "message": "State 'PAYMENT_FAILED' is an additional initial state — the flow has multiple entry points.",
+      "location": "PAYMENT_FAILED",
+      "suggestion": "Consolidate into a single initial state if possible."
+    }
+  ]
+}

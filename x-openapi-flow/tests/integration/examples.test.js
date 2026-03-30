@@ -135,3 +135,11 @@ test("insomnia example generates workspace export with request groups", () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("ai-clarity example validates and lints with semantic rules", () => {
+  const validateResult = runCli(["validate", "examples/ai-clarity-order-api.yaml", "--profile", "strict"]);
+  assert.equal(validateResult.status, 0, `validate failed:\n${validateResult.stderr}`);
+
+  const lintResult = runCli(["lint", "examples/ai-clarity-order-api.yaml", "--semantic"]);
+  assert.equal(lintResult.status, 0, `lint failed:\n${lintResult.stderr}`);
+});

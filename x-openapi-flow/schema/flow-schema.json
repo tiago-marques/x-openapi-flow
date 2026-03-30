@@ -23,6 +23,10 @@
       "type": "string",
       "description": "Human-readable description of this flow step."
     },
+    "terminal": {
+      "type": "boolean",
+      "description": "Marks this operation as terminal in the lifecycle."
+    },
     "idempotency": {
       "type": "object",
       "description": "Idempotency configuration for the operation.",
@@ -46,6 +50,14 @@
         "type": "object",
         "required": ["target_state", "trigger_type"],
         "properties": {
+          "transition_id": {
+            "type": "string",
+            "description": "Stable transition identifier for traceability and testing."
+          },
+          "from_state": {
+            "type": "string",
+            "description": "Explicit transition source state. Defaults to parent current_state when omitted."
+          },
           "target_state": {
             "type": "string",
             "description": "The state the resource moves to after a successful transition."
@@ -54,10 +66,23 @@
             "type": "string",
             "description": "Human-readable condition under which this transition occurs."
           },
+          "decision_rule": {
+            "type": "string",
+            "description": "Machine-readable condition used to evaluate transition eligibility."
+          },
           "trigger_type": {
             "type": "string",
             "enum": ["synchronous", "webhook", "polling"],
             "description": "Mechanism that triggers the state transition."
+          },
+          "operation_role": {
+            "type": "string",
+            "enum": ["mutate", "read", "callback", "async-worker"],
+            "description": "Role hint for orchestration and AI interpretation."
+          },
+          "transition_priority": {
+            "type": "number",
+            "description": "Priority used to disambiguate transitions when multiple paths are valid."
           },
           "next_operation_id": {
             "type": "string",
@@ -83,6 +108,62 @@
             "items": {
               "type": "string"
             }
+          },
+          "evidence_refs": {
+            "type": "array",
+            "description": "Field references that prove transition completion.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "failure_paths": {
+            "type": "array",
+            "description": "Explicit non-happy-path outcomes for this transition.",
+            "items": {
+              "type": "object",
+              "required": ["reason", "target_state"],
+              "properties": {
+                "reason": {
+                  "type": "string",
+                  "description": "Human-readable reason for the failure path."
+                },
+                "target_state": {
+                  "type": "string",
+                  "description": "State reached when this failure path is taken."
+                },
+                "next_operation_id": {
+                  "type": "string",
+                  "description": "Operation usually called next after this failure path."
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "compensation_operation_id": {
+            "type": "string",
+            "description": "OperationId used for compensation/rollback behavior."
+          },
+          "async_contract": {
+            "type": "object",
+            "description": "Execution expectations for asynchronous transitions.",
+            "properties": {
+              "timeout_ms": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Maximum wait time before transition timeout."
+              },
+              "max_retries": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Maximum retry attempts for async transition checks."
+              },
+              "backoff": {
+                "type": "string",
+                "enum": ["fixed", "exponential"],
+                "description": "Retry backoff strategy."
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false

@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.6.0 - 2026-03-30
+
+### Added
+- Added AI clarity sidecar example with happy-path and failure-path lifecycle branches in `x-openapi-flow/examples/ai-clarity-order-api.yaml`.
+- Added snapshot fixtures for JSON output contract coverage in CLI tests:
+	- `validate-invalid-failure-path.snapshot.json`
+	- `lint-duplicate-priority-3-branches.snapshot.json`
+	- `lint-decision-rule-clarity.snapshot.json`
+	- `lint-evidence-refs-for-decisions.snapshot.json`
+
+### Changed
+- Extended `x-openapi-flow` schema to officially support optional AI clarity metadata fields:
+	- `terminal`
+	- `transition_id`, `from_state`, `decision_rule`, `operation_role`, `transition_priority`
+	- `evidence_refs`, `failure_paths`, `compensation_operation_id`, `async_contract`
+- Extended lint semantics with deterministic branching rules:
+	- `decision_rule_clarity` (`XFLOW_L306`)
+	- `evidence_refs_for_decisions` (`XFLOW_L307`)
+	- `transition_priority_determinism` (`XFLOW_L308`)
+- Updated documentation (root README + wiki) to include the new AI clarity fields and examples.
+- Expanded CLI and integration tests to validate schema acceptance, invalid enum rejection, rule toggling via config, and snapshot-stable diagnostics.
+
 ## 1.5.1 - 2026-03-28
 
 ### Changed

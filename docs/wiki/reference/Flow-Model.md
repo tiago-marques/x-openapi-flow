@@ -7,9 +7,15 @@ x-openapi-flow:
   version: "1.0"
   id: create-order-flow
   current_state: CREATED
+  terminal: false
   transitions:
-    - target_state: CONFIRMED
+    - transition_id: order-created-to-confirmed
+      from_state: CREATED
+      target_state: CONFIRMED
       trigger_type: synchronous
+      decision_rule: confirmOrder:response.200.body.status == 'confirmed'
+      operation_role: mutate
+      transition_priority: 10
       next_operation_id: confirmOrder
       prerequisite_operation_ids:
         - createOrder
@@ -17,6 +23,17 @@ x-openapi-flow:
         - createOrder:response.201.body.id
       propagated_field_refs:
         - createOrder:request.body.customer_id
+      evidence_refs:
+        - confirmOrder:response.200.body.status
+      failure_paths:
+        - reason: Order rejected
+          target_state: REJECTED
+          next_operation_id: getOrder
+      compensation_operation_id: cancelOrder
+      async_contract:
+        timeout_ms: 60000
+        max_retries: 3
+        backoff: exponential
 ```
 
 ## Core fields
@@ -29,6 +46,19 @@ x-openapi-flow:
 - `transitions[].prerequisite_operation_ids` (optional): operationIds expected before a transition
 - `transitions[].prerequisite_field_refs` (optional): required field references before transition
 - `transitions[].propagated_field_refs` (optional): field references reused in downstream flows
+
+AI clarity optional fields (v1.1 draft):
+
+- `terminal`: explicitly marks a terminal operation
+- `transitions[].transition_id`: stable transition identifier for deterministic reasoning
+- `transitions[].from_state`: explicit transition source state
+- `transitions[].decision_rule`: machine-readable transition condition
+- `transitions[].operation_role`: role hint (`mutate`, `read`, `callback`, `async-worker`)
+- `transitions[].transition_priority`: tie-break when multiple transitions are valid
+- `transitions[].evidence_refs`: fields that prove transition completion
+- `transitions[].failure_paths[]`: explicit non-happy-path transitions
+- `transitions[].compensation_operation_id`: rollback/compensation operationId
+- `transitions[].async_contract`: timeout/retry/backoff metadata for async transitions
 
 Field reference format:
 

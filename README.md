@@ -1,6 +1,6 @@
 # OpenAPI describes APIs. x-openapi-flow turns them into executable workflows — for developers and AI agents.
 
-## Define your API workflows in openapi.x.json and execute them without writing custom clients or orchestration logic.
+## Define your API workflows in openapi.x.json and execute them without writing custom clients or orchestration logic
 
 ![x-openapi-flow logo](https://raw.githubusercontent.com/tiago-marques/x-openapi-flow/main/docs/assets/x-openapi-flow-logo.svg)
 
@@ -47,18 +47,32 @@ Model resource lifecycles, enforce valid transitions, and generate flow-aware ar
 {
   "operationId": "createOrder",
   "x-openapi-flow": {
+    "version": "1.0",
     "id": "create-order",
     "current_state": "created",
     "description": "Creates an order and starts the lifecycle",
     "transitions": [
       {
+        "transition_id": "order-created-to-paid",
         "trigger_type": "synchronous",
         "condition": "Payment is confirmed",
+        "decision_rule": "payOrder:response.200.body.payment_status == 'approved'",
         "target_state": "paid",
         "next_operation_id": "payOrder",
+        "operation_role": "mutate",
         "prerequisite_operation_ids": ["createOrder"],
+        "evidence_refs": [
+          "payOrder:response.200.body.payment_status"
+        ],
         "propagated_field_refs": [
           "createOrder:response.201.body.order_id"
+        ],
+        "failure_paths": [
+          {
+            "reason": "Payment denied",
+            "target_state": "payment_failed",
+            "next_operation_id": "getOrder"
+          }
         ]
       }
     ]
@@ -72,9 +86,9 @@ This flow defines an order lifecycle directly inside your OpenAPI:
 * Transitions to `paid` when payment is confirmed
 * Supports both synchronous and polling-based transitions
 * Propagates data between operations automatically
+* Can include explicit decision/evidence and failure-path metadata for AI-guided orchestration
 
 Instead of manually orchestrating API calls, the workflow is fully described alongside your API specification.
-
 
 ## Why This Exists
 
