@@ -37,7 +37,7 @@ jobs:
 
       - name: Verify package tarball includes README
         run: |
-          node -e "const { execSync } = require('node:child_process'); const out = execSync('npm pack --dry-run --json', { encoding: 'utf8' }); const payload = JSON.parse(out); const files = ((payload[0] && payload[0].files) || []).map((file) => file.path); if (!files.includes('README.md')) { console.error('README.md is missing from npm pack output.'); process.exit(1); } console.log('README.md found in npm pack output.');"
+          node -e "const { execSync } = require('node:child_process'); const out = execSync('npm pack --dry-run --json', { encoding: 'utf8' }); const jsonStart = out.indexOf('['); if (jsonStart === -1) { console.error('Could not find JSON payload in npm pack output.'); process.exit(1); } const payload = JSON.parse(out.slice(jsonStart)); const files = ((payload[0] && payload[0].files) || []).map((file) => file.path); if (!files.includes('README.md')) { console.error('README.md is missing from npm pack output.'); process.exit(1); } console.log('README.md found in npm pack output.');"
 
       - name: Validate release tag matches package version
         if: github.event_name == 'release'
