@@ -34,6 +34,13 @@ jobs:
       - name: Run full test suite
         run: npm test
 
+      - name: Sync package README
+        run: npm run sync:readme
+
+      - name: Verify package tarball includes README
+        run: |
+          node -e "const { execSync } = require('node:child_process'); const out = execSync('npm pack --dry-run --json', { encoding: 'utf8' }); const payload = JSON.parse(out); const files = ((payload[0] && payload[0].files) || []).map((file) => file.path); if (!files.includes('README.md')) { console.error('README.md is missing from npm pack output.'); process.exit(1); } console.log('README.md found in npm pack output.');"
+
       - name: Validate x-openapi-flow examples
         run: |
           node bin/x-openapi-flow.js validate examples/payment-api.yaml --profile strict --strict-quality

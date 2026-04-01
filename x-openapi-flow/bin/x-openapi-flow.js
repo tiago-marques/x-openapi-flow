@@ -59,12 +59,13 @@ const COMMAND_SNIPPETS = {
     ],
   },
   init: {
-    usage: "x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run]",
+    usage: "x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions]",
     examples: [
       "x-openapi-flow init",
       "x-openapi-flow init openapi.yaml --flows openapi.x.yaml",
       "x-openapi-flow init openapi.yaml --force",
       "x-openapi-flow init openapi.yaml --dry-run",
+      "x-openapi-flow init openapi.yaml --suggest-transitions",
     ],
   },
   quickstart: {
@@ -219,7 +220,7 @@ _x_openapi_flow() {
       _values 'options' --format --profile --strict-quality --semantic --config --help
       ;;
     init)
-      _values 'options' --flows --force --dry-run --help
+      _values 'options' --flows --force --dry-run --suggest-transitions --help
       ;;
     quickstart)
       _values 'options' --dir --runtime --force --help
@@ -293,7 +294,7 @@ compdef _x_openapi_flow x-openapi-flow
       COMPREPLY=( $(compgen -W "--format --profile --strict-quality --semantic --config --help --verbose" -- "\$cur") )
       ;;
     init)
-      COMPREPLY=( $(compgen -W "--flows --force --dry-run --help --verbose" -- "\$cur") )
+      COMPREPLY=( $(compgen -W "--flows --force --dry-run --suggest-transitions --help --verbose" -- "\$cur") )
       ;;
     quickstart)
       COMPREPLY=( $(compgen -W "--dir --runtime --force --help --verbose" -- "\$cur") )
@@ -471,7 +472,7 @@ Usage:
   x-openapi-flow <command> [options]
   x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--semantic] [--config path]
   x-openapi-flow quickstart [--dir path] [--runtime express|fastify] [--force]
-  x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run]
+  x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions]
   x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
   x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
   x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]
@@ -502,6 +503,7 @@ Examples:
   x-openapi-flow init openapi.yaml --flows openapi.x.yaml
   x-openapi-flow init openapi.yaml --force
   x-openapi-flow init openapi.yaml --dry-run
+  x-openapi-flow init openapi.yaml --suggest-transitions
   x-openapi-flow init
   x-openapi-flow apply openapi.yaml
   x-openapi-flow apply openapi.yaml --in-place
@@ -732,7 +734,7 @@ function parseValidateArgs(args) {
 }
 
 function parseInitArgs(args) {
-  const unknown = findUnknownOptions(args, ["--flows"], ["--force", "--dry-run"]);
+  const unknown = findUnknownOptions(args, ["--flows"], ["--force", "--dry-run", "--suggest-transitions"]);
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
   }
@@ -752,6 +754,9 @@ function parseInitArgs(args) {
     if (token === "--dry-run") {
       return false;
     }
+    if (token === "--suggest-transitions") {
+      return false;
+    }
     if (index > 0 && args[index - 1] === "--flows") {
       return false;
     }
@@ -767,6 +772,7 @@ function parseInitArgs(args) {
     flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
     force: args.includes("--force"),
     dryRun: args.includes("--dry-run"),
+    suggestTransitions: args.includes("--suggest-transitions"),
   };
 }
 
@@ -1880,7 +1886,7 @@ function buildOperationLookup(api) {
   return { entries, lookupByKey, lookupByOperationId };
 }
 
-function mergeFlowsWithOpenApi(api, flowsDoc) {
+function mergeFlowsWithOpenApi(api, flowsDoc, suggestedByOperationId = new Map()) {
   const { entries, lookupByKey } = buildOperationLookup(api);
 
   const existingByOperationId = new Map();
@@ -1907,6 +1913,8 @@ function mergeFlowsWithOpenApi(api, flowsDoc) {
         ? op.operation["x-openapi-flow"]
         : null;
 
+    const suggestedFlow = suggestedByOperationId.get(op.resolvedOperationId) || null;
+
     const sidecarFlow =
       existing && typeof existing["x-openapi-flow"] === "object"
         ? existing["x-openapi-flow"]
@@ -1914,7 +1922,7 @@ function mergeFlowsWithOpenApi(api, flowsDoc) {
 
     mergedOperations.push({
       operationId: op.resolvedOperationId,
-      "x-openapi-flow": sidecarFlow || openApiFlow || buildFlowTemplate(op.resolvedOperationId),
+      "x-openapi-flow": sidecarFlow || openApiFlow || suggestedFlow || buildFlowTemplate(op.resolvedOperationId),
     });
   }
 
@@ -2031,7 +2039,23 @@ function runInit(parsed) {
     return 1;
   }
 
-  const mergedFlows = mergeFlowsWithOpenApi(api, flowsDoc);
+  let suggestedByOperationId = new Map();
+  let suggestedTransitionCount = 0;
+  if (parsed.suggestTransitions) {
+    const analyzed = buildAnalyzedFlowsDoc(api);
+    suggestedTransitionCount = analyzed.analysis && analyzed.analysis.inferredTransitions
+      ? analyzed.analysis.inferredTransitions
+      : 0;
+
+    suggestedByOperationId = new Map(
+      (analyzed.operations || []).map((entry) => [
+        entry.operationId,
+        entry["x-openapi-flow"],
+      ])
+    );
+  }
+
+  const mergedFlows = mergeFlowsWithOpenApi(api, flowsDoc, suggestedByOperationId);
   const trackedCount = mergedFlows.operations.length;
   const sidecarDiff = summarizeSidecarDiff(flowsDoc, mergedFlows);
 
@@ -2057,6 +2081,9 @@ function runInit(parsed) {
     console.log(`[dry-run] Using existing OpenAPI file: ${targetOpenApiFile}`);
     console.log(`[dry-run] Flows sidecar target: ${flowsPath}`);
     console.log(`[dry-run] Tracked operations: ${trackedCount}`);
+    if (parsed.suggestTransitions) {
+      console.log(`[dry-run] Suggested transitions inferred: ${suggestedTransitionCount}`);
+    }
     console.log(`[dry-run] Sidecar changes -> added: ${sidecarDiff.added}, changed: ${sidecarDiff.changed}, removed: ${sidecarDiff.removed}`);
     console.log(`[dry-run] ${dryRunFlowPlan}`);
     if (uiPackages.swagger) {
@@ -2126,6 +2153,9 @@ function runInit(parsed) {
   console.log(`Using existing OpenAPI file: ${targetOpenApiFile}`);
   console.log(`Flows sidecar synced: ${flowsPath}`);
   console.log(`Tracked operations: ${trackedCount}`);
+  if (parsed.suggestTransitions) {
+    console.log(`Suggested transitions inferred: ${suggestedTransitionCount}`);
+  }
   console.log(applyMessage);
   console.log("OpenAPI source unchanged. Edit the sidecar and run apply to generate the full spec.");
 

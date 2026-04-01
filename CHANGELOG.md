@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.6.2 - 2026-04-01
+
+### Added
+- Added `--suggest-transitions` option to `init`, reusing `analyze` heuristics to infer starter transitions when sidecar/OpenAPI flow metadata is absent.
+- Added CLI test coverage for `init --suggest-transitions` inference behavior and precedence of manual sidecar definitions.
+- Added CLI test coverage to ensure `help init` and `completion` outputs include `--suggest-transitions`.
+
+### Changed
+- Updated CLI command help and shell completion scripts (bash/zsh) to expose `--suggest-transitions` in `init` usage and examples.
+- Updated onboarding docs and quickstart examples to include optional `init --suggest-transitions` flow.
+
+### Fixed
+- Hardened release and validation workflows to prevent publishing packages without README:
+	- run `npm run sync:readme` in CI before publish;
+	- verify `npm pack --dry-run --json` contains `README.md` before publish;
+	- added the same guard to the main validation workflow for earlier detection.
+
 ## 1.6.1 - 2026-04-01
 
 ### Added

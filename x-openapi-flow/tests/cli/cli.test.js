@@ -1090,6 +1090,88 @@ test("init --dry-run --force does not modify existing files or create backups", 
   }
 });
 
+test("init --suggest-transitions infers transitions into sidecar and flow output", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-suggest-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Suggest API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n  /orders/{id}/ship:\n    post:\n      operationId: shipOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath, "--suggest-transitions"]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Suggested transitions inferred: 2/);
+
+    const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+    const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
+    assert.match(sidecarContent, /operationId: createOrder/);
+    assert.match(sidecarContent, /operationId: confirmOrder/);
+    assert.match(sidecarContent, /next_operation_id: confirmOrder/);
+    assert.match(sidecarContent, /next_operation_id: shipOrder/);
+
+    const flowOutputPath = path.join(tempDir, "openapi.flow.yaml");
+    const flowOutputContent = fs.readFileSync(flowOutputPath, "utf8");
+    assert.match(flowOutputContent, /next_operation_id: confirmOrder/);
+    assert.match(flowOutputContent, /next_operation_id: shipOrder/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --suggest-transitions preserves manual sidecar flow when operation already exists", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-suggest-preserve-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Suggest Preserve API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n  /orders/{id}/ship:\n    post:\n      operationId: shipOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: createOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: create-order-manual\n      current_state: MANUAL_CREATED\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath, "--suggest-transitions", "--force"]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Suggested transitions inferred: 2/);
+
+    const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
+    assert.match(sidecarContent, /operationId: createOrder/);
+    assert.match(sidecarContent, /id: create-order-manual/);
+    assert.match(sidecarContent, /current_state: MANUAL_CREATED/);
+    assert.match(sidecarContent, /operationId: confirmOrder/);
+    assert.match(sidecarContent, /next_operation_id: shipOrder/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("help init includes --suggest-transitions option", () => {
+  const result = runCli(["help", "init"]);
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /x-openapi-flow init \[openapi-file\] \[--flows path\] \[--force\] \[--dry-run\] \[--suggest-transitions\]/);
+  assert.match(result.stdout, /init openapi\.yaml --suggest-transitions/);
+});
+
+test("completion scripts include --suggest-transitions for init", () => {
+  const bash = runCli(["completion", "bash"]);
+  const zsh = runCli(["completion", "zsh"]);
+
+  assert.equal(bash.status, 0);
+  assert.equal(zsh.status, 0);
+  assert.match(bash.stdout, /--flows --force --dry-run --suggest-transitions --help --verbose/);
+  assert.match(zsh.stdout, /_values 'options' --flows --force --dry-run --suggest-transitions --help/);
+});
+
 test("init creates fallback operationId for operations without operationId", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-fallback-"));
   const openapiPath = path.join(tempDir, "openapi.yaml");

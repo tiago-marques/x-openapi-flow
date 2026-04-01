@@ -152,6 +152,8 @@ Initialize flow support in your project:
 
 ```bash
 npx x-openapi-flow init
+# optional: infer suggested transitions using naming heuristics
+npx x-openapi-flow init --suggest-transitions
 ```
 
 After regenerating your OpenAPI file, apply and validate the flow (optional):

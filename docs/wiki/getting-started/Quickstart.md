@@ -48,6 +48,8 @@ npx x-openapi-flow init
 npx x-openapi-flow init --force
 # preview sidecar/flow changes without writing files:
 npx x-openapi-flow init --dry-run
+# infer suggested transitions via heuristics (operation names + HTTP method):
+npx x-openapi-flow init --suggest-transitions
 ```
 
 This creates/synchronizes `{context}.x.(json|yaml)`.
