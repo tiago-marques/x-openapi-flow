@@ -1139,6 +1139,119 @@ test("init tracks all OpenAPI HTTP methods in sidecar and flow output", () => {
   }
 });
 
+test("init auto-installs swagger-ui plugin when swagger-ui-express is in package.json", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-swagger-detect-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Swagger Detect API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ dependencies: { "swagger-ui-express": "^5.0.0" } }),
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath], { cwd: tempDir });
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Swagger UI detected/);
+    assert.match(result.stdout, /x-openapi-flow-plugin\.js/);
+    assert.match(result.stdout, /customJs/);
+
+    const pluginDest = path.join(tempDir, "x-openapi-flow-plugin.js");
+    assert.equal(fs.existsSync(pluginDest), true);
+    const pluginContent = fs.readFileSync(pluginDest, "utf8");
+    assert.match(pluginContent, /XOpenApiFlowPlugin/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init prints redoc hint when redoc is in package.json", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-redoc-detect-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Redoc Detect API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ dependencies: { redoc: "^2.0.0" } }),
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath], { cwd: tempDir });
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Redoc detected/);
+    assert.match(result.stdout, /generate-redoc/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --dry-run reports swagger-ui and redoc detection without copying files", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-dryrun-detect-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Dry Detect API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ dependencies: { "swagger-ui-express": "^5.0.0", redoc: "^2.0.0" } }),
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath, "--dry-run"], { cwd: tempDir });
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /\[dry-run\] Swagger UI detected/);
+    assert.match(result.stdout, /\[dry-run\] Redoc detected/);
+    assert.match(result.stdout, /No files were written/);
+
+    assert.equal(fs.existsSync(path.join(tempDir, "x-openapi-flow-plugin.js")), false);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init does not emit ui hints when no ui packages in package.json", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-no-ui-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: No UI API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ dependencies: { express: "^4.0.0" } }),
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath], { cwd: tempDir });
+    assert.equal(result.status, 0);
+    assert.doesNotMatch(result.stdout, /Swagger UI detected/);
+    assert.doesNotMatch(result.stdout, /Redoc detected/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("apply injects flow for operation without operationId using fallback operationId", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-apply-fallback-"));
   const openapiPath = path.join(tempDir, "openapi.yaml");

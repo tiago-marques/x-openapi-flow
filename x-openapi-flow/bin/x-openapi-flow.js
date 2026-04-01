@@ -1960,6 +1960,48 @@ function applyFlowsToOpenApi(api, flowsDoc) {
   return appliedCount;
 }
 
+const SWAGGER_UI_PACKAGES = [
+  "swagger-ui-express",
+  "swagger-ui",
+  "swagger-ui-dist",
+  "express-swagger-ui",
+  "koa-swagger-ui",
+  "@fastify/swagger-ui",
+  "fastify-swagger-ui",
+];
+
+const REDOC_PACKAGES = [
+  "redoc",
+  "redoc-express",
+  "redoc-express-middleware",
+  "express-redoc-html",
+  "@redocly/redoc",
+];
+
+function detectProjectUiPackages(projectDir) {
+  const pkgPath = path.join(projectDir, "package.json");
+  if (!fs.existsSync(pkgPath)) {
+    return { swagger: false, redoc: false };
+  }
+
+  let pkg;
+  try {
+    pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+  } catch (_err) {
+    return { swagger: false, redoc: false };
+  }
+
+  const allDeps = {
+    ...((pkg && pkg.dependencies) || {}),
+    ...((pkg && pkg.devDependencies) || {}),
+  };
+
+  return {
+    swagger: SWAGGER_UI_PACKAGES.some((name) => name in allDeps),
+    redoc: REDOC_PACKAGES.some((name) => name in allDeps),
+  };
+}
+
 function runInit(parsed) {
   const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
 
@@ -1993,6 +2035,10 @@ function runInit(parsed) {
   const trackedCount = mergedFlows.operations.length;
   const sidecarDiff = summarizeSidecarDiff(flowsDoc, mergedFlows);
 
+  const uiPackages = detectProjectUiPackages(process.cwd());
+  const swaggerPluginSrc = path.join(__dirname, "..", "adapters", "ui", "swagger-ui", "x-openapi-flow-plugin.js");
+  const swaggerPluginDest = path.join(process.cwd(), "x-openapi-flow-plugin.js");
+
   let applyMessage = "Init completed without regenerating flow output.";
   const flowOutputExists = fs.existsSync(flowOutputPath);
   let shouldRecreateFlowOutput = !flowOutputExists;
@@ -2013,6 +2059,12 @@ function runInit(parsed) {
     console.log(`[dry-run] Tracked operations: ${trackedCount}`);
     console.log(`[dry-run] Sidecar changes -> added: ${sidecarDiff.added}, changed: ${sidecarDiff.changed}, removed: ${sidecarDiff.removed}`);
     console.log(`[dry-run] ${dryRunFlowPlan}`);
+    if (uiPackages.swagger) {
+      console.log(`[dry-run] Swagger UI detected: would install plugin → ${swaggerPluginDest}`);
+    }
+    if (uiPackages.redoc) {
+      console.log("[dry-run] Redoc detected: would suggest generate-redoc.");
+    }
     console.log("[dry-run] No files were written.");
     return 0;
   }
@@ -2076,6 +2128,16 @@ function runInit(parsed) {
   console.log(`Tracked operations: ${trackedCount}`);
   console.log(applyMessage);
   console.log("OpenAPI source unchanged. Edit the sidecar and run apply to generate the full spec.");
+
+  if (uiPackages.swagger) {
+    fs.copyFileSync(swaggerPluginSrc, swaggerPluginDest);
+    console.log(`Swagger UI detected: plugin installed → ${swaggerPluginDest}`);
+    console.log("  Serve the file and add  customJs: '/x-openapi-flow-plugin.js'  to your Swagger UI options.");
+  }
+
+  if (uiPackages.redoc) {
+    console.log("Redoc detected: run  x-openapi-flow generate-redoc <openapi-file>  to create the flow UI package.");
+  }
 
   console.log(`Validate now: x-openapi-flow validate ${targetOpenApiFile}`);
   return 0;

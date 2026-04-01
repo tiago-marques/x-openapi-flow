@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.6.1 - 2026-04-01
+
+### Added
+- `init` command now auto-detects Swagger UI packages (`swagger-ui-express`, `swagger-ui-dist`, `@fastify/swagger-ui`, etc.) and Redoc packages (`redoc`, `redoc-express`, `@redocly/redoc`, etc.) from the project's `package.json`.
+- When Swagger UI is detected, `init` automatically copies `x-openapi-flow-plugin.js` into the working directory and prints setup instructions (`customJs` option).
+- When Redoc is detected, `init` prints a hint to run `generate-redoc`.
+- Both detections are reported in `--dry-run` mode without writing any files.
+
+### Fixed
+- Swagger UI plugin (`x-openapi-flow-plugin.js`) no longer requires `React` to be a global variable in the host project. It now resolves React from `window.SwaggerUIBundle.React` first, falling back to `window.React`. Returns an empty plugin object gracefully if neither is available.
+
 ## 1.6.0 - 2026-03-30
 
 ### Added

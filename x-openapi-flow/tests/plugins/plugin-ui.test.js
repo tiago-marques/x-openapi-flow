@@ -187,3 +187,114 @@ test("plugin overview mermaid preserves flow order from spec", () => {
   assert.notEqual(refundIndex, -1);
   assert.ok(createdIndex < refundIndex);
 });
+
+test("XOpenApiFlowPlugin resolves React from window.SwaggerUIBundle.React", () => {
+  const source = fs.readFileSync(PLUGIN_PATH, "utf8");
+  const reactMock = { createElement: () => ({}) };
+
+  const windowMock = {
+    SwaggerUIBundle: { React: reactMock },
+    addEventListener: () => {},
+    requestAnimationFrame: (cb) => cb(),
+    setTimeout,
+    clearTimeout,
+    btoa: (v) => Buffer.from(v, "binary").toString("base64"),
+  };
+
+  const documentMock = {
+    head: { appendChild: () => {} },
+    body: {},
+    getElementById: () => null,
+    createElement: () => ({ style: {}, appendChild: () => {} }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+  };
+
+  const context = {
+    window: windowMock,
+    document: documentMock,
+    MutationObserver: function MutationObserver() { this.observe = () => {}; },
+    console,
+    setTimeout,
+    clearTimeout,
+  };
+
+  vm.runInNewContext(source, context, { filename: "x-openapi-flow-plugin.js" });
+  const plugin = context.window.XOpenApiFlowPlugin();
+  assert.ok(plugin && typeof plugin === "object", "plugin should return an object");
+  assert.ok("wrapComponents" in plugin, "plugin should expose wrapComponents");
+});
+
+test("XOpenApiFlowPlugin resolves React from window.React as fallback", () => {
+  const source = fs.readFileSync(PLUGIN_PATH, "utf8");
+  const reactMock = { createElement: () => ({}) };
+
+  const windowMock = {
+    React: reactMock,
+    addEventListener: () => {},
+    requestAnimationFrame: (cb) => cb(),
+    setTimeout,
+    clearTimeout,
+    btoa: (v) => Buffer.from(v, "binary").toString("base64"),
+  };
+
+  const documentMock = {
+    head: { appendChild: () => {} },
+    body: {},
+    getElementById: () => null,
+    createElement: () => ({ style: {}, appendChild: () => {} }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+  };
+
+  const context = {
+    window: windowMock,
+    document: documentMock,
+    MutationObserver: function MutationObserver() { this.observe = () => {}; },
+    console,
+    setTimeout,
+    clearTimeout,
+  };
+
+  vm.runInNewContext(source, context, { filename: "x-openapi-flow-plugin.js" });
+  const plugin = context.window.XOpenApiFlowPlugin();
+  assert.ok(plugin && typeof plugin === "object", "plugin should return an object");
+  assert.ok("wrapComponents" in plugin, "plugin should expose wrapComponents");
+});
+
+test("XOpenApiFlowPlugin returns empty object when React is not available", () => {
+  const source = fs.readFileSync(PLUGIN_PATH, "utf8");
+
+  const windowMock = {
+    addEventListener: () => {},
+    requestAnimationFrame: (cb) => cb(),
+    setTimeout,
+    clearTimeout,
+    btoa: (v) => Buffer.from(v, "binary").toString("base64"),
+  };
+
+  const documentMock = {
+    head: { appendChild: () => {} },
+    body: {},
+    getElementById: () => null,
+    createElement: () => ({ style: {}, appendChild: () => {} }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+  };
+
+  const context = {
+    window: windowMock,
+    document: documentMock,
+    MutationObserver: function MutationObserver() { this.observe = () => {}; },
+    console,
+    setTimeout,
+    clearTimeout,
+  };
+
+  vm.runInNewContext(source, context, { filename: "x-openapi-flow-plugin.js" });
+  const plugin = context.window.XOpenApiFlowPlugin();
+  assert.ok(plugin && typeof plugin === "object" && Object.keys(plugin).length === 0, "plugin should return empty object when React is unavailable");
+});

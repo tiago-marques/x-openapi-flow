@@ -1,4 +1,6 @@
 window.XOpenApiFlowPlugin = function () {
+  const React = (window.SwaggerUIBundle && window.SwaggerUIBundle.React) || window.React;
+  if (!React) { return {}; }
   const h = React.createElement;
 
   function toPlain(value) {
