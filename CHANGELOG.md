@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.6.3 - 2026-04-01
+
+### Added
+- `analyze` and `init --suggest-transitions` now infer richer flow metadata:
+	- `prerequisite_operation_ids` on inferred transitions
+	- `operation_role` on inferred operations and transitions
+	- `terminal` on inferred operation flows
+- Added `--confidence-threshold` option to both `analyze` and `init` (when using `--suggest-transitions`) to filter low-confidence inferred transitions.
+- Added structured warning output in `analyze --format json` under `analysis.warnings` for low-confidence filtered transitions.
+
+### Changed
+- CLI help and shell completion (bash/zsh) now include `--confidence-threshold` for `analyze` and `init`.
+- Transition confidence insights now include `included` flag indicating whether a candidate transition passed the configured threshold.
+
+### Fixed
+- Prevented `target_state` orphan generation in inferred flows by aligning transition targets to the real `current_state` of the referenced `next_operation_id`.
+- Fixed analyze crash path when threshold filtering removes a transition candidate before insights serialization.
+- Added CLI test coverage for confidence-threshold filtering, enriched inferred fields, and target-state alignment behavior.
+
 ## 1.6.2 - 2026-04-01
 
 ### Added

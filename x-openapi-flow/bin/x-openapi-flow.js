@@ -59,13 +59,14 @@ const COMMAND_SNIPPETS = {
     ],
   },
   init: {
-    usage: "x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions]",
+    usage: "x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions] [--confidence-threshold 0..1]",
     examples: [
       "x-openapi-flow init",
       "x-openapi-flow init openapi.yaml --flows openapi.x.yaml",
       "x-openapi-flow init openapi.yaml --force",
       "x-openapi-flow init openapi.yaml --dry-run",
       "x-openapi-flow init openapi.yaml --suggest-transitions",
+      "x-openapi-flow init openapi.yaml --suggest-transitions --confidence-threshold 0.7",
     ],
   },
   quickstart: {
@@ -108,11 +109,12 @@ const COMMAND_SNIPPETS = {
     ],
   },
   analyze: {
-    usage: "x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]",
+    usage: "x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path] [--confidence-threshold 0..1]",
     examples: [
       "x-openapi-flow analyze openapi.yaml",
       "x-openapi-flow analyze openapi.yaml --out openapi.x.yaml",
       "x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml",
+      "x-openapi-flow analyze openapi.yaml --format json --confidence-threshold 0.75",
     ],
   },
   "generate-sdk": {
@@ -220,7 +222,7 @@ _x_openapi_flow() {
       _values 'options' --format --profile --strict-quality --semantic --config --help
       ;;
     init)
-      _values 'options' --flows --force --dry-run --suggest-transitions --help
+      _values 'options' --flows --force --dry-run --suggest-transitions --confidence-threshold --help
       ;;
     quickstart)
       _values 'options' --dir --runtime --force --help
@@ -238,7 +240,7 @@ _x_openapi_flow() {
       _values 'options' --profile --semantic --output --help
       ;;
     analyze)
-      _values 'options' --format --out --merge --flows --help
+      _values 'options' --format --out --merge --flows --confidence-threshold --help
       ;;
     generate-sdk)
       _values 'options' --lang --output --help
@@ -294,7 +296,7 @@ compdef _x_openapi_flow x-openapi-flow
       COMPREPLY=( $(compgen -W "--format --profile --strict-quality --semantic --config --help --verbose" -- "\$cur") )
       ;;
     init)
-      COMPREPLY=( $(compgen -W "--flows --force --dry-run --suggest-transitions --help --verbose" -- "\$cur") )
+      COMPREPLY=( $(compgen -W "--flows --force --dry-run --suggest-transitions --confidence-threshold --help --verbose" -- "\$cur") )
       ;;
     quickstart)
       COMPREPLY=( $(compgen -W "--dir --runtime --force --help --verbose" -- "\$cur") )
@@ -312,7 +314,7 @@ compdef _x_openapi_flow x-openapi-flow
       COMPREPLY=( $(compgen -W "--profile --semantic --output --help --verbose" -- "\$cur") )
       ;;
     analyze)
-      COMPREPLY=( $(compgen -W "--format --out --merge --flows --help --verbose" -- "\$cur") )
+      COMPREPLY=( $(compgen -W "--format --out --merge --flows --confidence-threshold --help --verbose" -- "\$cur") )
       ;;
     generate-sdk)
       COMPREPLY=( $(compgen -W "--lang --output --help --verbose" -- "\$cur") )
@@ -472,11 +474,11 @@ Usage:
   x-openapi-flow <command> [options]
   x-openapi-flow validate <openapi-file> [--format pretty|json] [--profile core|relaxed|strict] [--strict-quality] [--semantic] [--config path]
   x-openapi-flow quickstart [--dir path] [--runtime express|fastify] [--force]
-  x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions]
+  x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions] [--confidence-threshold 0..1]
   x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
   x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
   x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]
-  x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path]
+  x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path] [--confidence-threshold 0..1]
   x-openapi-flow quality-report <openapi-file> [--profile core|relaxed|strict] [--semantic] [--output path]
   x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
   x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
@@ -504,6 +506,7 @@ Examples:
   x-openapi-flow init openapi.yaml --force
   x-openapi-flow init openapi.yaml --dry-run
   x-openapi-flow init openapi.yaml --suggest-transitions
+  x-openapi-flow init openapi.yaml --suggest-transitions --confidence-threshold 0.7
   x-openapi-flow init
   x-openapi-flow apply openapi.yaml
   x-openapi-flow apply openapi.yaml --in-place
@@ -520,6 +523,7 @@ Examples:
   x-openapi-flow analyze openapi.yaml --out openapi.x.yaml
   x-openapi-flow analyze openapi.yaml --format json
   x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml
+  x-openapi-flow analyze openapi.yaml --format json --confidence-threshold 0.75
   x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
   x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
   x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
@@ -734,7 +738,11 @@ function parseValidateArgs(args) {
 }
 
 function parseInitArgs(args) {
-  const unknown = findUnknownOptions(args, ["--flows"], ["--force", "--dry-run", "--suggest-transitions"]);
+  const unknown = findUnknownOptions(
+    args,
+    ["--flows", "--confidence-threshold"],
+    ["--force", "--dry-run", "--suggest-transitions"]
+  );
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
   }
@@ -742,6 +750,16 @@ function parseInitArgs(args) {
   const flowsOpt = getOptionValue(args, "--flows");
   if (flowsOpt.error) {
     return { error: flowsOpt.error };
+  }
+
+  const thresholdOpt = getOptionValue(args, "--confidence-threshold");
+  if (thresholdOpt.error) {
+    return { error: `${thresholdOpt.error} Use a number between 0 and 1.` };
+  }
+
+  const confidenceThreshold = thresholdOpt.found ? Number(thresholdOpt.value) : 0;
+  if (!Number.isFinite(confidenceThreshold) || confidenceThreshold < 0 || confidenceThreshold > 1) {
+    return { error: `Invalid --confidence-threshold '${thresholdOpt.value}'. Use a number between 0 and 1.` };
   }
 
   const positional = args.filter((token, index) => {
@@ -757,7 +775,10 @@ function parseInitArgs(args) {
     if (token === "--suggest-transitions") {
       return false;
     }
-    if (index > 0 && args[index - 1] === "--flows") {
+    if (token === "--confidence-threshold") {
+      return false;
+    }
+    if (index > 0 && (args[index - 1] === "--flows" || args[index - 1] === "--confidence-threshold")) {
       return false;
     }
     return !token.startsWith("--");
@@ -773,6 +794,7 @@ function parseInitArgs(args) {
     force: args.includes("--force"),
     dryRun: args.includes("--dry-run"),
     suggestTransitions: args.includes("--suggest-transitions"),
+    confidenceThreshold,
   };
 }
 
@@ -1142,7 +1164,7 @@ function parseGraphArgs(args) {
 }
 
 function parseAnalyzeArgs(args) {
-  const unknown = findUnknownOptions(args, ["--format", "--out", "--flows"], ["--merge"]);
+  const unknown = findUnknownOptions(args, ["--format", "--out", "--flows", "--confidence-threshold"], ["--merge"]);
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
   }
@@ -1162,18 +1184,39 @@ function parseAnalyzeArgs(args) {
     return { error: flowsOpt.error };
   }
 
+  const thresholdOpt = getOptionValue(args, "--confidence-threshold");
+  if (thresholdOpt.error) {
+    return { error: `${thresholdOpt.error} Use a number between 0 and 1.` };
+  }
+
+  const confidenceThreshold = thresholdOpt.found ? Number(thresholdOpt.value) : 0;
+  if (!Number.isFinite(confidenceThreshold) || confidenceThreshold < 0 || confidenceThreshold > 1) {
+    return { error: `Invalid --confidence-threshold '${thresholdOpt.value}'. Use a number between 0 and 1.` };
+  }
+
   const format = formatOpt.found ? formatOpt.value : "pretty";
   if (!["pretty", "json"].includes(format)) {
     return { error: `Invalid --format '${format}'. Use 'pretty' or 'json'.` };
   }
 
   const positional = args.filter((token, index) => {
-    if (token === "--format" || token === "--out" || token === "--flows" || token === "--merge") {
+    if (
+      token === "--format"
+      || token === "--out"
+      || token === "--flows"
+      || token === "--merge"
+      || token === "--confidence-threshold"
+    ) {
       return false;
     }
     if (
       index > 0
-      && (args[index - 1] === "--format" || args[index - 1] === "--out" || args[index - 1] === "--flows")
+      && (
+        args[index - 1] === "--format"
+        || args[index - 1] === "--out"
+        || args[index - 1] === "--flows"
+        || args[index - 1] === "--confidence-threshold"
+      )
     ) {
       return false;
     }
@@ -1190,6 +1233,7 @@ function parseAnalyzeArgs(args) {
     outPath: outOpt.found ? path.resolve(outOpt.value) : undefined,
     merge: args.includes("--merge"),
     flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
+    confidenceThreshold,
   };
 }
 
@@ -1932,6 +1976,82 @@ function mergeFlowsWithOpenApi(api, flowsDoc, suggestedByOperationId = new Map()
   };
 }
 
+function alignTransitionTargetsWithOperationStates(flowsDoc) {
+  if (!flowsDoc || !Array.isArray(flowsDoc.operations)) {
+    return flowsDoc;
+  }
+
+  const operationStateById = new Map();
+  for (const operationEntry of flowsDoc.operations) {
+    if (!operationEntry || !operationEntry.operationId) {
+      continue;
+    }
+
+    const flow = operationEntry["x-openapi-flow"];
+    if (!flow || typeof flow !== "object" || flow.current_state == null) {
+      continue;
+    }
+
+    operationStateById.set(operationEntry.operationId, String(flow.current_state));
+  }
+
+  const normalizedOperations = flowsDoc.operations.map((operationEntry) => {
+    if (!operationEntry) {
+      return operationEntry;
+    }
+
+    const flow = operationEntry["x-openapi-flow"];
+    if (!flow || typeof flow !== "object") {
+      return operationEntry;
+    }
+
+    const transitions = Array.isArray(flow.transitions) ? flow.transitions : null;
+    if (!transitions || transitions.length === 0) {
+      return operationEntry;
+    }
+
+    let changed = false;
+    const normalizedTransitions = transitions.map((transition) => {
+      if (!transition || typeof transition !== "object") {
+        return transition;
+      }
+
+      const nextOperationId = transition.next_operation_id;
+      if (!nextOperationId || !operationStateById.has(nextOperationId)) {
+        return transition;
+      }
+
+      const expectedTargetState = operationStateById.get(nextOperationId);
+      if (transition.target_state === expectedTargetState) {
+        return transition;
+      }
+
+      changed = true;
+      return {
+        ...transition,
+        target_state: expectedTargetState,
+      };
+    });
+
+    if (!changed) {
+      return operationEntry;
+    }
+
+    return {
+      ...operationEntry,
+      "x-openapi-flow": {
+        ...flow,
+        transitions: normalizedTransitions,
+      },
+    };
+  });
+
+  return {
+    ...flowsDoc,
+    operations: normalizedOperations,
+  };
+}
+
 function applyFlowsToOpenApi(api, flowsDoc) {
   const paths = (api && api.paths) || {};
   let appliedCount = 0;
@@ -2042,7 +2162,9 @@ function runInit(parsed) {
   let suggestedByOperationId = new Map();
   let suggestedTransitionCount = 0;
   if (parsed.suggestTransitions) {
-    const analyzed = buildAnalyzedFlowsDoc(api);
+    const analyzed = buildAnalyzedFlowsDoc(api, {
+      confidenceThreshold: parsed.confidenceThreshold,
+    });
     suggestedTransitionCount = analyzed.analysis && analyzed.analysis.inferredTransitions
       ? analyzed.analysis.inferredTransitions
       : 0;
@@ -2055,7 +2177,9 @@ function runInit(parsed) {
     );
   }
 
-  const mergedFlows = mergeFlowsWithOpenApi(api, flowsDoc, suggestedByOperationId);
+  const mergedFlows = alignTransitionTargetsWithOperationStates(
+    mergeFlowsWithOpenApi(api, flowsDoc, suggestedByOperationId)
+  );
   const trackedCount = mergedFlows.operations.length;
   const sidecarDiff = summarizeSidecarDiff(flowsDoc, mergedFlows);
 
@@ -3316,7 +3440,36 @@ function inferTriggerType(fromEntry, toEntry) {
   return "synchronous";
 }
 
-function buildAnalyzedFlowsDoc(api) {
+function inferOperationRole(entry) {
+  const fingerprint = [entry.method, entry.path, entry.resolvedOperationId]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (/(cancel|void|delete|remove)/.test(fingerprint) || entry.method === "delete") {
+    return "cancel";
+  }
+
+  if (entry.method === "get" || entry.method === "head" || entry.method === "options") {
+    return "read";
+  }
+
+  if (/(create|register|submit)/.test(fingerprint)) {
+    return "create";
+  }
+
+  if (entry.method === "post" || entry.method === "put" || entry.method === "patch") {
+    return "mutate";
+  }
+
+  return "read";
+}
+
+function buildAnalyzedFlowsDoc(api, options = {}) {
+  const confidenceThreshold = Number.isFinite(options.confidenceThreshold)
+    ? options.confidenceThreshold
+    : 0;
+
   const stateOrder = {
     CREATED: 10,
     CONFIRMED: 20,
@@ -3333,6 +3486,7 @@ function buildAnalyzedFlowsDoc(api) {
 
   const terminalStates = new Set(["COMPLETED", "DELIVERED", "REFUNDED", "CANCELED", "FAILED"]);
   const entries = extractOperationEntries(api);
+  const warnings = [];
 
   const inferred = entries.map((entry) => ({
     ...entry,
@@ -3384,20 +3538,36 @@ function buildAnalyzedFlowsDoc(api) {
           confidenceReasons.push("fallback_ordering");
         }
 
-        transition = {
-          target_state: next.inferredState,
-          trigger_type: inferTriggerType(entry, next),
-          next_operation_id: next.resolvedOperationId,
-        };
+        const inferredTriggerType = inferTriggerType(entry, next);
+        const included = confidence >= confidenceThreshold;
+
+        if (included) {
+          transition = {
+            target_state: next.inferredState,
+            trigger_type: inferredTriggerType,
+            next_operation_id: next.resolvedOperationId,
+            prerequisite_operation_ids: [entry.resolvedOperationId],
+            operation_role: inferOperationRole(next),
+          };
+        } else {
+          warnings.push({
+            type: "low_confidence_transition",
+            operation_id: entry.resolvedOperationId,
+            candidate_next_operation_id: next.resolvedOperationId,
+            confidence: Number(confidence.toFixed(2)),
+            threshold: Number(confidenceThreshold.toFixed(2)),
+          });
+        }
 
         transitionInsights.push({
           from_operation_id: entry.resolvedOperationId,
           to_operation_id: next.resolvedOperationId,
           from_state: entry.inferredState,
           target_state: next.inferredState,
-          trigger_type: transition.trigger_type,
+          trigger_type: inferredTriggerType,
           confidence: Number(confidence.toFixed(2)),
           confidence_reasons: confidenceReasons,
+          included,
         });
       }
     }
@@ -3408,6 +3578,8 @@ function buildAnalyzedFlowsDoc(api) {
         version: "1.0",
         id: toKebabCase(entry.resolvedOperationId),
         current_state: entry.inferredState,
+        operation_role: inferOperationRole(entry),
+        terminal: !transition,
         description: "Auto-generated by x-openapi-flow analyze",
         transitions: transition ? [transition] : [],
       },
@@ -3425,6 +3597,8 @@ function buildAnalyzedFlowsDoc(api) {
         return total + transitions.length;
       }, 0),
       transitionConfidence: transitionInsights,
+      confidenceThreshold: Number(confidenceThreshold.toFixed(2)),
+      warnings,
     },
   };
 }
@@ -3509,7 +3683,9 @@ function runAnalyze(parsed) {
     return 1;
   }
 
-  const analysisResult = buildAnalyzedFlowsDoc(api);
+  const analysisResult = buildAnalyzedFlowsDoc(api, {
+    confidenceThreshold: parsed.confidenceThreshold,
+  });
   let sidecarDoc = {
     version: analysisResult.version,
     operations: analysisResult.operations,
@@ -3539,6 +3715,8 @@ function runAnalyze(parsed) {
       ...merged.mergeStats,
     };
   }
+
+  sidecarDoc = alignTransitionTargetsWithOperationStates(sidecarDoc);
 
   if (parsed.outPath) {
     writeFlowsFile(parsed.outPath, sidecarDoc);

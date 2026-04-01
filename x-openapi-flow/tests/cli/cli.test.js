@@ -265,6 +265,8 @@ test("analyze json infers sidecar with transitions", () => {
 
     assert.equal(payload.analysis.operationCount, 3);
     assert.equal(payload.analysis.inferredTransitions, 2);
+    assert.equal(payload.analysis.confidenceThreshold, 0);
+    assert.equal(Array.isArray(payload.analysis.warnings), true);
     assert.equal(Array.isArray(payload.analysis.transitionConfidence), true);
     assert.equal(payload.analysis.transitionConfidence.length, 2);
     payload.analysis.transitionConfidence.forEach((entry) => {
@@ -276,8 +278,38 @@ test("analyze json infers sidecar with transitions", () => {
     assert.match(normalized, /"current_state": "CREATED"/);
     assert.match(normalized, /"current_state": "CONFIRMED"/);
     assert.match(normalized, /"current_state": "SHIPPED"/);
+    assert.match(normalized, /"operation_role": "create"/);
+    assert.match(normalized, /"operation_role": "mutate"/);
+    assert.match(normalized, /"terminal": false/);
+    assert.match(normalized, /"terminal": true/);
+    assert.match(normalized, /"prerequisite_operation_ids": \[/);
     assert.match(normalized, /"next_operation_id": "confirmOrder"/);
     assert.match(normalized, /"next_operation_id": "shipOrder"/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("analyze respects --confidence-threshold and emits low-confidence warnings", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-analyze-threshold-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Analyze Threshold API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["analyze", openapiPath, "--format", "json", "--confidence-threshold", "0.96"]);
+    assert.equal(result.status, 0);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.analysis.inferredTransitions, 0);
+    assert.equal(payload.analysis.confidenceThreshold, 0.96);
+    assert.equal(Array.isArray(payload.analysis.warnings), true);
+    assert.equal(payload.analysis.warnings.length > 0, true);
+    assert.equal(payload.analysis.warnings[0].type, "low_confidence_transition");
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -342,6 +374,36 @@ test("analyze --merge preserves existing flow fields and merges inferred operati
     assert.match(mergedSidecar, /next_operation_id: manualNext/);
     assert.match(mergedSidecar, /operationId: confirmOrder/);
     assert.match(mergedSidecar, /operationId: archivedOrder/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("analyze --merge aligns inferred target_state with existing next operation current_state", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-analyze-merge-align-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Analyze Merge Align API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: confirmOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: confirm-order-manual\n      current_state: ORDER_CONFIRMED_MANUAL\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["analyze", openapiPath, "--merge", "--flows", sidecarPath, "--out", sidecarPath]);
+    assert.equal(result.status, 0);
+
+    const mergedSidecar = fs.readFileSync(sidecarPath, "utf8");
+    assert.match(mergedSidecar, /operationId: createOrder/);
+    assert.match(mergedSidecar, /next_operation_id: confirmOrder/);
+    assert.match(mergedSidecar, /target_state: ORDER_CONFIRMED_MANUAL/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -1109,6 +1171,8 @@ test("init --suggest-transitions infers transitions into sidecar and flow output
     const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
     assert.match(sidecarContent, /operationId: createOrder/);
     assert.match(sidecarContent, /operationId: confirmOrder/);
+    assert.match(sidecarContent, /prerequisite_operation_ids:/);
+    assert.match(sidecarContent, /operation_role: mutate/);
     assert.match(sidecarContent, /next_operation_id: confirmOrder/);
     assert.match(sidecarContent, /next_operation_id: shipOrder/);
 
@@ -1154,11 +1218,41 @@ test("init --suggest-transitions preserves manual sidecar flow when operation al
   }
 });
 
+test("init --suggest-transitions aligns target_state to manual current_state for next operation", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-suggest-align-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Suggest Align API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: createOrder\n      responses:\n        "201":\n          description: created\n  /orders/{id}/confirm:\n    post:\n      operationId: confirmOrder\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: confirmOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: confirm-order-manual\n      current_state: ORDER_CONFIRMED_MANUAL\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath, "--suggest-transitions", "--force"]);
+    assert.equal(result.status, 0);
+
+    const sidecarContent = fs.readFileSync(sidecarPath, "utf8");
+    assert.match(sidecarContent, /operationId: createOrder/);
+    assert.match(sidecarContent, /next_operation_id: confirmOrder/);
+    assert.match(sidecarContent, /target_state: ORDER_CONFIRMED_MANUAL/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("help init includes --suggest-transitions option", () => {
   const result = runCli(["help", "init"]);
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /x-openapi-flow init \[openapi-file\] \[--flows path\] \[--force\] \[--dry-run\] \[--suggest-transitions\]/);
+  assert.match(result.stdout, /x-openapi-flow init \[openapi-file\] \[--flows path\] \[--force\] \[--dry-run\] \[--suggest-transitions\] \[--confidence-threshold 0\.\.1\]/);
   assert.match(result.stdout, /init openapi\.yaml --suggest-transitions/);
 });
 
@@ -1168,8 +1262,8 @@ test("completion scripts include --suggest-transitions for init", () => {
 
   assert.equal(bash.status, 0);
   assert.equal(zsh.status, 0);
-  assert.match(bash.stdout, /--flows --force --dry-run --suggest-transitions --help --verbose/);
-  assert.match(zsh.stdout, /_values 'options' --flows --force --dry-run --suggest-transitions --help/);
+  assert.match(bash.stdout, /--flows --force --dry-run --suggest-transitions --confidence-threshold --help --verbose/);
+  assert.match(zsh.stdout, /_values 'options' --flows --force --dry-run --suggest-transitions --confidence-threshold --help/);
 });
 
 test("init creates fallback operationId for operations without operationId", () => {
