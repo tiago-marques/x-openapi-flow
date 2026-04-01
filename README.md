@@ -16,7 +16,7 @@
 > 🚀 2,100+ downloads in the first 3 weeks!
 
 ## ⚡ Get started in seconds
-> npx x-openapi-flow init
+> npx x-openapi-flow init --suggest-transitions
 
 ### This generates an openapi.x.json file where you can declaratively define how your API should be executed — not just described.
 

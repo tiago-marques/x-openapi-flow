@@ -104,6 +104,66 @@ test("plugin internals extract flow and build overview graph", () => {
   assert.match(mermaid, /s_created_\d+ --> s_confirmed_\d+: next confirmOrder/);
 });
 
+test("plugin internals resolve rendered Swagger operations without vendor extension rows", () => {
+  const internals = loadUiInternals();
+  const spec = {
+    openapi: "3.0.3",
+    paths: {
+      "/orders/{orderId}": {
+        patch: {
+          operationId: "approveOrder",
+          "x-openapi-flow": {
+            version: "1.0",
+            id: "approve-order",
+            current_state: "PENDING",
+            transitions: [],
+          },
+        },
+      },
+    },
+  };
+
+  const opblock = {
+    classList: {
+      contains: (value) => value === "opblock-patch",
+    },
+    querySelector: (selector) => {
+      if (selector === ".opblock-summary-path") {
+        return { textContent: "/orders/{orderId}" };
+      }
+      if (selector === ".opblock-summary-method") {
+        return { textContent: "PATCH" };
+      }
+      return null;
+    },
+  };
+
+  const rendered = internals.findRenderedOperation(spec, opblock);
+  assert.ok(rendered);
+  assert.equal(rendered.method, "patch");
+  assert.equal(rendered.pathKey, "/orders/{orderId}");
+  assert.equal(rendered.operation.operationId, "approveOrder");
+});
+
+test("plugin internals parse x-openapi-flow payload from Swagger extension cell", () => {
+  const internals = loadUiInternals();
+  const flow = internals.readFlowFromValueCell({
+    innerText: JSON.stringify({
+      version: "1.0",
+      id: "create-order",
+      current_state: "CREATED",
+      transitions: [],
+    }),
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(flow)), {
+    version: "1.0",
+    id: "create-order",
+    current_state: "CREATED",
+    transitions: [],
+  });
+});
+
 test("plugin internals provide actionable Mermaid fallback message", () => {
   const internals = loadUiInternals();
   const message = internals.getMermaidFallbackMessage();

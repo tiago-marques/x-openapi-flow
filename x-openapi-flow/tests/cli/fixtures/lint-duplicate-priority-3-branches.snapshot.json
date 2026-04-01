@@ -3,6 +3,7 @@
   "path": "<OPENAPI_FILE>",
   "flowCount": 4,
   "ruleConfig": {
+    "duplicate_operation_ids": true,
     "next_operation_id_exists": true,
     "prerequisite_operation_ids_exist": true,
     "duplicate_transitions": true,
@@ -13,6 +14,7 @@
     "transition_priority_determinism": true
   },
   "issues": {
+    "duplicate_operation_ids": [],
     "next_operation_id_exists": [],
     "prerequisite_operation_ids_exist": [],
     "duplicate_transitions": [],

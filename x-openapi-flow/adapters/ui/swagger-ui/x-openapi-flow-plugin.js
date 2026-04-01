@@ -700,6 +700,45 @@ window.XOpenApiFlowPlugin = function () {
     return null;
   }
 
+  function getRenderedOperationMethod(opblock) {
+    if (!opblock || !opblock.classList) return null;
+
+    for (const method of FLOW_METHODS) {
+      if (opblock.classList.contains(`opblock-${method}`)) {
+        return method;
+      }
+    }
+
+    const methodNode = opblock.querySelector('.opblock-summary-method');
+    if (!methodNode || !methodNode.textContent) return null;
+
+    const normalized = methodNode.textContent.trim().toLowerCase();
+    return FLOW_METHODS.includes(normalized) ? normalized : null;
+  }
+
+  function getRenderedOperationPath(opblock) {
+    if (!opblock) return null;
+    const pathNode = opblock.querySelector('.opblock-summary-path');
+    if (!pathNode || !pathNode.textContent) return null;
+    return pathNode.textContent.trim();
+  }
+
+  function findRenderedOperation(spec, opblock) {
+    if (!spec || !spec.paths || !opblock) return null;
+
+    const method = getRenderedOperationMethod(opblock);
+    const pathKey = getRenderedOperationPath(opblock);
+    if (!method || !pathKey) return null;
+
+    const pathItem = spec.paths[pathKey];
+    if (!pathItem || typeof pathItem !== 'object') return null;
+
+    const operation = pathItem[method];
+    if (!operation || typeof operation !== 'object') return null;
+
+    return { method, pathKey, operation };
+  }
+
   function jumpToOperationById(operationId) {
     function highlightTarget(opblock) {
       if (!opblock) return;
@@ -754,22 +793,65 @@ window.XOpenApiFlowPlugin = function () {
     return null;
   }
 
-  function enhanceOperation(opblock) {
-    const valueCell = findXOpenApiFlowValueCell(opblock);
-    if (!valueCell || valueCell.dataset.xofEnhanced === '1') return;
+  function getOrCreateFlowMount(opblock) {
+    if (!opblock) return null;
+
+    let mount = opblock.querySelector('[data-xof-flow-mount="1"]');
+    if (mount) return mount;
+
+    const body = opblock.querySelector('.opblock-body');
+    if (!body) return null;
+
+    mount = document.createElement('div');
+    mount.setAttribute('data-xof-flow-mount', '1');
+
+    const description = body.querySelector('.opblock-description-wrapper');
+    if (description && description.parentNode) {
+      description.parentNode.insertBefore(mount, description.nextSibling);
+      return mount;
+    }
+
+    body.insertBefore(mount, body.firstChild);
+    return mount;
+  }
+
+  function readFlowFromValueCell(valueCell) {
+    if (!valueCell) return null;
 
     const raw = valueCell.innerText.trim();
-    if (!raw) return;
+    if (!raw) return null;
 
-    let flow;
     try {
-      flow = JSON.parse(raw);
+      return JSON.parse(raw);
     } catch (_error) {
+      return null;
+    }
+  }
+
+  function enhanceOperation(opblock) {
+    const valueCell = findXOpenApiFlowValueCell(opblock);
+    if (valueCell && valueCell.dataset.xofEnhanced === '1') return;
+
+    const flowFromValueCell = readFlowFromValueCell(valueCell);
+    if (flowFromValueCell) {
+      valueCell.innerHTML = renderCard(flowFromValueCell);
+      valueCell.dataset.xofEnhanced = '1';
       return;
     }
 
-    valueCell.innerHTML = renderCard(flow);
-    valueCell.dataset.xofEnhanced = '1';
+    const spec = getSpecFromUi();
+    const renderedOperation = findRenderedOperation(spec, opblock);
+    const flow = renderedOperation && renderedOperation.operation
+      ? renderedOperation.operation['x-openapi-flow']
+      : null;
+
+    if (!flow || typeof flow !== 'object' || !flow.current_state) return;
+
+    const mount = getOrCreateFlowMount(opblock);
+    if (!mount || mount.dataset.xofEnhanced === '1') return;
+
+    mount.innerHTML = renderCard(flow);
+    mount.dataset.xofEnhanced = '1';
   }
 
   let jumpFeedbackTimeoutId = null;
@@ -854,5 +936,9 @@ window.XOpenApiFlowPlugin = function () {
     createOverviewHash,
     getOverviewTitleFromSpec,
     getMermaidFallbackMessage,
+    getRenderedOperationMethod,
+    getRenderedOperationPath,
+    findRenderedOperation,
+    readFlowFromValueCell,
   };
 })();

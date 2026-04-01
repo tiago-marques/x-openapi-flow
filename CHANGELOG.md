@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.6.4 - 2026-04-01
+
+### Added
+- Added duplicate `operationId` diagnostics across validation flows:
+	- `validate --format json` now reports duplicate OpenAPI `operationId`s as structured quality issues (`XFLOW_W208`)
+	- `lint --format json` now reports duplicate OpenAPI `operationId`s as a dedicated lint rule (`XFLOW_L309`)
+- Added CLI test coverage for duplicate `operationId` detection in both `validate` and `lint` JSON output.
+
+### Changed
+- `init` and `init --suggest-transitions` now canonicalize duplicate source `operationId`s into unique deterministic ids when the input OpenAPI document is ambiguous.
+- `apply` now preserves those canonical ids in the generated `openapi.flow.*` output so downstream tooling sees unique operation identifiers.
+
+### Fixed
+- Swagger UI per-endpoint flow cards no longer depend on the raw vendor extension row being visible in the rendered DOM. The plugin now resolves `x-openapi-flow` directly from the rendered operation method/path when needed.
+- `init` Swagger UI guidance now clarifies that `showExtensions` is optional and only needed if the raw `x-openapi-flow` row should stay visible.
+
 ## 1.6.3 - 2026-04-01
 
 ### Added

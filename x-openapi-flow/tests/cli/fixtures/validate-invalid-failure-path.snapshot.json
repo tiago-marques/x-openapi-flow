@@ -40,6 +40,7 @@
       "PAYMENT_FAILED"
     ],
     "duplicate_transitions": [],
+    "duplicate_operation_ids": [],
     "non_terminating_states": [],
     "invalid_operation_references": [],
     "invalid_field_references": [],

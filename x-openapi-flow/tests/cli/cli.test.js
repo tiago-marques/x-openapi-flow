@@ -1337,6 +1337,7 @@ test("init auto-installs swagger-ui plugin when swagger-ui-express is in package
     assert.match(result.stdout, /Swagger UI detected/);
     assert.match(result.stdout, /x-openapi-flow-plugin\.js/);
     assert.match(result.stdout, /customJs/);
+    assert.match(result.stdout, /showExtensions/);
 
     const pluginDest = path.join(tempDir, "x-openapi-flow-plugin.js");
     assert.equal(fs.existsSync(pluginDest), true);
@@ -1456,6 +1457,87 @@ test("apply injects flow for operation without operationId using fallback operat
 
     const sourceOpenApi = fs.readFileSync(openapiPath, "utf8");
     assert.doesNotMatch(sourceOpenApi, /x-openapi-flow:/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init disambiguates duplicate operationIds in sidecar and generated flow output", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-duplicate-operationid-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Duplicate OperationId API\n  version: "1.0.0"\npaths:\n  /restaurants:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n  /couriers:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath]);
+    assert.equal(result.status, 0);
+
+    const sidecarContent = fs.readFileSync(path.join(tempDir, "openapi.x.yaml"), "utf8");
+    assert.match(sidecarContent, /operationId: List__get_restaurants/);
+    assert.match(sidecarContent, /operationId: List__get_couriers/);
+
+    const flowContent = fs.readFileSync(path.join(tempDir, "openapi.flow.yaml"), "utf8");
+    assert.match(flowContent, /operationId: List__get_restaurants/);
+    assert.match(flowContent, /operationId: List__get_couriers/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("init --suggest-transitions uses canonical unique operationIds when source operationIds collide", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-init-suggest-duplicate-operationid-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Suggest Duplicate OperationId API\n  version: "1.0.0"\npaths:\n  /orders:\n    post:\n      operationId: Action\n      responses:\n        "201":\n          description: created\n  /orders/{id}/cancel:\n    delete:\n      operationId: Action\n      responses:\n        "200":\n          description: canceled\n`,
+      "utf8"
+    );
+
+    const result = runCli(["init", openapiPath, "--suggest-transitions"]);
+    assert.equal(result.status, 0);
+
+    const sidecarContent = fs.readFileSync(path.join(tempDir, "openapi.x.yaml"), "utf8");
+    assert.match(sidecarContent, /operationId: Action__post_orders/);
+    assert.match(sidecarContent, /operationId: Action__delete_orders_id_cancel/);
+    assert.match(sidecarContent, /next_operation_id: Action__delete_orders_id_cancel/);
+    assert.match(sidecarContent, /prerequisite_operation_ids:\n\s+- Action__post_orders/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("apply rewrites duplicate source operationIds in generated flow output using canonical sidecar ids", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-apply-duplicate-operationid-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Apply Duplicate OperationId API\n  version: "1.0.0"\npaths:\n  /restaurants:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n  /couriers:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: List__get_restaurants\n    x-openapi-flow:\n      version: '1.0'\n      id: restaurant-list\n      current_state: RESTAURANT_LIST\n      transitions: []\n  - operationId: List__get_couriers\n    x-openapi-flow:\n      version: '1.0'\n      id: courier-list\n      current_state: COURIER_LIST\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const apply = runCli(["apply", openapiPath]);
+    assert.equal(apply.status, 0);
+
+    const updatedOpenApi = fs.readFileSync(path.join(tempDir, "openapi.flow.yaml"), "utf8");
+    assert.match(updatedOpenApi, /operationId: List__get_restaurants/);
+    assert.match(updatedOpenApi, /operationId: List__get_couriers/);
+    assert.match(updatedOpenApi, /current_state: RESTAURANT_LIST/);
+    assert.match(updatedOpenApi, /current_state: COURIER_LIST/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -1853,6 +1935,28 @@ test("validate --format json includes structured issues with XFLOW codes", () =>
   assert.match(payload.issues[0].code, /^XFLOW_[A-Z0-9]+$/);
 });
 
+test("validate --format json reports duplicate operationIds with structured quality code", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-validate-duplicate-operationids-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Validate Duplicate OperationIds API\n  version: "1.0.0"\npaths:\n  /restaurants:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: restaurants-list\n        current_state: READY\n        transitions: []\n  /couriers:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: couriers-list\n        current_state: READY\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["validate", openapiPath, "--format", "json", "--profile", "strict"]);
+    assert.equal(result.status, 0);
+    const payload = JSON.parse(result.stdout);
+    const duplicateIssue = payload.issues.find((issue) => issue.code === "XFLOW_W208");
+    assert.ok(duplicateIssue);
+    assert.match(duplicateIssue.message, /operationId 'List'/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("lint --format json includes code fields for duplicate and terminal issues", () => {
   const duplicateResult = runCli(["lint", "examples/quality-warning-api.yaml", "--format", "json"]);
   assert.equal(duplicateResult.status, 1);
@@ -1867,6 +1971,29 @@ test("lint --format json includes code fields for duplicate and terminal issues"
   assert.equal(Array.isArray(terminalPayload.issues.terminal_path.non_terminating_states), true);
   assert.equal(terminalPayload.issues.terminal_path.non_terminating_states.length > 0, true);
   assert.equal(terminalPayload.issues.terminal_path.non_terminating_states[0].code, "XFLOW_L304");
+});
+
+test("lint --format json reports duplicate operationIds with dedicated lint code", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-lint-duplicate-operationids-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Lint Duplicate OperationIds API\n  version: "1.0.0"\npaths:\n  /restaurants:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: restaurants-list\n        current_state: READY\n        transitions: []\n  /couriers:\n    get:\n      operationId: List\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: couriers-list\n        current_state: READY\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json"]);
+    assert.equal(result.status, 1);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(Array.isArray(payload.issues.duplicate_operation_ids), true);
+    assert.equal(payload.issues.duplicate_operation_ids.length, 1);
+    assert.equal(payload.issues.duplicate_operation_ids[0].code, "XFLOW_L309");
+    assert.deepEqual(payload.summary.violated_rules, ["duplicate_operation_ids"]);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("lint --format json --semantic includes code field for semantic issues", () => {

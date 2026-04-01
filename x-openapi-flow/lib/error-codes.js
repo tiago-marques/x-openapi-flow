@@ -132,6 +132,13 @@ const CODES = {
     severity: "warning",
     title: "Ambiguous state name variants",
   },
+  /** Two or more OpenAPI operations share the same operationId. */
+  QUALITY_DUPLICATE_OPERATION_IDS: {
+    code: "XFLOW_W208",
+    category: "quality",
+    severity: "warning",
+    title: "Duplicate operationIds",
+  },
 
   // ── Lint ─────────────────────────────────────────────────────────────────
   /** next_operation_id references an operationId that does not exist. */
@@ -189,6 +196,13 @@ const CODES = {
     category: "lint",
     severity: "error",
     title: "Ambiguous or missing transition priority in branching transitions",
+  },
+  /** Two or more OpenAPI operations share the same operationId. */
+  LINT_DUPLICATE_OPERATION_IDS: {
+    code: "XFLOW_L309",
+    category: "lint",
+    severity: "error",
+    title: "Duplicate operationId in OpenAPI",
   },
 
   // ── Runtime ──────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ const {
   loadApi,
   extractFlows,
   buildStateGraph,
+  detectDuplicateOperationIds,
   detectDuplicateTransitions,
   detectInvalidOperationReferences,
   detectTerminalCoverage,
@@ -1709,8 +1710,41 @@ function buildFallbackOperationId(method, pathKey) {
   return sanitized || "operation";
 }
 
+function buildOperationLocator(method, pathKey) {
+  return `${String(method || "").toUpperCase()} ${pathKey}`;
+}
+
+function sanitizeOperationIdCandidate(value) {
+  const sanitized = String(value || "")
+    .replace(/[^a-zA-Z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return sanitized || "operation";
+}
+
+function buildDisambiguatedOperationId(baseOperationId, method, pathKey) {
+  return `${sanitizeOperationIdCandidate(baseOperationId)}__${buildFallbackOperationId(method, pathKey)}`;
+}
+
+function ensureUniqueOperationId(candidate, usedOperationIds) {
+  const normalized = sanitizeOperationIdCandidate(candidate);
+  if (!usedOperationIds.has(normalized)) {
+    usedOperationIds.add(normalized);
+    return normalized;
+  }
+
+  let index = 2;
+  while (usedOperationIds.has(`${normalized}_${index}`)) {
+    index += 1;
+  }
+
+  const resolved = `${normalized}_${index}`;
+  usedOperationIds.add(resolved);
+  return resolved;
+}
+
 function extractOperationEntries(api) {
-  const entries = [];
+  const rawEntries = [];
   const paths = (api && api.paths) || {};
   const httpMethods = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
 
@@ -1722,19 +1756,35 @@ function extractOperationEntries(api) {
       }
 
       const operationId = operation.operationId;
-      const resolvedOperationId = operationId || buildFallbackOperationId(method, pathKey);
-      const key = operationId ? `operationId:${operationId}` : `${method.toUpperCase()} ${pathKey}`;
-
-      entries.push({
-        key,
+      rawEntries.push({
+        locator: buildOperationLocator(method, pathKey),
+        legacyKey: operationId ? `operationId:${operationId}` : buildOperationLocator(method, pathKey),
         operationId,
-        resolvedOperationId,
+        baseOperationId: operationId || buildFallbackOperationId(method, pathKey),
         method,
         path: pathKey,
         operation,
       });
     }
   }
+
+  const baseCounts = new Map();
+  for (const entry of rawEntries) {
+    baseCounts.set(entry.baseOperationId, (baseCounts.get(entry.baseOperationId) || 0) + 1);
+  }
+
+  const usedOperationIds = new Set();
+  const entries = rawEntries.map((entry) => {
+    const needsDisambiguation = (baseCounts.get(entry.baseOperationId) || 0) > 1;
+    const preferredOperationId = needsDisambiguation
+      ? buildDisambiguatedOperationId(entry.baseOperationId, entry.method, entry.path)
+      : entry.baseOperationId;
+
+    return {
+      ...entry,
+      resolvedOperationId: ensureUniqueOperationId(preferredOperationId, usedOperationIds),
+    };
+  });
 
   return entries;
 }
@@ -1921,7 +1971,10 @@ function buildOperationLookup(api) {
   const entries = extractOperationEntries(api);
 
   for (const entry of entries) {
-    lookupByKey.set(entry.key, entry);
+    lookupByKey.set(entry.locator, entry);
+    if (entry.legacyKey) {
+      lookupByKey.set(entry.legacyKey, entry);
+    }
     if (entry.resolvedOperationId) {
       lookupByOperationId.set(entry.resolvedOperationId, entry);
     }
@@ -1931,7 +1984,7 @@ function buildOperationLookup(api) {
 }
 
 function mergeFlowsWithOpenApi(api, flowsDoc, suggestedByOperationId = new Map()) {
-  const { entries, lookupByKey } = buildOperationLookup(api);
+  const { entries } = buildOperationLookup(api);
 
   const existingByOperationId = new Map();
   const existingByKey = new Map();
@@ -1950,7 +2003,9 @@ function mergeFlowsWithOpenApi(api, flowsDoc, suggestedByOperationId = new Map()
 
   for (const op of entries) {
     const existing = (op.resolvedOperationId && existingByOperationId.get(op.resolvedOperationId))
-      || existingByKey.get(op.key);
+      || (op.operationId && existingByOperationId.get(op.operationId))
+      || existingByKey.get(op.locator)
+      || existingByKey.get(op.legacyKey);
 
     const openApiFlow =
       op.operation && typeof op.operation["x-openapi-flow"] === "object"
@@ -2080,6 +2135,7 @@ function applyFlowsToOpenApi(api, flowsDoc) {
 
     const pathItem = paths[target.path];
     if (pathItem && pathItem[target.method]) {
+      pathItem[target.method].operationId = flowEntry.operationId || target.resolvedOperationId;
       pathItem[target.method]["x-openapi-flow"] = flowValue;
       appliedCount += 1;
     }
@@ -2287,6 +2343,7 @@ function runInit(parsed) {
     fs.copyFileSync(swaggerPluginSrc, swaggerPluginDest);
     console.log(`Swagger UI detected: plugin installed → ${swaggerPluginDest}`);
     console.log("  Serve the file and add  customJs: '/x-openapi-flow-plugin.js'  to your Swagger UI options.");
+    console.log("  Optional: keep  swaggerOptions.showExtensions: true  if you also want the raw x-openapi-flow vendor extension row visible.");
   }
 
   if (uiPackages.redoc) {
@@ -2935,6 +2992,7 @@ function runLint(parsed, configData = {}) {
   const lintConfig = (configData && configData.lint && configData.lint.rules) || {};
   const semanticEnabled = parsed.semantic === true || lintConfig.semantic === true;
   const ruleConfig = {
+    duplicate_operation_ids: lintConfig.duplicate_operation_ids !== false,
     next_operation_id_exists: lintConfig.next_operation_id_exists !== false,
     prerequisite_operation_ids_exist: lintConfig.prerequisite_operation_ids_exist !== false,
     duplicate_transitions: lintConfig.duplicate_transitions !== false,
@@ -2946,6 +3004,7 @@ function runLint(parsed, configData = {}) {
   };
 
   const operationsById = collectOperationIds(api);
+  const duplicateOperationIds = detectDuplicateOperationIds(api);
   const graph = buildStateGraph(flows);
   const invalidOperationReferences = detectInvalidOperationReferences(operationsById, flows);
   const duplicateTransitions = detectDuplicateTransitions(flows);
@@ -2976,6 +3035,9 @@ function runLint(parsed, configData = {}) {
     }));
 
   const issues = {
+    duplicate_operation_ids: ruleConfig.duplicate_operation_ids
+      ? duplicateOperationIds.map((entry) => ({ code: CODES.LINT_DUPLICATE_OPERATION_IDS.code, ...entry }))
+      : [],
     next_operation_id_exists: ruleConfig.next_operation_id_exists ? nextOperationIssues : [],
     prerequisite_operation_ids_exist: ruleConfig.prerequisite_operation_ids_exist ? prerequisiteIssues : [],
     duplicate_transitions: ruleConfig.duplicate_transitions
@@ -3007,6 +3069,7 @@ function runLint(parsed, configData = {}) {
   };
 
   const errorCount =
+    issues.duplicate_operation_ids.length +
     issues.next_operation_id_exists.length +
     issues.prerequisite_operation_ids_exist.length +
     issues.duplicate_transitions.length +
@@ -3025,6 +3088,7 @@ function runLint(parsed, configData = {}) {
     summary: {
       errors: errorCount,
       violated_rules: Object.entries({
+        duplicate_operation_ids: issues.duplicate_operation_ids.length,
         next_operation_id_exists: issues.next_operation_id_exists.length,
         prerequisite_operation_ids_exist: issues.prerequisite_operation_ids_exist.length,
         duplicate_transitions: issues.duplicate_transitions.length,
@@ -3072,6 +3136,15 @@ function runLint(parsed, configData = {}) {
   if (flows.length === 0) {
     console.log("No x-openapi-flow definitions found.");
     return 0;
+  }
+
+  if (issues.duplicate_operation_ids.length === 0) {
+    console.log("✔ duplicate_operation_ids: no duplicates found.");
+  } else {
+    console.error(`✘ duplicate_operation_ids: ${issues.duplicate_operation_ids.length} duplicated operationId group(s).`);
+    issues.duplicate_operation_ids.forEach((entry) => {
+      console.error(`  - ${entry.operation_id}: ${entry.endpoints.join(", ")}`);
+    });
   }
 
   if (issues.next_operation_id_exists.length === 0) {

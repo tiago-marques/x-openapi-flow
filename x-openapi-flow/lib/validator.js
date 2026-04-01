@@ -148,6 +148,7 @@ function defaultResult(pathValue, ok = true) {
     qualityChecks: {
       multiple_initial_states: [],
       duplicate_transitions: [],
+      duplicate_operation_ids: [],
       non_terminating_states: [],
       invalid_operation_references: [],
       invalid_field_references: [],
@@ -179,6 +180,41 @@ function getOperationsById(api) {
   }
 
   return operationsById;
+}
+
+function detectDuplicateOperationIds(api) {
+  const operationsById = new Map();
+  const duplicates = [];
+  const paths = (api && api.paths) || {};
+  const methods = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
+
+  for (const [pathKey, pathItem] of Object.entries(paths)) {
+    for (const method of methods) {
+      const operation = pathItem[method];
+      if (!operation || !operation.operationId) {
+        continue;
+      }
+
+      const endpoint = `${method.toUpperCase()} ${pathKey}`;
+      if (!operationsById.has(operation.operationId)) {
+        operationsById.set(operation.operationId, [endpoint]);
+        continue;
+      }
+
+      operationsById.get(operation.operationId).push(endpoint);
+    }
+  }
+
+  for (const [operationId, endpoints] of operationsById.entries()) {
+    if (endpoints.length > 1) {
+      duplicates.push({
+        operation_id: operationId,
+        endpoints: endpoints.sort(),
+      });
+    }
+  }
+
+  return duplicates.sort((a, b) => a.operation_id.localeCompare(b.operation_id));
 }
 
 /**
@@ -1053,6 +1089,7 @@ function run(apiPath, options = {}) {
   const reachability = detectUnreachableStates(graph);
   const cycle = detectCycle(graph);
   const duplicateTransitions = detectDuplicateTransitions(flows);
+  const duplicateOperationIds = detectDuplicateOperationIds(api);
   const terminalCoverage = detectTerminalCoverage(graph);
   const invalidOperationReferences = detectInvalidOperationReferences(operationsById, flows);
   const invalidFieldReferences = detectInvalidFieldReferences(api, operationsById, flows);
@@ -1084,6 +1121,12 @@ function run(apiPath, options = {}) {
   if (profileConfig.runQuality && duplicateTransitions.length > 0) {
     qualityWarnings.push(
       `Duplicate transitions detected: ${duplicateTransitions.length}`
+    );
+  }
+
+  if (profileConfig.runQuality && duplicateOperationIds.length > 0) {
+    qualityWarnings.push(
+      `Duplicate operationIds detected: ${duplicateOperationIds.map((entry) => entry.operation_id).join(", ")}`
     );
   }
 
@@ -1199,6 +1242,7 @@ function run(apiPath, options = {}) {
     qualityChecks: {
       multiple_initial_states: multipleInitialStates,
       duplicate_transitions: duplicateTransitions,
+      duplicate_operation_ids: duplicateOperationIds,
       non_terminating_states: terminalCoverage.non_terminating_states,
       invalid_operation_references: invalidOperationReferences,
       invalid_field_references: invalidFieldReferences,
@@ -1342,6 +1386,19 @@ function buildStructuredIssues(result) {
       CODES.QUALITY_DUPLICATE_TRANSITIONS,
       `Duplicate transition from '${dup.from}' to '${dup.to}' (count: ${dup.count}).`,
       { location: `${dup.from} → ${dup.to}`, suggestion: "Remove redundant transition entries." }
+    ));
+  }
+
+  // Quality: duplicate operationIds
+  for (const dup of (qc.duplicate_operation_ids || [])) {
+    issues.push(buildIssue(
+      CODES.QUALITY_DUPLICATE_OPERATION_IDS,
+      `OpenAPI operationId '${dup.operation_id}' is duplicated across endpoints: ${dup.endpoints.join(", ")}.`,
+      {
+        location: dup.operation_id,
+        suggestion: `Rename each duplicated operationId to a unique value. For example, include the resource or action name instead of reusing '${dup.operation_id}'.`,
+        details: { operation_id: dup.operation_id, endpoints: dup.endpoints },
+      }
     ));
   }
 
@@ -1516,6 +1573,7 @@ module.exports = {
   validateFlows,
   detectOrphanStates,
   buildStateGraph,
+  detectDuplicateOperationIds,
   detectDuplicateTransitions,
   detectInvalidOperationReferences,
   detectTerminalCoverage,
