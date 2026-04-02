@@ -590,7 +590,7 @@ Keep track of updates and improvements in x-openapi-flow:
 - **Version History** – [CHANGELOG.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/CHANGELOG.md)  
   Review the full version history and past updates
 
-- **Release Notes** – [docs/wiki/releases/RELEASE_NOTES_v1.4.0.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/releases/RELEASE_NOTES_v1.4.0.md)  
+- **Release Notes** – [GitHub Release v1.7.0](https://github.com/tiago-marques/x-openapi-flow/releases/tag/v1.7.0)  
   See detailed notes for the latest release, including new features and fixes
 
 ## Documentation Language Policy
