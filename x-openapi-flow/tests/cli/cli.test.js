@@ -188,7 +188,9 @@ test("strict-quality turns quality warnings into failure", () => {
     "validate",
     "examples/quality-warning-api.yaml",
     "--strict-quality",
-  ]);
+  ], {
+    env: { CI: "false" },
+  });
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Quality check FAILED \(strict\)/);
