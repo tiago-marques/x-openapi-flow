@@ -2972,6 +2972,89 @@ function collectOperationIds(api) {
   return operationsById;
 }
 
+function isCiEnvironment() {
+  const v = process.env.CI;
+  return v === "true" || v === "1" || v === "yes";
+}
+
+function shellQuoteLint(value) {
+  if (/[^A-Za-z0-9_./:@=-]/.test(value)) {
+    return `"${value.replace(/(["\\$`])/g, "\\$1")}"`;
+  }
+  return value;
+}
+
+function buildLintFailureSummary(result) {
+  const buckets = [
+    ["duplicate operationIds", result.issues.duplicate_operation_ids.length],
+    ["invalid next_operation_id refs", result.issues.next_operation_id_exists.length],
+    ["invalid prerequisite refs", result.issues.prerequisite_operation_ids_exist.length],
+    ["duplicate transitions", result.issues.duplicate_transitions.length],
+    ["non-terminating states", result.issues.terminal_path.non_terminating_states.length],
+    ["semantic consistency", result.issues.semantic_consistency.length],
+    ["decision rule clarity", result.issues.decision_rule_clarity.length],
+    ["evidence refs for decisions", result.issues.evidence_refs_for_decisions.length],
+    ["transition priority determinism", result.issues.transition_priority_determinism.length],
+  ];
+  return buckets.filter(([, count]) => count > 0).map(([label, count]) => `${label}: ${count}`);
+}
+
+function buildLintRemediationHints(result, context) {
+  context = context || {};
+  const hints = [];
+
+  if (context.semantic) {
+    hints.push("Semantic rules are active — transitions must carry decision intent and evidence.");
+  } else {
+    hints.push("Standard lint covers structural correctness — run with --semantic for deeper signal.");
+  }
+
+  if (result.issues.duplicate_operation_ids.length > 0) {
+    hints.push("Remove duplicate operationIds — each endpoint must have a unique identifier.");
+  }
+  if (result.issues.next_operation_id_exists.length > 0) {
+    hints.push("Fix next_operation_id references — target operationId does not exist in the spec.");
+  }
+  if (result.issues.prerequisite_operation_ids_exist.length > 0) {
+    hints.push("Fix prerequisite_operation_ids references — listed operationIds not found.");
+  }
+  if (result.issues.duplicate_transitions.length > 0) {
+    hints.push("Remove duplicate transitions — two or more transitions share the same from→to+trigger.");
+  }
+  if (result.issues.terminal_path.non_terminating_states.length > 0) {
+    hints.push("Fix non-terminating states — every state must have a path to a terminal state.");
+  }
+  if (result.issues.semantic_consistency.length > 0) {
+    hints.push("Resolve semantic consistency issues — transitions lack modeling clarity.");
+  }
+  if (result.issues.decision_rule_clarity.length > 0) {
+    hints.push("Add decision_rule to branching transitions — required when --semantic is active.");
+  }
+  if (result.issues.evidence_refs_for_decisions.length > 0) {
+    hints.push("Add evidence_refs to decision transitions — required when --semantic is active.");
+  }
+  if (result.issues.transition_priority_determinism.length > 0) {
+    hints.push("Assign deterministic transition_priority values to branching transitions.");
+  }
+  hints.push('Use "x-openapi-flow graph <file>" to visualize the state machine and trace state paths.');
+  return hints;
+}
+
+function buildLintSuggestedCommands(resolvedPath, context) {
+  context = context || {};
+  const q = shellQuoteLint(resolvedPath);
+  const cmds = [];
+  cmds.push(`[inspect]         x-openapi-flow lint ${q} --format json`);
+  cmds.push(`[visualize]       x-openapi-flow graph ${q}`);
+  if (!context.semantic) {
+    cmds.push(`[deeper-analysis] x-openapi-flow lint ${q} --semantic`);
+  }
+  if (context.ci) {
+    cmds.push(`[ci-report]       x-openapi-flow lint ${q} --format json 2>&1 | tee lint-report.json`);
+  }
+  return cmds;
+}
+
 function runLint(parsed, configData = {}) {
   const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
   if (!targetOpenApiFile) {
@@ -3237,6 +3320,31 @@ function runLint(parsed, configData = {}) {
     console.log("Lint checks passed ✔");
   } else {
     console.error("Lint checks finished with errors.");
+    const lintContext = { ci: isCiEnvironment(), semantic: semanticEnabled };
+
+    const failureSummary = buildLintFailureSummary(result);
+    if (failureSummary.length > 0) {
+      console.error("\nFailure summary:");
+      failureSummary.forEach((line) => {
+        console.error(` - ${line}`);
+      });
+    }
+
+    const remediationHints = buildLintRemediationHints(result, lintContext);
+    if (remediationHints.length > 0) {
+      console.error("\nActionable next steps:");
+      remediationHints.forEach((hint) => {
+        console.error(` - ${hint}`);
+      });
+    }
+
+    const suggestedCommands = buildLintSuggestedCommands(targetOpenApiFile, lintContext);
+    if (suggestedCommands.length > 0) {
+      console.error("\nSuggested commands:");
+      suggestedCommands.forEach((cmd) => {
+        console.error(` - ${cmd}`);
+      });
+    }
   }
 
   return result.ok ? 0 : 1;

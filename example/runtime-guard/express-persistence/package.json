@@ -1,0 +1,14 @@
+{
+  "name": "x-openapi-flow-example-runtime-guard-express-persistence",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Express runtime guard example with file persistence",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "x-openapi-flow": "file:../../../x-openapi-flow"
+  }
+}

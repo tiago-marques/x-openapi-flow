@@ -3,6 +3,9 @@ name: Publish to npm (Token)
 on:
   release:
     types: [published]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -39,11 +42,15 @@ jobs:
         run: |
           node -e "const { execSync } = require('node:child_process'); const out = execSync('npm pack --dry-run --json', { encoding: 'utf8' }); const jsonStart = out.indexOf('['); if (jsonStart === -1) { console.error('Could not find JSON payload in npm pack output.'); process.exit(1); } const payload = JSON.parse(out.slice(jsonStart)); const files = ((payload[0] && payload[0].files) || []).map((file) => file.path); if (!files.includes('README.md')) { console.error('README.md is missing from npm pack output.'); process.exit(1); } console.log('README.md found in npm pack output.');"
 
-      - name: Validate release tag matches package version
-        if: github.event_name == 'release'
+      - name: Validate tag matches package version
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION="${{ github.event.release.tag_name }}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG_VERSION="${{ github.event.release.tag_name }}"
+          else
+            TAG_VERSION="${GITHUB_REF_NAME}"
+          fi
           TAG_VERSION="${TAG_VERSION#v}"
 
           if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then

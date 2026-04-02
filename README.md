@@ -180,6 +180,21 @@ For larger APIs, you can define flow rules by resource (with shared transitions/
 
 See: [Sidecar Contract](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/Sidecar-Contract.md)
 
+### GitHub Action (One-Step CI Validation)
+
+Use the official reusable action to validate lifecycle rules in CI with a single step:
+
+```yaml
+- name: Validate OpenAPI flow rules
+  uses: tiago-marques/x-openapi-flow/.github/actions/validate@main
+  with:
+    openapi-file: openapi.flow.yaml
+    profile: strict
+    strict-quality: "true"
+```
+
+Integration guide: [GitHub-Actions-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/GitHub-Actions-Integration.md)
+
 <a id="mermaid-example"></a>
 ### Real Lifecycle Example
 
@@ -538,6 +553,8 @@ Get the most out of x-openapi-flow with detailed guides, examples, and integrati
   Explore real OpenAPI specs enhanced with lifecycle metadata
 
 - **Integrations**:  
+  - **GitHub Actions** – [docs/wiki/integrations/GitHub-Actions-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/GitHub-Actions-Integration.md)  
+    Validate flow rules in CI in one reusable workflow step
   - **Swagger UI** – [docs/wiki/integrations/Swagger-UI-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/Swagger-UI-Integration.md)  
     See flow-aware panels in Swagger UI  
   - **Redoc** – [docs/wiki/integrations/Redoc-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/Redoc-Integration.md)  
@@ -566,6 +583,9 @@ We’re actively expanding x-openapi-flow to support multiple platforms and SDKs
 ## Changelog
 
 Keep track of updates and improvements in x-openapi-flow:
+
+- **Latest Version (v1.7.0)** – [CHANGELOG.md#170---2026-04-02](https://github.com/tiago-marques/x-openapi-flow/blob/main/CHANGELOG.md#170---2026-04-02)  
+  See what shipped in the current release
 
 - **Version History** – [CHANGELOG.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/CHANGELOG.md)  
   Review the full version history and past updates

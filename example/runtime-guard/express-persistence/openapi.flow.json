@@ -1,0 +1,116 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Express Persistence Runtime Guard Demo",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/orders": {
+      "post": {
+        "operationId": "createOrder",
+        "summary": "Create order",
+        "responses": {
+          "201": {
+            "description": "Order created"
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "create-order-flow",
+          "current_state": "CREATED",
+          "transitions": [
+            {
+              "target_state": "PAID",
+              "trigger_type": "synchronous",
+              "next_operation_id": "payOrder"
+            }
+          ]
+        }
+      }
+    },
+    "/orders/{id}/pay": {
+      "post": {
+        "operationId": "payOrder",
+        "summary": "Pay order",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order paid"
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "pay-order-flow",
+          "current_state": "PAID",
+          "transitions": [
+            {
+              "target_state": "SHIPPED",
+              "trigger_type": "synchronous",
+              "next_operation_id": "shipOrder"
+            }
+          ]
+        }
+      }
+    },
+    "/orders/{id}/ship": {
+      "post": {
+        "operationId": "shipOrder",
+        "summary": "Ship order",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order shipped"
+          }
+        },
+        "x-openapi-flow": {
+          "version": "1.0",
+          "id": "ship-order-flow",
+          "current_state": "SHIPPED",
+          "transitions": []
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "operationId": "getOrder",
+        "summary": "Get order",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order state"
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      }
+    }
+  }
+}

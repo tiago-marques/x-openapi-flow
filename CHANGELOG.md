@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.7.0 - 2026-04-02
+
+### Added
+- Introduced a packaged MCP sidecar server (`x-openapi-flow-mcp`) for AI agents with stdio JSON-RPC transport and built-in tools:
+	- `validate`
+	- `lint`
+	- `graph`
+	- `diff`
+	- `analyze`
+	- `quality_report`
+- Added MCP CLI test coverage for protocol handshake (`initialize`, `ping`), `tools/list`, error handling, and all supported tool calls.
+- Added official reusable GitHub Action integration docs in `docs/wiki/integrations/GitHub-Actions-Integration.md`.
+- Added runtime guard persistence example in `example/runtime-guard/express-persistence` using file-backed state for lifecycle enforcement demos.
+
+### Changed
+- Improved `lint` pretty output UX with:
+	- failure summary buckets,
+	- actionable remediation hints,
+	- suggested command blocks with semantic/CI-aware labels.
+- Improved `validate` actionable guidance to be profile-aware (`core`/`relaxed`/`strict`) and context-aware for local vs CI strict-quality flows.
+- Updated release workflows to support publish automation from version tags (`v*`) in addition to release/manual triggers.
+
+### Fixed
+- Strengthened CI publish checks to keep version/tag alignment enforced when release workflows are triggered by tag pushes.
+
 ## 1.6.4 - 2026-04-01
 
 ### Added

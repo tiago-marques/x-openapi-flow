@@ -48,6 +48,14 @@ jobs:
           node bin/x-openapi-flow.js validate examples/ticket-api.yaml --profile strict --strict-quality
           node bin/x-openapi-flow.js validate examples/quality-warning-api.yaml --profile strict
 
+      - name: Validate via official reusable GitHub Action (smoke)
+        uses: ./.github/actions/validate
+        with:
+          openapi-file: examples/order-api.yaml
+          profile: strict
+          strict-quality: "true"
+          working-directory: x-openapi-flow
+
       - name: Assert non-terminating example fails in strict profile
         run: |
           if node bin/x-openapi-flow.js validate examples/non-terminating-api.yaml --profile strict; then

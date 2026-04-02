@@ -1260,12 +1260,201 @@ function run(apiPath, options = {}) {
     console.log("");
     if (hasErrors) {
       console.error("Validation finished with errors.");
+      const failureSummary = buildValidateFailureSummary(result, {
+        profile,
+        strictQuality,
+      });
+      if (failureSummary.length > 0) {
+        console.error("\nFailure summary:");
+        failureSummary.forEach((line) => {
+          console.error(` - ${line}`);
+        });
+      }
+
+      const remediationHints = buildValidateRemediationHints(result, {
+        strictQuality,
+        profile,
+        semantic,
+        ci: isCiEnvironment(),
+      });
+      if (remediationHints.length > 0) {
+        console.error("\nActionable next steps:");
+        remediationHints.forEach((hint) => {
+          console.error(` - ${hint}`);
+        });
+      }
+
+      const suggestedCommands = buildValidateSuggestedCommands(resolvedPath, {
+        profile,
+        strictQuality,
+        semantic,
+        ci: isCiEnvironment(),
+      });
+      if (suggestedCommands.length > 0) {
+        console.error("\nSuggested commands:");
+        suggestedCommands.forEach((line) => {
+          console.error(` - ${line}`);
+        });
+      }
     } else {
       console.log("All validations passed ✔");
     }
   }
 
   return result;
+}
+
+function buildValidateRemediationHints(result, context = {}) {
+  const hints = [];
+  const strictQualityEnabled = context.strictQuality === true;
+  const profile = context.profile || "strict";
+  const inCi = context.ci === true;
+
+  if (profile === "core") {
+    hints.push("Profile core is optimized for fast baseline checks. Use --profile strict before release to enforce graph correctness.");
+  } else if (profile === "relaxed") {
+    hints.push("Profile relaxed is ideal during modeling. Promote to --profile strict in CI when lifecycle design stabilizes.");
+  } else {
+    hints.push("Profile strict enforces graph soundness (initial/terminal/reachability/cycle checks). Keep it as the default release gate.");
+  }
+
+  if ((result.schemaFailures || []).length > 0) {
+    hints.push("Fix schema violations first using the suggested fixes shown per endpoint.");
+    hints.push("Use --format json to inspect structured issues[] with machine-readable codes and suggestions.");
+  }
+
+  if ((result.orphans || []).length > 0) {
+    hints.push("Ensure every transition target_state exists as a current_state in at least one operation.");
+  }
+
+  if (profile === "strict") {
+    if ((result.graphChecks.initial_states || []).length === 0) {
+      hints.push("Add at least one entry state (a flow state with indegree 0).");
+    }
+
+    if ((result.graphChecks.terminal_states || []).length === 0) {
+      hints.push("Add at least one terminal state (a flow state with no outgoing transitions).");
+    }
+
+    if ((result.graphChecks.unreachable_states || []).length > 0) {
+      hints.push("Connect unreachable states to the main lifecycle path or remove stale transitions.");
+    }
+
+    if (result.graphChecks.cycle && result.graphChecks.cycle.has_cycle) {
+      hints.push("Break lifecycle cycles or validate under --profile relaxed if cycles are intentional.");
+    }
+  }
+
+  const qc = result.qualityChecks || {};
+  if ((qc.invalid_operation_references || []).length > 0) {
+    hints.push("Fix operation references: every next_operation_id/prerequisite_operation_ids must match an existing OpenAPI operationId.");
+  }
+
+  if ((qc.invalid_field_references || []).length > 0) {
+    hints.push("Fix field references: each <operationId>:request/response path must exist in declared request/response schemas.");
+  }
+
+  if ((qc.duplicate_operation_ids || []).length > 0) {
+    hints.push("Use unique operationId values across the whole API document.");
+  }
+
+  if ((qc.duplicate_transitions || []).length > 0) {
+    hints.push("Remove duplicated transitions that share from_state + next_operation_id + target_state.");
+  }
+
+  if ((qc.non_terminating_states || []).length > 0) {
+    hints.push("Ensure each state has a path to a terminal state, or simplify dead-end loops.");
+  }
+
+  if (strictQualityEnabled && (qc.warnings || []).length > 0) {
+    hints.push(
+      inCi
+        ? "CI mode: --strict-quality is active and should block merges; resolve warnings before retrying the pipeline."
+        : "Local mode: run once without --strict-quality to inspect warnings, then re-enable strict mode before pushing."
+    );
+  }
+
+  hints.push("Run x-openapi-flow graph <openapi-file> --format mermaid to visualize and debug lifecycle paths.");
+
+  return [...new Set(hints)];
+}
+
+function buildValidateFailureSummary(result, context = {}) {
+  const qc = result.qualityChecks || {};
+  const graph = result.graphChecks || {};
+  const summary = [];
+
+  const schemaErrors = (result.schemaFailures || []).reduce((count, failure) => {
+    const failureCount = Array.isArray(failure.errors) ? failure.errors.length : 0;
+    return count + failureCount;
+  }, 0);
+
+  const buckets = [
+    { label: "schema errors", count: schemaErrors },
+    { label: "orphan states", count: (result.orphans || []).length },
+    { label: "unreachable states", count: (graph.unreachable_states || []).length },
+    { label: "cycle detected", count: graph.cycle && graph.cycle.has_cycle ? 1 : 0 },
+    { label: "invalid operation references", count: (qc.invalid_operation_references || []).length },
+    { label: "invalid field references", count: (qc.invalid_field_references || []).length },
+    { label: "duplicate operationIds", count: (qc.duplicate_operation_ids || []).length },
+    { label: "duplicate transitions", count: (qc.duplicate_transitions || []).length },
+    { label: "states without terminal path", count: (qc.non_terminating_states || []).length },
+  ];
+
+  buckets.forEach((bucket) => {
+    if (bucket.count > 0) {
+      summary.push(`${bucket.label}: ${bucket.count}`);
+    }
+  });
+
+  if (context.strictQuality === true && (qc.warnings || []).length > 0) {
+    summary.push(`strict-quality escalated warnings: ${(qc.warnings || []).length}`);
+  }
+
+  return summary;
+}
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'"'"'`)}'`;
+}
+
+function isCiEnvironment() {
+  const value = process.env.CI;
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+function buildValidateSuggestedCommands(resolvedPath, context = {}) {
+  const commands = [];
+  const profile = context.profile || "strict";
+  const semanticFlag = context.semantic ? " --semantic" : "";
+  const strictQualityFlag = context.strictQuality ? " --strict-quality" : "";
+  const quotedPath = shellQuote(resolvedPath);
+  const inCi = context.ci === true;
+
+  commands.push(
+    `[inspect] x-openapi-flow validate ${quotedPath} --profile ${profile}${semanticFlag}${strictQualityFlag} --format json`
+  );
+
+  commands.push(`[visualize] x-openapi-flow graph ${quotedPath} --format mermaid`);
+
+  if (context.strictQuality) {
+    commands.push(`[local-debug] x-openapi-flow validate ${quotedPath} --profile ${profile}${semanticFlag}`);
+  }
+
+  if (!inCi && profile !== "strict") {
+    commands.push(`[pre-release] x-openapi-flow validate ${quotedPath} --profile strict${semanticFlag} --strict-quality`);
+  }
+
+  if (inCi && profile !== "strict") {
+    commands.push(`[ci-hardening] x-openapi-flow validate ${quotedPath} --profile strict${semanticFlag} --strict-quality`);
+  }
+
+  return commands;
 }
 
 // ---------------------------------------------------------------------------

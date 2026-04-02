@@ -1,0 +1,74 @@
+name: x-openapi-flow Validate
+description: Validate x-openapi-flow lifecycle metadata in an OpenAPI document.
+author: tiago-marques
+
+inputs:
+  openapi-file:
+    description: Path to OpenAPI file (yaml, yml or json).
+    required: true
+  profile:
+    description: Validation profile (core, relaxed, strict).
+    required: false
+    default: strict
+  strict-quality:
+    description: Treat quality warnings as errors (true/false).
+    required: false
+    default: "false"
+  semantic:
+    description: Enable semantic modeling checks (true/false).
+    required: false
+    default: "false"
+  format:
+    description: Output format (pretty or json).
+    required: false
+    default: pretty
+  config:
+    description: Optional x-openapi-flow config path.
+    required: false
+    default: ""
+  working-directory:
+    description: Working directory for validation command.
+    required: false
+    default: .
+  node-version:
+    description: Node.js version used to run x-openapi-flow.
+    required: false
+    default: "20"
+  cli-version:
+    description: x-openapi-flow npm version (for example, latest or 1.6.4).
+    required: false
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Validate flow metadata
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+
+        cmd=(npx --yes "x-openapi-flow@${{ inputs.cli-version }}" validate "${{ inputs.openapi-file }}" "--profile" "${{ inputs.profile }}" "--format" "${{ inputs.format }}")
+
+        if [[ "${{ inputs.strict-quality }}" == "true" ]]; then
+          cmd+=("--strict-quality")
+        fi
+
+        if [[ "${{ inputs.semantic }}" == "true" ]]; then
+          cmd+=("--semantic")
+        fi
+
+        if [[ -n "${{ inputs.config }}" ]]; then
+          cmd+=("--config" "${{ inputs.config }}")
+        fi
+
+        "${cmd[@]}"
+
+branding:
+  icon: check-circle
+  color: green

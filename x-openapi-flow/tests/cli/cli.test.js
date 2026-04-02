@@ -165,6 +165,10 @@ test("validate fails for missing required version with fix suggestion", () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Schema validation FAILED/);
   assert.match(result.stderr, /Add `version: "1.0"` to the x-openapi-flow object/);
+  assert.match(result.stderr, /Failure summary:/);
+  assert.match(result.stderr, /schema errors: 1/);
+  assert.match(result.stderr, /Suggested commands:/);
+  assert.match(result.stderr, /--format json/);
 });
 
 test("relaxed profile allows cycle example with warning", () => {
@@ -188,6 +192,22 @@ test("strict-quality turns quality warnings into failure", () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Quality check FAILED \(strict\)/);
+  assert.match(result.stderr, /Profile strict enforces graph soundness/);
+  assert.match(result.stderr, /Local mode: run once without --strict-quality/);
+  assert.match(result.stderr, /\[local-debug\]/);
+});
+
+test("strict-quality in CI prints CI-specific guidance", () => {
+  const result = runCli([
+    "validate",
+    "examples/quality-warning-api.yaml",
+    "--strict-quality",
+  ], {
+    env: { CI: "true" },
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /CI mode: --strict-quality is active and should block merges/);
 });
 
 test("graph command prints mermaid output", () => {
@@ -1772,6 +1792,52 @@ test("lint pretty reports semantic issues", () => {
     assert.match(result.stderr, /prerequisite_operation_ids_exist/);
     assert.match(result.stderr, /duplicate_transitions/);
     assert.match(result.stderr, /terminal_path/);
+    assert.match(result.stderr, /Failure summary:/);
+    assert.match(result.stderr, /invalid next_operation_id refs: 1/);
+    assert.match(result.stderr, /Actionable next steps:/);
+    assert.match(result.stderr, /Standard lint covers structural correctness/);
+    assert.match(result.stderr, /Suggested commands:/);
+    assert.match(result.stderr, /\[inspect\]/);
+    assert.match(result.stderr, /\[deeper-analysis\]/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint --semantic pretty output prints semantic hint", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-lint-sem-ux-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Lint Semantic UX API\n  version: "1.0.0"\npaths:\n  /start:\n    post:\n      operationId: startFlow\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: start-flow\n        current_state: START\n        transitions:\n          - target_state: LOOP\n            trigger_type: synchronous\n            next_operation_id: missingNext\n  /loop:\n    post:\n      operationId: loopFlow\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: loop-flow\n        current_state: LOOP\n        transitions:\n          - target_state: START\n            trigger_type: synchronous\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--semantic"]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Semantic rules are active/);
+    assert.doesNotMatch(result.stderr, /\[deeper-analysis\]/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint in CI prints ci-report suggested command", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-lint-ci-ux-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Lint CI UX API\n  version: "1.0.0"\npaths:\n  /start:\n    post:\n      operationId: startFlow\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: start-flow\n        current_state: START\n        transitions:\n          - target_state: DONE\n            trigger_type: synchronous\n            next_operation_id: missingOp\n  /done:\n    post:\n      operationId: doneFlow\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: done-flow\n        current_state: DONE\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath], { env: { ...process.env, CI: "true" } });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /\[ci-report\]/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
