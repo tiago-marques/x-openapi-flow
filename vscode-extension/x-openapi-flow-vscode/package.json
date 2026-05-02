@@ -1,0 +1,61 @@
+{
+  "name": "x-openapi-flow-vscode",
+  "displayName": "x-openapi-flow",
+  "description": "Validate OpenAPI lifecycle metadata with x-openapi-flow from VS Code",
+  "version": "0.1.0",
+  "publisher": "tiago-marques",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "xOpenApiFlow.validateCurrentFile",
+        "title": "x-openapi-flow: Validate Current File"
+      },
+      {
+        "command": "xOpenApiFlow.validateWorkspace",
+        "title": "x-openapi-flow: Validate Workspace File"
+      }
+    ],
+    "configuration": {
+      "title": "x-openapi-flow",
+      "properties": {
+        "xOpenApiFlow.cliVersion": {
+          "type": "string",
+          "default": "latest",
+          "description": "Version of x-openapi-flow used via npx (for example: latest, 1.7.1)."
+        },
+        "xOpenApiFlow.profile": {
+          "type": "string",
+          "default": "strict",
+          "enum": ["core", "relaxed", "strict"],
+          "description": "Validation profile passed to x-openapi-flow validate."
+        },
+        "xOpenApiFlow.strictQuality": {
+          "type": "boolean",
+          "default": true,
+          "description": "Pass --strict-quality to fail on quality warnings."
+        },
+        "xOpenApiFlow.semantic": {
+          "type": "boolean",
+          "default": false,
+          "description": "Pass --semantic to enable semantic checks."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "echo 'No lint configured'",
+    "test": "echo 'No tests configured'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10"
+  }
+}

@@ -13,6 +13,11 @@ All notable changes to this project are documented in this file.
 - Added runtime guard observability hook `onDecision` to emit structured decision events
 	(`allowed_transition`, `denied_invalid_transition`, etc.) with `durationMs`, operation,
 	path/method and resource context for metrics/audit instrumentation.
+- Added in-repo VS Code extension MVP scaffold at `vscode-extension/x-openapi-flow-vscode`
+	with commands to validate current/workspace OpenAPI files via x-openapi-flow and surface
+	diagnostics in the editor.
+- Added community proof assets with `docs/wiki/community/Case-Study-Template.md` to capture
+	before/after adoption metrics and integration outcomes.
 
 ## 1.7.1 - 2026-05-02
 

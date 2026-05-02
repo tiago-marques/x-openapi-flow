@@ -759,6 +759,12 @@ Get the most out of x-openapi-flow with detailed guides, examples, and integrati
   - **Insomnia** – [docs/wiki/integrations/Insomnia-Integration.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/integrations/Insomnia-Integration.md)  
     Pre-configure requests according to lifecycle flows
 
+## Community and Proof
+
+- **Share your case study** – [docs/wiki/community/Case-Study-Template.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/community/Case-Study-Template.md)
+- **Open discussions and ideas** – use GitHub Issues to share adoption blockers, metrics, and integration stories
+- **Prove impact with metrics** – track `denied_invalid_transition`, onboarding lead time, and CI catch rate before/after adoption
+
 ## Roadmap
 
 We’re actively expanding x-openapi-flow to support multiple platforms and SDKs. Check our progress:
