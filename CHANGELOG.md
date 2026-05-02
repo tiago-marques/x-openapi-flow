@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.7.3 - 2026-05-02
+
+### Added
+- Added VS Code Extension Development Host launch config at `vscode-extension/x-openapi-flow-vscode/.vscode/launch.json`
+	to make local iteration and debugging of the extension MVP runnable directly from VS Code.
+
+### Changed
+- Aligned release versions after the 1.7.2 rollout and bumped `x-openapi-flow-nestjs-kit` to depend on `x-openapi-flow@^1.7.3`.
+
 ## 1.7.2 - 2026-05-02
 
 ### Added

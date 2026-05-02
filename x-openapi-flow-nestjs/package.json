@@ -1,6 +1,6 @@
 {
   "name": "x-openapi-flow-nestjs-kit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "NestJS integration helpers for x-openapi-flow runtime guard",
   "main": "index.js",
   "types": "index.d.ts",
@@ -40,6 +40,6 @@
     "@nestjs/common": ">=10"
   },
   "dependencies": {
-    "x-openapi-flow": "^1.7.2"
+    "x-openapi-flow": "^1.7.3"
   }
 }
