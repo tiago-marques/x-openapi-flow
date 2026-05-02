@@ -668,10 +668,10 @@ Full details:
 Dedicated package: **x-openapi-flow-nestjs**
 
 ```bash
-npm install x-openapi-flow x-openapi-flow-nestjs
+npm install x-openapi-flow @tiago-marques/x-openapi-flow-nestjs
 ```
 
-Then import from `x-openapi-flow-nestjs`.
+Then import from `@tiago-marques/x-openapi-flow-nestjs`.
 
 This package wraps the official runtime-guard helpers and exposes a NestJS-first API.
 
@@ -683,7 +683,7 @@ Release automation for this package uses dedicated tags in the format `nestjs-v<
 ```ts
 // flow-guard.middleware.ts
 import { Injectable, NestMiddleware } from "@nestjs/common";
-import { createFlowMiddleware, MemoryAdapter } from "x-openapi-flow-nestjs";
+import { createFlowMiddleware, MemoryAdapter } from "@tiago-marques/x-openapi-flow-nestjs";
 import openapi from "./openapi.flow.json";
 
 const store = new MemoryAdapter(); // swap for RedisAdapter or GenericSQLAdapter in production
@@ -709,7 +709,7 @@ export class AppModule implements NestModule {
 ```ts
 // flow.guard.ts
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
-import { createFlowGuard, MemoryAdapter } from "x-openapi-flow-nestjs";
+import { createFlowGuard, MemoryAdapter } from "@tiago-marques/x-openapi-flow-nestjs";
 import openapi from "./openapi.flow.json";
 
 const store = new MemoryAdapter();

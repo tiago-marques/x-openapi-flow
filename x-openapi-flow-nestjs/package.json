@@ -1,5 +1,5 @@
 {
-  "name": "x-openapi-flow-nestjs",
+  "name": "@tiago-marques/x-openapi-flow-nestjs",
   "version": "0.1.0",
   "description": "NestJS integration helpers for x-openapi-flow runtime guard",
   "main": "index.js",
