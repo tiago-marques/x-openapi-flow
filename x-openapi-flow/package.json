@@ -1,5 +1,6 @@
 {
   "name": "x-openapi-flow",
+  "mcpName": "io.github.tiago-marques/x-openapi-flow-mcp",
   "version": "1.7.3",
   "description": "Enforce, visualize and generate code from OpenAPI resource lifecycles — runtime guard, SDK gen, Postman/Insomnia/Redoc adapters, MCP sidecar for AI agents",
   "main": "lib/validator.js",
