@@ -40,6 +40,6 @@
     "@nestjs/common": ">=10"
   },
   "dependencies": {
-    "x-openapi-flow": "^1.7.1"
+    "x-openapi-flow": "^1.7.2"
   }
 }

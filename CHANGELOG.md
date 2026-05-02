@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.7.2 - 2026-05-02
+
 ### Added
 - Added a new package folder `x-openapi-flow-nestjs` with a dedicated NestJS integration surface:
 	- `createFlowMiddleware` and `createFlowGuard` wrappers
