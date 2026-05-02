@@ -120,6 +120,29 @@ Turn your OpenAPI spec into a single source of truth for API behavior:
 
 ## Quick Start (without OpenAPI file)
 
+## Start in 2 Minutes (Online Playground)
+
+Prefer no local setup? Open the minimal runtime-guard demo directly in your browser:
+
+- StackBlitz: https://stackblitz.com/github/tiago-marques/x-openapi-flow/tree/main/example/runtime-guard/minimal-order
+- Codespaces (repo): https://github.com/tiago-marques/x-openapi-flow
+
+Once open, run:
+
+```bash
+npm install
+npm run start
+```
+
+Then in another terminal:
+
+```bash
+curl -s -X POST http://localhost:3110/orders
+curl -i -X POST http://localhost:3110/orders/<id>/ship
+```
+
+Expected: `409 INVALID_STATE_TRANSITION`.
+
 Fastest way to see value (guided scaffold):
 
 ```bash
