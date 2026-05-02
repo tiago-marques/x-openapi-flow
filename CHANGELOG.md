@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.7.4 - 2026-05-02
+
+### Added
+- Added `mcpName` metadata to `x-openapi-flow/package.json` for MCP Registry ownership validation:
+	- `"mcpName": "io.github.tiago-marques/x-openapi-flow-mcp"`
+
+### Changed
+- Patch release to publish the MCP metadata in npm and enable registry submission.
+
 ## 1.7.3 - 2026-05-02
 
 ### Added
