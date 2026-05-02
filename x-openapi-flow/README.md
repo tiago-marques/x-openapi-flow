@@ -667,25 +667,25 @@ Full details:
 
 ## NestJS Integration
 
-Dedicated package: **x-openapi-flow-nestjs**
+Dedicated package: **x-openapi-flow-nestjs-kit**
 
 ```bash
-npm install x-openapi-flow @tiago-marques/x-openapi-flow-nestjs
+npm install x-openapi-flow x-openapi-flow-nestjs-kit
 ```
 
-Then import from `@tiago-marques/x-openapi-flow-nestjs`.
+Then import from `x-openapi-flow-nestjs-kit`.
 
 This package wraps the official runtime-guard helpers and exposes a NestJS-first API.
 
 Release automation for this package uses dedicated tags in the format `nestjs-v<version>`
-(example: `nestjs-v0.1.0`) so it does not conflict with `x-openapi-flow` tags.
+(example: `nestjs-v0.1.1`) so it does not conflict with `x-openapi-flow` tags.
 
 ### Option A: Middleware (drop-in)
 
 ```ts
 // flow-guard.middleware.ts
 import { Injectable, NestMiddleware } from "@nestjs/common";
-import { createFlowMiddleware, MemoryAdapter } from "@tiago-marques/x-openapi-flow-nestjs";
+import { createFlowMiddleware, MemoryAdapter } from "x-openapi-flow-nestjs-kit";
 import openapi from "./openapi.flow.json";
 
 const store = new MemoryAdapter(); // swap for RedisAdapter or GenericSQLAdapter in production
@@ -711,7 +711,7 @@ export class AppModule implements NestModule {
 ```ts
 // flow.guard.ts
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
-import { createFlowGuard, MemoryAdapter } from "@tiago-marques/x-openapi-flow-nestjs";
+import { createFlowGuard, MemoryAdapter } from "x-openapi-flow-nestjs-kit";
 import openapi from "./openapi.flow.json";
 
 const store = new MemoryAdapter();

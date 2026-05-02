@@ -1,14 +1,14 @@
-# x-openapi-flow-nestjs
+# x-openapi-flow-nestjs-kit
 
 NestJS integration helpers for x-openapi-flow runtime guard.
 
 ## Install
 
-npm install x-openapi-flow @tiago-marques/x-openapi-flow-nestjs
+npm install x-openapi-flow x-openapi-flow-nestjs-kit
 
 ## Middleware usage
 
-const { createFlowMiddleware, MemoryAdapter } = require("@tiago-marques/x-openapi-flow-nestjs");
+const { createFlowMiddleware, MemoryAdapter } = require("x-openapi-flow-nestjs-kit");
 const openapi = require("./openapi.flow.json");
 
 const store = new MemoryAdapter();
@@ -22,7 +22,7 @@ class FlowGuardMiddleware {
 
 ## Guard usage (CanActivate)
 
-const { createFlowGuard, MemoryAdapter } = require("@tiago-marques/x-openapi-flow-nestjs");
+const { createFlowGuard, MemoryAdapter } = require("x-openapi-flow-nestjs-kit");
 const openapi = require("./openapi.flow.json");
 
 const store = new MemoryAdapter();

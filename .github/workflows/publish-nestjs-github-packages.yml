@@ -52,7 +52,7 @@ jobs:
           fi
 
       - name: Prepare scoped name for GitHub Packages mirror
-        run: npm pkg set name=@tiago-marques/x-openapi-flow-nestjs
+        run: npm pkg set name=@tiago-marques/x-openapi-flow-nestjs-kit
 
       - name: Validate GitHub Packages token (v2)
         run: |
