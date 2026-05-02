@@ -323,7 +323,49 @@ Error payload for blocked transition:
 
 More details: [Runtime Guard](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/Runtime-Guard.md)
 
-### 5-Minute Demo: Real Runtime Block (E-commerce Orders)
+### Built-in Persistence Adapters
+
+No need to write your own `getCurrentState` from scratch. x-openapi-flow ships four ready-made adapters:
+
+```js
+const {
+  MemoryAdapter,   // in-process Map — ideal for tests and single-instance dev
+  FileAdapter,     // JSON file on disk — great for demos and local servers
+  RedisAdapter,    // ioredis-backed — production-ready, requires: npm install ioredis
+  GenericSQLAdapter, // any SQL DB (pg, mysql2, knex…) via query callback
+} = require("x-openapi-flow/lib/runtime-guard");
+
+// in-memory (testing / local)
+const store = new MemoryAdapter();
+app.use(createExpressFlowGuard({ openapi, ...store.forGuard() }));
+
+// persist every transition to Redis
+const Redis = require("ioredis");
+const redisStore = new RedisAdapter({ client: new Redis(), prefix: "orders:" });
+app.use(createExpressFlowGuard({ openapi, ...redisStore.forGuard() }));
+
+// call setState after each successful request to keep the state in sync
+app.post("/orders/:id/pay", async (req, res) => {
+  await redisStore.setState({ resourceId: req.params.id, state: "paid" });
+  res.json({ ok: true });
+});
+```
+
+**GenericSQLAdapter** example with `pg`:
+
+```js
+const { Pool } = require("pg");
+const pool = new Pool();
+const sqlStore = new GenericSQLAdapter({
+  query: (sql, params) => pool.query(sql, params).then(r => r.rows),
+  dialect: "pg",
+});
+await sqlStore.ensureTable(); // CREATE TABLE IF NOT EXISTS xflow_state (…)
+app.use(createExpressFlowGuard({ openapi, ...sqlStore.forGuard() }));
+```
+
+All adapters implement `getCurrentState`, `setState`, `deleteState` and `forGuard()` — a convenience method that returns the exact shape expected by the guard options.
+
 
 Want to see the value immediately? Use the official minimal demo:
 
@@ -408,6 +450,22 @@ See how **x-openapi-flow extends OpenAPI** to make your API workflows explicit, 
 | Transition validation | ❌ No | ✅ Yes – catch invalid calls before runtime |
 | Flow diagrams | ❌ No | ✅ Yes – generate visual lifecycle graphs |
 | Usage guidance (next valid actions) | Limited/manual | ✅ Built-in via lifecycle metadata – guides developers and AI agents |
+
+### How does it compare to OpenAPI Workflows (Arazzo) and AsyncAPI?
+
+| Dimension | x-openapi-flow | OpenAPI Workflows (Arazzo) | AsyncAPI |
+| --- | --- | --- | --- |
+| **Primary focus** | Resource lifecycle states & runtime enforcement | Multi-step API workflows (orchestration scripts) | Event-driven / async messaging APIs |
+| **Lifecycle states** | ✅ Explicit states per resource | ❌ No state model | ❌ No state model |
+| **Runtime enforcement** | ✅ Express/Fastify middleware (409 on invalid transitions) | ❌ Spec-only, no runtime guard | ❌ Spec-only |
+| **SDK generation** | ✅ TypeScript, Kotlin, Python, Go | ❌ No codegen | Limited |
+| **Postman / Insomnia export** | ✅ Built-in adapters | ❌ No | ❌ No |
+| **AI agent support** | ✅ MCP sidecar + structured sidecar contract | ❌ No | ❌ No |
+| **Breaking change detection** | ✅ `diff --breaking-only --fail-on-breaking` | ❌ No | ❌ No |
+| **CI validation** | ✅ CLI + GitHub Action | ❌ No official CLI | Limited |
+| **OpenAPI compatibility** | ✅ Sidecar extends existing specs | Separate Arazzo spec | Separate AsyncAPI spec |
+
+**In short:** use x-openapi-flow when you need **enforceable, stateful API lifecycles** that go beyond documentation into runtime safety, SDK generation, and AI-ready contracts. Use Arazzo for scripting multi-step HTTP journeys. Use AsyncAPI for documenting event/message-driven systems.
 
 ## Integration Demos
 
@@ -504,6 +562,12 @@ npx x-openapi-flow apply [openapi-file] [--flows path] [--out path]
 
 # validate transitions
 npx x-openapi-flow validate <openapi-file> [--profile core|relaxed|strict] [--strict-quality] [--semantic]  
+
+# preview sidecar changes
+npx x-openapi-flow diff [openapi-file] [--format pretty|json]
+
+# detect breaking flow changes (use in CI to fail PRs)
+npx x-openapi-flow diff [openapi-file] --breaking-only --fail-on-breaking
 ```
 
 ### Visualization & Documentation
@@ -540,6 +604,45 @@ Full details:
 
 - [CLI-Reference.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/reference/CLI-Reference.md)  
 - [README.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/x-openapi-flow/README.md)
+
+## NestJS Integration
+
+Use x-openapi-flow runtime guard inside NestJS via a custom guard or interceptor. No dedicated package required:
+
+```ts
+// flow-guard.middleware.ts
+import { Injectable, NestMiddleware } from "@nestjs/common";
+import { createExpressFlowGuard, MemoryAdapter } from "x-openapi-flow/lib/runtime-guard";
+import openapi from "./openapi.flow.json";
+
+const store = new MemoryAdapter(); // swap for RedisAdapter or GenericSQLAdapter in production
+const guard = createExpressFlowGuard({ openapi, ...store.forGuard() });
+
+@Injectable()
+export class FlowGuardMiddleware implements NestMiddleware {
+  use(req: any, res: any, next: () => void) {
+    guard(req, res, next);
+  }
+}
+
+// app.module.ts — apply to specific routes
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(FlowGuardMiddleware).forRoutes("orders");
+  }
+}
+```
+
+After each successful state-changing request, call `store.setState` to advance the resource:
+
+```ts
+@Post(":id/pay")
+async pay(@Param("id") id: string) {
+  // … business logic …
+  await store.setState({ resourceId: id, state: "paid" });
+  return { ok: true };
+}
+```
 
 ## Documentation and Guides
 

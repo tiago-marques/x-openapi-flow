@@ -1,8 +1,9 @@
 {
   "name": "x-openapi-flow",
-  "version": "1.7.0",
-  "description": "OpenAPI extension for resource workflow and lifecycle management",
+  "version": "1.7.1",
+  "description": "Enforce, visualize and generate code from OpenAPI resource lifecycles — runtime guard, SDK gen, Postman/Insomnia/Redoc adapters, MCP sidecar for AI agents",
   "main": "lib/validator.js",
+  "types": "index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tiago-marques/x-openapi-flow.git"
@@ -19,7 +20,8 @@
     "schema",
     "examples",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "index.d.ts"
   ],
   "publishConfig": {
     "access": "public"
@@ -50,7 +52,26 @@
     "openapi-flow",
     "workflow",
     "lifecycle",
-    "x-openapi-flow"
+    "x-openapi-flow",
+    "api-lifecycle",
+    "state-machine",
+    "openapi-validation",
+    "rest-api",
+    "workflow-engine",
+    "api-governance",
+    "postman",
+    "insomnia",
+    "swagger",
+    "redoc",
+    "mcp",
+    "ai-agent",
+    "fastify",
+    "express",
+    "code-generation",
+    "sdk-generator",
+    "runtime-guard",
+    "api-design",
+    "openapi-extension"
   ],
   "license": "MIT",
   "dependencies": {

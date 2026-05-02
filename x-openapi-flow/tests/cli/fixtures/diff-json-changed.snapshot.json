@@ -23,5 +23,9 @@
         ]
       }
     ]
+  },
+  "breaking": {
+    "count": 0,
+    "changes": []
   }
 }

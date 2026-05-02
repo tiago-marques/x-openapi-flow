@@ -4,6 +4,7 @@ const { createRuntimeFlowGuard, RuntimeFlowGuard, toErrorPayload } = require("./
 const { createExpressFlowGuard } = require("./express");
 const { createFastifyFlowGuard } = require("./fastify");
 const { FlowGuardError } = require("./errors");
+const { MemoryAdapter, FileAdapter, RedisAdapter, GenericSQLAdapter } = require("./adapters");
 
 module.exports = {
   createRuntimeFlowGuard,
@@ -12,4 +13,8 @@ module.exports = {
   createFastifyFlowGuard,
   FlowGuardError,
   toErrorPayload,
+  MemoryAdapter,
+  FileAdapter,
+  RedisAdapter,
+  GenericSQLAdapter,
 };

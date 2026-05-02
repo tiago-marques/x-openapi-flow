@@ -88,10 +88,12 @@ const COMMAND_SNIPPETS = {
     ],
   },
   diff: {
-    usage: "x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]",
+    usage: "x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json] [--breaking-only] [--fail-on-breaking]",
     examples: [
       "x-openapi-flow diff openapi.yaml",
       "x-openapi-flow diff openapi.yaml --format json",
+      "x-openapi-flow diff openapi.yaml --breaking-only",
+      "x-openapi-flow diff openapi.yaml --fail-on-breaking",
     ],
   },
   lint: {
@@ -477,7 +479,7 @@ Usage:
   x-openapi-flow quickstart [--dir path] [--runtime express|fastify] [--force]
   x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions] [--confidence-threshold 0..1]
   x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
-  x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json]
+  x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json] [--breaking-only] [--fail-on-breaking]
   x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]
   x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path] [--confidence-threshold 0..1]
   x-openapi-flow quality-report <openapi-file> [--profile core|relaxed|strict] [--semantic] [--output path]
@@ -953,8 +955,75 @@ function summarizeSidecarDiff(existingFlowsDoc, mergedFlowsDoc) {
   };
 }
 
+/**
+ * Classify breaking changes in a flow diff.
+ * Breaking = removed operation that had flows, changed current_state, removed transitions.
+ */
+function detectBreakingFlowChanges(existingFlowsDoc, mergedFlowsDoc) {
+  const breaking = [];
+
+  const existingOps = new Map();
+  for (const entry of (existingFlowsDoc && existingFlowsDoc.operations) || []) {
+    if (entry && entry.operationId && entry["x-openapi-flow"]) {
+      existingOps.set(entry.operationId, entry["x-openapi-flow"]);
+    }
+  }
+
+  const mergedOps = new Map();
+  for (const entry of (mergedFlowsDoc && mergedFlowsDoc.operations) || []) {
+    if (entry && entry.operationId && entry["x-openapi-flow"]) {
+      mergedOps.set(entry.operationId, entry["x-openapi-flow"]);
+    }
+  }
+
+  // Removed operation flows
+  for (const [operationId, existingFlow] of existingOps.entries()) {
+    if (!mergedOps.has(operationId) && existingFlow && (existingFlow.current_state || (existingFlow.transitions && existingFlow.transitions.length > 0))) {
+      breaking.push({
+        type: "removed_operation_flow",
+        operationId,
+        description: `Operation '${operationId}' had flow metadata but is no longer tracked.`,
+      });
+    }
+  }
+
+  // Changed current_state or removed transitions
+  for (const [operationId, mergedFlow] of mergedOps.entries()) {
+    const existingFlow = existingOps.get(operationId);
+    if (!existingFlow) continue;
+
+    if (existingFlow.current_state && mergedFlow.current_state && existingFlow.current_state !== mergedFlow.current_state) {
+      breaking.push({
+        type: "changed_current_state",
+        operationId,
+        from: existingFlow.current_state,
+        to: mergedFlow.current_state,
+        description: `Operation '${operationId}' current_state changed from '${existingFlow.current_state}' to '${mergedFlow.current_state}'.`,
+      });
+    }
+
+    const existingTransitions = (existingFlow.transitions || []).map((t) => JSON.stringify({ target_state: t.target_state, next_operation_id: t.next_operation_id }));
+    const mergedTransitions = new Set((mergedFlow.transitions || []).map((t) => JSON.stringify({ target_state: t.target_state, next_operation_id: t.next_operation_id })));
+
+    for (const serialized of existingTransitions) {
+      if (!mergedTransitions.has(serialized)) {
+        const t = JSON.parse(serialized);
+        breaking.push({
+          type: "removed_transition",
+          operationId,
+          target_state: t.target_state,
+          next_operation_id: t.next_operation_id,
+          description: `Operation '${operationId}' lost a transition to state '${t.target_state}'${t.next_operation_id ? ` (next: ${t.next_operation_id})` : ""}.`,
+        });
+      }
+    }
+  }
+
+  return breaking;
+}
+
 function parseDiffArgs(args) {
-  const unknown = findUnknownOptions(args, ["--flows", "--format"], []);
+  const unknown = findUnknownOptions(args, ["--flows", "--format"], ["--breaking-only", "--fail-on-breaking"]);
   if (unknown) {
     return { error: `Unknown option: ${unknown}` };
   }
@@ -974,6 +1043,9 @@ function parseDiffArgs(args) {
     return { error: `Invalid --format '${format}'. Use 'pretty' or 'json'.` };
   }
 
+  const breakingOnly = args.includes("--breaking-only");
+  const failOnBreaking = args.includes("--fail-on-breaking");
+
   const positional = args.filter((token, index) => {
     if (token === "--flows" || token === "--format") {
       return false;
@@ -992,6 +1064,8 @@ function parseDiffArgs(args) {
     openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
     flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
     format,
+    breakingOnly,
+    failOnBreaking,
   };
 }
 
@@ -2877,6 +2951,8 @@ function runDiff(parsed) {
 
   const mergedFlows = mergeFlowsWithOpenApi(api, existingFlows);
   const diff = summarizeSidecarDiff(existingFlows, mergedFlows);
+  const breakingChanges = detectBreakingFlowChanges(existingFlows, mergedFlows);
+  const hasBreaking = breakingChanges.length > 0;
 
   if (parsed.format === "json") {
     console.log(JSON.stringify({
@@ -2885,8 +2961,23 @@ function runDiff(parsed) {
       trackedOperations: mergedFlows.operations.length,
       exists: fs.existsSync(flowsPath),
       diff,
+      breaking: {
+        count: breakingChanges.length,
+        changes: breakingChanges,
+      },
     }, null, 2));
+    if (parsed.failOnBreaking && hasBreaking) return 1;
     return 0;
+  }
+
+  if (parsed.breakingOnly) {
+    if (!hasBreaking) {
+      console.log("No breaking flow changes detected.");
+      return 0;
+    }
+    console.log(`Breaking flow changes detected: ${breakingChanges.length}`);
+    breakingChanges.forEach((change) => console.log(`  [${change.type}] ${change.description}`));
+    return parsed.failOnBreaking ? 1 : 0;
   }
 
   const addedText = diff.addedOperationIds.length ? diff.addedOperationIds.join(", ") : "-";
@@ -2907,6 +2998,13 @@ function runDiff(parsed) {
     });
   }
   console.log(`Removed operationIds: ${removedText}`);
+  if (hasBreaking) {
+    console.log(`Breaking flow changes: ${breakingChanges.length}`);
+    breakingChanges.forEach((change) => console.log(`  [${change.type}] ${change.description}`));
+  } else {
+    console.log("Breaking flow changes: none");
+  }
+  if (parsed.failOnBreaking && hasBreaking) return 1;
   return 0;
 }
 

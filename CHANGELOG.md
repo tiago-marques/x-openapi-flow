@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.7.1 - 2026-05-02
+
+### Added
+- **Built-in persistence adapters** for the runtime guard (`lib/runtime-guard/adapters.js`):
+	- `MemoryAdapter` — in-process Map; ideal for tests and single-instance development.
+	- `FileAdapter` — JSON file on disk; great for demos and local dev servers.
+	- `RedisAdapter` — ioredis-backed; production-ready (requires `ioredis` peer dependency).
+	- `GenericSQLAdapter` — works with any SQL database (pg, mysql2, knex…) via a query callback; includes `ensureTable()` helper.
+	- All adapters expose `forGuard()` for zero-boilerplate integration with `createExpressFlowGuard` and `createFastifyFlowGuard`.
+- **`diff --breaking-only` and `--fail-on-breaking`** flags for the `diff` command:
+	- Detects removed operation flows, changed `current_state`, and removed transitions.
+	- `--fail-on-breaking` exits with code 1, enabling PR-blocking CI checks without running full validation.
+- **TypeScript type definitions** (`index.d.ts`) covering: runtime guard (core, Express, Fastify, all adapters), state machine engine, OpenAPI adapter, and validator public API.
+- **NestJS integration guide** added to README — middleware pattern using `createExpressFlowGuard` inside a `NestMiddleware`.
+- **Comparative table** in README positioning x-openapi-flow vs OpenAPI Workflows (Arazzo) and AsyncAPI across dimensions: lifecycle states, runtime enforcement, SDK generation, breaking change detection, and CI integration.
+- Expanded npm keywords (25 terms) and improved package `description` for better npm search discoverability.
+
+### Changed
+- Runtime guard `index.js` now re-exports all four adapters alongside existing guard factories.
+- `diff` command usage strings and help text updated to reflect new flags.
+
 ## 1.7.0 - 2026-04-02
 
 ### Added
