@@ -630,23 +630,31 @@ Full details:
 
 ## NestJS Integration
 
-Use the official NestJS helpers from `x-openapi-flow/lib/runtime-guard`.
+Dedicated package: **x-openapi-flow-nestjs**
+
+```bash
+npm install x-openapi-flow x-openapi-flow-nestjs
+```
+
+Then import from `x-openapi-flow-nestjs`.
+
+This package wraps the official runtime-guard helpers and exposes a NestJS-first API.
 
 ### Option A: Middleware (drop-in)
 
 ```ts
 // flow-guard.middleware.ts
 import { Injectable, NestMiddleware } from "@nestjs/common";
-import { createNestFlowMiddleware, MemoryAdapter } from "x-openapi-flow/lib/runtime-guard";
+import { createFlowMiddleware, MemoryAdapter } from "x-openapi-flow-nestjs";
 import openapi from "./openapi.flow.json";
 
 const store = new MemoryAdapter(); // swap for RedisAdapter or GenericSQLAdapter in production
-const guard = createNestFlowMiddleware({ openapi, ...store.forGuard() });
+const guard = createFlowMiddleware({ openapi, ...store.forGuard() });
 
 @Injectable()
 export class FlowGuardMiddleware implements NestMiddleware {
   use(req: any, res: any, next: () => void) {
-    guard(req, res, next);
+    guard.use(req, res, next);
   }
 }
 
@@ -663,16 +671,16 @@ export class AppModule implements NestModule {
 ```ts
 // flow.guard.ts
 import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
-import { createNestFlowCanActivate, MemoryAdapter } from "x-openapi-flow/lib/runtime-guard";
+import { createFlowGuard, MemoryAdapter } from "x-openapi-flow-nestjs";
 import openapi from "./openapi.flow.json";
 
 const store = new MemoryAdapter();
-const canActivateFlow = createNestFlowCanActivate({ openapi, ...store.forGuard() });
+const flowGuard = createFlowGuard({ openapi, ...store.forGuard() });
 
 @Injectable()
 export class FlowGuard implements CanActivate {
   canActivate(context: ExecutionContext) {
-    return canActivateFlow(context);
+    return flowGuard.canActivate(context);
   }
 }
 ```

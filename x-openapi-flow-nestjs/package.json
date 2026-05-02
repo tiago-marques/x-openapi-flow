@@ -1,0 +1,45 @@
+{
+  "name": "x-openapi-flow-nestjs",
+  "version": "0.1.0",
+  "description": "NestJS integration helpers for x-openapi-flow runtime guard",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "nestjs",
+    "openapi",
+    "x-openapi-flow",
+    "runtime-guard",
+    "workflow",
+    "lifecycle"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tiago-marques/x-openapi-flow.git"
+  },
+  "homepage": "https://github.com/tiago-marques/x-openapi-flow#readme",
+  "bugs": {
+    "url": "https://github.com/tiago-marques/x-openapi-flow/issues"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@nestjs/common": ">=10"
+  },
+  "dependencies": {
+    "x-openapi-flow": "^1.7.1"
+  }
+}

@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+- Added a new package folder `x-openapi-flow-nestjs` with a dedicated NestJS integration surface:
+	- `createFlowMiddleware` and `createFlowGuard` wrappers
+	- Re-exports for `createNestFlowMiddleware` and `createNestFlowCanActivate`
+	- Re-exports for built-in persistence adapters (`MemoryAdapter`, `FileAdapter`, `RedisAdapter`, `GenericSQLAdapter`)
+	- Type definitions and package-level tests
+
 ## 1.7.1 - 2026-05-02
 
 ### Added
