@@ -1,0 +1,63 @@
+name: Publish NestJS Package to npm
+
+on:
+  push:
+    tags:
+      - "nestjs-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: x-openapi-flow-nestjs
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Verify package tarball includes README
+        run: |
+          node -e "const { execSync } = require('node:child_process'); const out = execSync('npm pack --dry-run --json', { encoding: 'utf8' }); const jsonStart = out.indexOf('['); if (jsonStart === -1) { console.error('Could not find JSON payload in npm pack output.'); process.exit(1); } const payload = JSON.parse(out.slice(jsonStart)); const files = ((payload[0] && payload[0].files) || []).map((file) => file.path); if (!files.includes('README.md')) { console.error('README.md is missing from npm pack output.'); process.exit(1); } console.log('README.md found in npm pack output.');"
+
+      - name: Validate tag matches package version
+        if: startsWith(github.ref, 'refs/tags/nestjs-v')
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#nestjs-v}"
+
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "Package version ($PKG_VERSION) does not match release tag ($TAG_VERSION)."
+            exit 1
+          fi
+
+      - name: Validate npm token
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "Missing npm token secret. Configure NPM_TOKEN (preferred) or GH_PACKAGES_TOKEN (legacy)."
+            exit 1
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.GH_PACKAGES_TOKEN }}
+
+      - name: Publish to npm using token
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.GH_PACKAGES_TOKEN }}

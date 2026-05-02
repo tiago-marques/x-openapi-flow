@@ -640,6 +640,9 @@ Then import from `x-openapi-flow-nestjs`.
 
 This package wraps the official runtime-guard helpers and exposes a NestJS-first API.
 
+Release automation for this package uses dedicated tags in the format `nestjs-v<version>`
+(example: `nestjs-v0.1.0`) so it does not conflict with `x-openapi-flow` tags.
+
 ### Option A: Middleware (drop-in)
 
 ```ts
