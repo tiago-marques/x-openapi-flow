@@ -1,0 +1,60 @@
+name: x-openapi-flow Validate
+description: Validate x-openapi-flow lifecycle metadata in an OpenAPI document.
+author: tiago-marques
+
+inputs:
+  openapi-file:
+    description: Path to OpenAPI file (yaml, yml or json).
+    required: true
+  profile:
+    description: Validation profile (core, relaxed, strict).
+    required: false
+    default: strict
+  strict-quality:
+    description: Treat quality warnings as errors (true/false).
+    required: false
+    default: "false"
+  semantic:
+    description: Enable semantic modeling checks (true/false).
+    required: false
+    default: "false"
+  format:
+    description: Output format (pretty or json).
+    required: false
+    default: pretty
+  config:
+    description: Optional x-openapi-flow config path.
+    required: false
+    default: ""
+  working-directory:
+    description: Working directory for validation command.
+    required: false
+    default: .
+  node-version:
+    description: Node.js version used to run x-openapi-flow.
+    required: false
+    default: "20"
+  cli-version:
+    description: x-openapi-flow npm version (for example, latest or 1.7.1).
+    required: false
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - name: Validate flow metadata
+      uses: ./.github/actions/validate
+      with:
+        openapi-file: ${{ inputs.openapi-file }}
+        profile: ${{ inputs.profile }}
+        strict-quality: ${{ inputs.strict-quality }}
+        semantic: ${{ inputs.semantic }}
+        format: ${{ inputs.format }}
+        config: ${{ inputs.config }}
+        working-directory: ${{ inputs.working-directory }}
+        node-version: ${{ inputs.node-version }}
+        cli-version: ${{ inputs.cli-version }}
+
+branding:
+  icon: check-circle
+  color: green

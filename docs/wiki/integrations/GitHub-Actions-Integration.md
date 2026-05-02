@@ -10,7 +10,7 @@ Use the official action from this repository:
 
 ```yaml
 - name: Validate OpenAPI flow rules
-  uses: tiago-marques/x-openapi-flow/.github/actions/validate@main
+  uses: tiago-marques/x-openapi-flow@v1
   with:
     openapi-file: openapi.flow.yaml
     profile: strict
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate OpenAPI flow rules
-        uses: tiago-marques/x-openapi-flow/.github/actions/validate@main
+        uses: tiago-marques/x-openapi-flow@v1
         with:
           openapi-file: openapi.flow.yaml
           profile: strict
@@ -53,3 +53,6 @@ jobs:
 ## Tip
 
 Pin `cli-version` and action ref to a tag when you need fully reproducible CI behavior.
+
+Compatibility note: the legacy path `tiago-marques/x-openapi-flow/.github/actions/validate@<ref>`
+continues to work, but `tiago-marques/x-openapi-flow@<ref>` is the Marketplace-friendly entrypoint.

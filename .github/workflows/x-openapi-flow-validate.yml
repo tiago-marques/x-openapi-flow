@@ -49,7 +49,7 @@ jobs:
           node bin/x-openapi-flow.js validate examples/quality-warning-api.yaml --profile strict
 
       - name: Validate via official reusable GitHub Action (smoke)
-        uses: ./.github/actions/validate
+        uses: ./
         with:
           openapi-file: examples/order-api.yaml
           profile: strict

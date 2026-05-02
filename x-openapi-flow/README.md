@@ -211,7 +211,7 @@ Use the official reusable action to validate lifecycle rules in CI with a single
 
 ```yaml
 - name: Validate OpenAPI flow rules
-  uses: tiago-marques/x-openapi-flow/.github/actions/validate@main
+  uses: tiago-marques/x-openapi-flow@v1
   with:
     openapi-file: openapi.flow.yaml
     profile: strict
