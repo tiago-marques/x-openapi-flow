@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Community Case Study Template
+    url: https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/community/Case-Study-Template.md
+    about: Prefer the markdown template? Use this guide.

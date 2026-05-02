@@ -20,6 +20,9 @@ All notable changes to this project are documented in this file.
 	diagnostics in the editor.
 - Added community proof assets with `docs/wiki/community/Case-Study-Template.md` to capture
 	before/after adoption metrics and integration outcomes.
+- Added GitHub Issue forms for community proof and adoption feedback:
+	- `.github/ISSUE_TEMPLATE/case-study.yml`
+	- `.github/ISSUE_TEMPLATE/adoption-blocker.yml`
 
 ## 1.7.1 - 2026-05-02
 

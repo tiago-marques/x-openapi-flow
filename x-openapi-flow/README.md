@@ -765,6 +765,7 @@ Get the most out of x-openapi-flow with detailed guides, examples, and integrati
 
 - **Share your case study** – [docs/wiki/community/Case-Study-Template.md](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/community/Case-Study-Template.md)
 - **Open discussions and ideas** – use GitHub Issues to share adoption blockers, metrics, and integration stories
+: use the structured forms at [.github/ISSUE_TEMPLATE/case-study.yml](https://github.com/tiago-marques/x-openapi-flow/blob/main/.github/ISSUE_TEMPLATE/case-study.yml) and [.github/ISSUE_TEMPLATE/adoption-blocker.yml](https://github.com/tiago-marques/x-openapi-flow/blob/main/.github/ISSUE_TEMPLATE/adoption-blocker.yml)
 - **Prove impact with metrics** – track `denied_invalid_transition`, onboarding lead time, and CI catch rate before/after adoption
 
 ## Roadmap

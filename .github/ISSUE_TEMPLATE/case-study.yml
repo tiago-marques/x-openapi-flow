@@ -1,0 +1,48 @@
+name: Case Study
+description: Share measurable adoption results using x-openapi-flow
+title: "case-study: <company-or-project>"
+labels:
+  - case-study
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share your before/after metrics so others can learn from your adoption.
+  - type: input
+    id: team
+    attributes:
+      label: Team or Project
+      placeholder: Payments Platform Team
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: API domain, scale, and initial pain
+      placeholder: We manage 35 endpoints for order and payment lifecycle...
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation
+      description: Commands/features adopted
+      placeholder: init, apply, validate --profile strict, runtime guard in Express...
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Measurable Results
+      description: Share concrete before/after numbers
+      placeholder: Invalid transition bugs 11 -> 1 per month; onboarding 5d -> 2d
+    validations:
+      required: true
+  - type: textarea
+    id: lessons
+    attributes:
+      label: Lessons Learned
+      placeholder: What worked well and what you would improve next
+    validations:
+      required: true

@@ -1,0 +1,52 @@
+name: Adoption Blocker
+description: Report what prevents or slows x-openapi-flow adoption
+title: "adoption-blocker: <short-description>"
+labels:
+  - adoption-blocker
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when you are blocked from adopting x-openapi-flow in real projects.
+  - type: dropdown
+    id: blocker_type
+    attributes:
+      label: Blocker Type
+      options:
+        - Documentation gap
+        - Runtime limitation
+        - Framework integration
+        - CI/CD integration
+        - Migration/compatibility
+        - Performance/scale
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: blocker_details
+    attributes:
+      label: Blocker Details
+      placeholder: We cannot adopt because...
+    validations:
+      required: true
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Outcome
+      placeholder: What would make adoption possible?
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current Workaround
+      placeholder: How are you handling this today?
+    validations:
+      required: false
+  - type: input
+    id: impact
+    attributes:
+      label: Impact Level
+      placeholder: High (blocks production rollout)
+    validations:
+      required: true
