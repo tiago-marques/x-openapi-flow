@@ -387,6 +387,43 @@ app.use(createExpressFlowGuard({ openapi, ...sqlStore.forGuard() }));
 
 All adapters implement `getCurrentState`, `setState`, `deleteState` and `forGuard()` — a convenience method that returns the exact shape expected by the guard options.
 
+### Observability Hooks (Metrics/Audit)
+
+You can instrument runtime decisions with `onDecision` to feed Prometheus, logs, or tracing.
+
+```js
+const { Counter } = require("prom-client");
+const { createExpressFlowGuard } = require("x-openapi-flow/lib/runtime-guard");
+
+const flowDecisions = new Counter({
+  name: "xflow_runtime_guard_decisions_total",
+  help: "Runtime guard decisions by type and operation",
+  labelNames: ["decision", "operation_id"],
+});
+
+app.use(
+  createExpressFlowGuard({
+    openapi,
+    ...store.forGuard(),
+    onDecision(event) {
+      flowDecisions.inc({
+        decision: event.decision,
+        operation_id: event.operationId || "unknown",
+      });
+    },
+  })
+);
+```
+
+Common decision values include:
+- `allowed_transition`
+- `allowed_idempotent_state`
+- `allowed_initial_state`
+- `denied_invalid_transition`
+- `denied_missing_resource_id`
+- `denied_unknown_operation`
+- `skipped_unknown_operation`
+
 
 Want to see the value immediately? Use the official minimal demo:
 

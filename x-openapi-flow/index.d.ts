@@ -38,6 +38,31 @@ export interface RuntimeFlowGuardOptions {
   allowIdempotentState?: boolean;
   allowMissingStateForInitial?: boolean;
   requireResourceIdForTransitions?: boolean;
+  /**
+   * Optional observability callback invoked on each runtime guard decision.
+   * Exceptions inside this callback are swallowed by the guard.
+   */
+  onDecision?: (decision: RuntimeFlowDecision) => void;
+}
+
+export interface RuntimeFlowDecision {
+  decision:
+    | "allowed_transition"
+    | "allowed_idempotent_state"
+    | "allowed_initial_state"
+    | "skipped_unknown_operation"
+    | "denied_unknown_operation"
+    | "denied_missing_resource_id"
+    | "denied_missing_current_state"
+    | "denied_invalid_transition"
+    | "denied_missing_state_resolver";
+  operationId?: string | null;
+  resourceId?: string | null;
+  currentState?: string | null;
+  nextState?: string | null;
+  method?: string;
+  path?: string;
+  durationMs: number;
 }
 
 export interface FlowOperation {

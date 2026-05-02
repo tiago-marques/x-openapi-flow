@@ -10,6 +10,9 @@ All notable changes to this project are documented in this file.
 	- Re-exports for `createNestFlowMiddleware` and `createNestFlowCanActivate`
 	- Re-exports for built-in persistence adapters (`MemoryAdapter`, `FileAdapter`, `RedisAdapter`, `GenericSQLAdapter`)
 	- Type definitions and package-level tests
+- Added runtime guard observability hook `onDecision` to emit structured decision events
+	(`allowed_transition`, `denied_invalid_transition`, etc.) with `durationMs`, operation,
+	path/method and resource context for metrics/audit instrumentation.
 
 ## 1.7.1 - 2026-05-02
 

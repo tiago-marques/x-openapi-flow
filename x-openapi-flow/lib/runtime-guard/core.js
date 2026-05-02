@@ -26,6 +26,18 @@ function defaultResolveResourceId(context) {
   return null;
 }
 
+function safeEmitDecision(hook, payload) {
+  if (typeof hook !== "function") {
+    return;
+  }
+
+  try {
+    hook(payload);
+  } catch (_err) {
+    // Observability hook must never break request handling.
+  }
+}
+
 class RuntimeFlowGuard {
   constructor(options = {}) {
     const runtimeModel = loadRuntimeModel(options);
@@ -38,6 +50,7 @@ class RuntimeFlowGuard {
     this.getCurrentState = options.getCurrentState;
     this.resolveResourceId = options.resolveResourceId || defaultResolveResourceId;
     this.resolveOperationId = options.resolveOperationId || null;
+    this.onDecision = typeof options.onDecision === "function" ? options.onDecision : null;
 
     this.allowUnknownOperations = options.allowUnknownOperations === true;
     this.allowIdempotentState = options.allowIdempotentState !== false;
@@ -71,7 +84,20 @@ class RuntimeFlowGuard {
   }
 
   async enforce(context = {}) {
+    const startedAt = Date.now();
+    const emitDecision = (decision) => {
+      safeEmitDecision(this.onDecision, {
+        method: context.method,
+        path: context.path,
+        durationMs: Date.now() - startedAt,
+        ...decision,
+      });
+    };
+
     if (typeof this.getCurrentState !== "function") {
+      emitDecision({
+        decision: "denied_missing_state_resolver",
+      });
       throw missingStateResolverError();
     }
 
@@ -87,8 +113,17 @@ class RuntimeFlowGuard {
 
     if (!operation) {
       if (this.allowUnknownOperations) {
+        emitDecision({
+          decision: "skipped_unknown_operation",
+          operationId: context.operationId || operationFromResolver || null,
+        });
         return { ok: true, skipped: true, reason: "unknown_operation" };
       }
+
+      emitDecision({
+        decision: "denied_unknown_operation",
+        operationId: context.operationId || operationFromResolver || null,
+      });
 
       throw unknownOperationError({
         operationId: context.operationId || operationFromResolver,
@@ -99,6 +134,10 @@ class RuntimeFlowGuard {
 
     const resourceId = this.resolveResourceId(context);
     if (!resourceId && operation.incomingFromStates.size > 0 && this.requireResourceIdForTransitions) {
+      emitDecision({
+        decision: "denied_missing_resource_id",
+        operationId: operation.operationId,
+      });
       throw missingResourceIdError({
         operationId: operation.operationId,
         method: context.method,
@@ -115,6 +154,13 @@ class RuntimeFlowGuard {
 
     if (currentState == null) {
       if (operation.incomingFromStates.size === 0 && this.allowMissingStateForInitial) {
+        emitDecision({
+          decision: "allowed_initial_state",
+          operationId: operation.operationId,
+          resourceId,
+          currentState: null,
+          nextState: operation.currentState || null,
+        });
         return {
           ok: true,
           operationId: operation.operationId,
@@ -122,6 +168,13 @@ class RuntimeFlowGuard {
           currentState: null,
         };
       }
+
+      emitDecision({
+        decision: "denied_missing_current_state",
+        operationId: operation.operationId,
+        resourceId,
+        currentState: null,
+      });
 
       throw invalidTransitionError({
         operationId: operation.operationId,
@@ -134,8 +187,15 @@ class RuntimeFlowGuard {
     const normalizedState = String(currentState);
     const isAllowedFrom = this.stateMachine.canTransition(normalizedState, operation.operationId);
     const isSameState = this.allowIdempotentState && normalizedState === String(operation.currentState);
+    const nextState = this.stateMachine.getNextState(normalizedState, operation.operationId);
 
     if (!isAllowedFrom && !isSameState) {
+      emitDecision({
+        decision: "denied_invalid_transition",
+        operationId: operation.operationId,
+        resourceId,
+        currentState: normalizedState,
+      });
       throw invalidTransitionError({
         operationId: operation.operationId,
         currentState: normalizedState,
@@ -144,12 +204,20 @@ class RuntimeFlowGuard {
       });
     }
 
+    emitDecision({
+      decision: isAllowedFrom ? "allowed_transition" : "allowed_idempotent_state",
+      operationId: operation.operationId,
+      resourceId,
+      currentState: normalizedState,
+      nextState,
+    });
+
     return {
       ok: true,
       operationId: operation.operationId,
       resourceId,
       currentState: normalizedState,
-      nextState: this.stateMachine.getNextState(normalizedState, operation.operationId),
+      nextState,
     };
   }
 }

@@ -126,6 +126,55 @@ test("runtime guard blocks invalid transition with explicit details", async () =
   );
 });
 
+test("runtime guard emits onDecision for allowed transition", async () => {
+  const decisions = [];
+  const guard = createRuntimeFlowGuard({
+    openapi: OPENAPI,
+    getCurrentState: buildStateResolver({ pay_123: "AUTHORIZED" }),
+    onDecision: (event) => decisions.push(event),
+  });
+
+  const result = await guard.enforce({
+    method: "POST",
+    path: "/payments/pay_123/capture",
+    params: { id: "pay_123" },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(decisions.length, 1);
+  assert.equal(decisions[0].decision, "allowed_transition");
+  assert.equal(decisions[0].operationId, "capturePayment");
+  assert.equal(decisions[0].resourceId, "pay_123");
+  assert.equal(typeof decisions[0].durationMs, "number");
+});
+
+test("runtime guard emits onDecision for denied transition", async () => {
+  const decisions = [];
+  const guard = createRuntimeFlowGuard({
+    openapi: OPENAPI,
+    getCurrentState: buildStateResolver({ pay_123: "CREATED" }),
+    onDecision: (event) => decisions.push(event),
+  });
+
+  await assert.rejects(
+    () =>
+      guard.enforce({
+        method: "POST",
+        path: "/payments/pay_123/capture",
+        params: { id: "pay_123" },
+      }),
+    (error) => {
+      assert.equal(error.code, "INVALID_STATE_TRANSITION");
+      return true;
+    }
+  );
+
+  assert.equal(decisions.length, 1);
+  assert.equal(decisions[0].decision, "denied_invalid_transition");
+  assert.equal(decisions[0].operationId, "capturePayment");
+  assert.equal(decisions[0].resourceId, "pay_123");
+});
+
 test("express guard returns 409 payload when transition is invalid", async () => {
   const middleware = createExpressFlowGuard({
     openapi: OPENAPI,
