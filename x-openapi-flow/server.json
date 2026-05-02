@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.tiago-marques/x-openapi-flow-mcp",
+  "description": "OpenAPI lifecycle guard and MCP sidecar for policy-driven API orchestration.",
+  "repository": {
+    "url": "https://github.com/tiago-marques/x-openapi-flow",
+    "source": "github",
+    "subfolder": "x-openapi-flow"
+  },
+  "version": "1.7.4",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "x-openapi-flow",
+      "version": "1.7.4",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
