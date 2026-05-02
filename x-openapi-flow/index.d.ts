@@ -89,9 +89,23 @@ export declare function toErrorPayload(error: FlowGuardError): FlowGuardErrorPay
 
 export type ExpressMiddleware = (req: object, res: object, next: (err?: unknown) => void) => void;
 export type FastifyPreHandler = (request: object, reply: object) => Promise<void>;
+export type NestMiddlewareFunction = (req: object, res: object, next: (err?: unknown) => void) => void;
+
+export interface NestHttpContextLike {
+  getRequest: () => object;
+  getResponse: () => object;
+}
+
+export interface NestExecutionContextLike {
+  switchToHttp: () => NestHttpContextLike;
+}
+
+export type NestCanActivateFunction = (executionContext: NestExecutionContextLike) => Promise<boolean>;
 
 export declare function createExpressFlowGuard(options: RuntimeFlowGuardOptions): ExpressMiddleware;
 export declare function createFastifyFlowGuard(options: RuntimeFlowGuardOptions): FastifyPreHandler;
+export declare function createNestFlowMiddleware(options: RuntimeFlowGuardOptions): NestMiddlewareFunction;
+export declare function createNestFlowCanActivate(options: RuntimeFlowGuardOptions): NestCanActivateFunction;
 
 // ---------------------------------------------------------------------------
 // runtime-guard – Persistence adapters

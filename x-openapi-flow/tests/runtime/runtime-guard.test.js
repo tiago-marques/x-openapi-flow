@@ -6,6 +6,8 @@ const {
   createRuntimeFlowGuard,
   createExpressFlowGuard,
   createFastifyFlowGuard,
+  createNestFlowMiddleware,
+  createNestFlowCanActivate,
 } = require("../../lib/runtime-guard");
 
 const OPENAPI = {
@@ -196,4 +198,129 @@ test("fastify guard returns 409 payload when transition is invalid", async () =>
   assert.equal(statusCode, 409);
   assert.equal(payload.error.code, "INVALID_STATE_TRANSITION");
   assert.equal(payload.error.allowed_from_states.includes("AUTHORIZED"), true);
+});
+
+test("nestjs middleware returns 409 payload when transition is invalid", async () => {
+  const middleware = createNestFlowMiddleware({
+    openapi: OPENAPI,
+    getCurrentState: buildStateResolver({ pay_123: "CREATED" }),
+  });
+
+  const req = {
+    method: "POST",
+    route: {
+      path: "/payments/:id/capture",
+    },
+    params: { id: "pay_123" },
+  };
+
+  let responseStatus = null;
+  let responseBody = null;
+  const res = {
+    status(code) {
+      responseStatus = code;
+      return this;
+    },
+    json(body) {
+      responseBody = body;
+      return body;
+    },
+  };
+
+  let nextCalled = false;
+  const next = () => {
+    nextCalled = true;
+  };
+
+  await middleware(req, res, next);
+
+  assert.equal(nextCalled, false);
+  assert.equal(responseStatus, 409);
+  assert.equal(responseBody.error.code, "INVALID_STATE_TRANSITION");
+});
+
+test("nestjs canActivate returns true for valid transition", async () => {
+  const canActivate = createNestFlowCanActivate({
+    openapi: OPENAPI,
+    getCurrentState: buildStateResolver({ pay_123: "AUTHORIZED" }),
+  });
+
+  const req = {
+    method: "POST",
+    route: {
+      path: "/payments/:id/capture",
+    },
+    params: { id: "pay_123" },
+  };
+
+  const res = {
+    status() {
+      return this;
+    },
+    json() {
+      return this;
+    },
+  };
+
+  const executionContext = {
+    switchToHttp() {
+      return {
+        getRequest() {
+          return req;
+        },
+        getResponse() {
+          return res;
+        },
+      };
+    },
+  };
+
+  const allowed = await canActivate(executionContext);
+  assert.equal(allowed, true);
+});
+
+test("nestjs canActivate writes 409 payload and returns false for invalid transition", async () => {
+  const canActivate = createNestFlowCanActivate({
+    openapi: OPENAPI,
+    getCurrentState: buildStateResolver({ pay_123: "CREATED" }),
+  });
+
+  const req = {
+    method: "POST",
+    route: {
+      path: "/payments/:id/capture",
+    },
+    params: { id: "pay_123" },
+  };
+
+  let responseStatus = null;
+  let responseBody = null;
+  const res = {
+    status(code) {
+      responseStatus = code;
+      return this;
+    },
+    json(body) {
+      responseBody = body;
+      return body;
+    },
+  };
+
+  const executionContext = {
+    switchToHttp() {
+      return {
+        getRequest() {
+          return req;
+        },
+        getResponse() {
+          return res;
+        },
+      };
+    },
+  };
+
+  const allowed = await canActivate(executionContext);
+  assert.equal(allowed, false);
+  assert.equal(responseStatus, 409);
+  assert.equal(responseBody.error.code, "INVALID_STATE_TRANSITION");
 });
