@@ -219,12 +219,19 @@ npx x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [-
 Generates a flow-aware SDK from OpenAPI + `x-openapi-flow` metadata.
 
 ```bash
-npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
+npx x-openapi-flow generate-sdk [openapi-file] --lang typescript|python [--output path]
 ```
 
-- MVP currently supports `--lang typescript`.
+- Supports `--lang typescript` and `--lang python`. Both languages are generated from the same
+  language-agnostic intermediate model (`buildIntermediateModel`), so resource/state naming and
+  lifecycle behavior are identical between them.
 - Reuses lifecycle graph modeling to keep behavior aligned with `validate`, `graph`, and `diff`.
-- Output includes resource classes, state classes, lifecycle helper (`runFlow`) and `flow-model.json`.
+- TypeScript output (`src/`): resource classes, state classes, a `fetch`-based `HttpClient`, a
+  lifecycle helper (`runFlow`), and `flow-model.json`.
+- Python output (`src/`): one module per resource under `resources/`, with a `{Resource}ResourceInstance`
+  base class and one subclass per lifecycle state, a zero-dependency `urllib`-backed `HttpClient`,
+  an `ensure_prerequisites`/`run_flow` helper module, and the same `flow-model.json`. No async —
+  generated methods are plain synchronous calls.
 
 ## `export-doc-flows`
 

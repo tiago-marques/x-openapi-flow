@@ -37,6 +37,11 @@ function toCamelCase(value) {
     .join("");
 }
 
+function toSnakeCase(value) {
+  const words = splitWords(value);
+  return words.join("_") || "resource";
+}
+
 function singularize(value) {
   if (!value) return "resource";
   if (value.endsWith("ies")) return `${value.slice(0, -3)}y`;
@@ -600,6 +605,260 @@ function buildTypeScriptResourceCode(resourceModel) {
   };
 }
 
+function buildPythonPathTemplate(pathKey) {
+  return String(pathKey).replace(/\{([^}]+)\}/g, (_full, paramName) => `{${paramName}}`);
+}
+
+function buildPythonPathResolutionLines(pathParams, pathPattern, indent) {
+  if (pathParams.length === 0) {
+    return [`${indent}request_path = "${pathPattern}"`];
+  }
+
+  const lines = [];
+  for (const param of pathParams) {
+    lines.push(`${indent}${param} = params.get("${param}")`);
+    lines.push(`${indent}if not ${param}:`);
+    lines.push(`${indent}    raise ValueError("Missing required path parameter '${param}'.")`);
+  }
+  lines.push(`${indent}request_path = f"${buildPythonPathTemplate(pathPattern)}"`);
+  return lines;
+}
+
+function buildPythonOperationCallCase(operation, isFirst) {
+  const indent = "        ";
+  const keyword = isFirst ? "if" : "elif";
+  const pathLines = buildPythonPathResolutionLines(operation.pathParams, operation.path, `${indent}    `);
+  return [
+    `${indent}${keyword} operation_id == "${operation.operationId}":`,
+    ...pathLines,
+    `${indent}    return self.http_client.request("${operation.httpMethod.toUpperCase()}", request_path, body=params.get("body"), headers=params.get("headers"))`,
+  ].join("\n");
+}
+
+function buildPythonServiceMethod(operation, returnType, defaults) {
+  const needsId = operation.pathParams.includes("id");
+  const methodName = toSnakeCase(operation.methodName);
+  const args = ["self"];
+  if (needsId) {
+    args.push("id: str");
+  }
+  args.push("params: Optional[Dict[str, Any]] = None");
+  if (defaults.withLifecycleOptions) {
+    args.push("options: Optional[Dict[str, Any]] = None");
+  }
+
+  const mergedParamsLine = needsId
+    ? 'merged_params: Dict[str, Any] = {**(params or {}), "id": id}'
+    : "merged_params: Dict[str, Any] = dict(params or {})";
+
+  const lines = [
+    `    def ${methodName}(${args.join(", ")}) -> "${returnType}":`,
+    `        ${mergedParamsLine}`,
+  ];
+
+  if (defaults.withLifecycleOptions) {
+    lines.push(
+      "        opts = options or {}",
+      "        lifecycle_options = {",
+      `            "auto_prerequisites": opts.get("auto_prerequisites", ${defaults.autoPrerequisitesDefault ? "True" : "False"}),`,
+      '            "prerequisite_params": opts.get("prerequisite_params", {}),',
+      '            "context": opts.get("context"),',
+      "        }",
+      `        return self._execute_operation("${operation.operationId}", merged_params, lifecycle_options)`
+    );
+  } else {
+    lines.push(
+      '        lifecycle_options = {"auto_prerequisites": False, "prerequisite_params": {}, "context": None}',
+      `        return self._execute_operation("${operation.operationId}", merged_params, lifecycle_options)`
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function buildPythonTransitionMethod(transitionOperation, targetStateClassName) {
+  const methodName = toSnakeCase(transitionOperation.methodName);
+  const prerequisites = JSON.stringify(transitionOperation.prerequisites || []);
+  const mergeId = transitionOperation.pathParams.includes("id")
+    ? 'merged_params: Dict[str, Any] = {**(params or {}), "id": self.id} if self.id else dict(params or {})'
+    : "merged_params: Dict[str, Any] = dict(params or {})";
+
+  return [
+    `    def ${methodName}(self, params: Optional[Dict[str, Any]] = None) -> "${targetStateClassName}":`,
+    `        ensure_prerequisites(self.completed_operations, ${prerequisites}, "${methodName}")`,
+    `        ${mergeId}`,
+    `        return self.service._execute_transition("${transitionOperation.operationId}", merged_params, self.completed_operations)`,
+  ].join("\n");
+}
+
+function buildPythonResourceCode(resourceModel) {
+  const flowOperations = resourceModel.operations.filter((operation) => operation.hasFlow);
+  const operationsById = new Map(resourceModel.operations.map((operation) => [operation.operationId, operation]));
+
+  const stateClassNameByState = new Map(
+    resourceModel.states.map((state) => [state, `${resourceModel.resourceClassName}${toPascalCase(state)}`])
+  );
+
+  const flowStateClassByOperationId = flowOperations.reduce((acc, operation) => {
+    acc[operation.operationId] = stateClassNameByState.get(operation.currentState);
+    return acc;
+  }, {});
+
+  const instanceClassName = `${resourceModel.resourceClassName}ResourceInstance`;
+  const serviceClassName = `${resourceModel.resourceClassName}Resource`;
+
+  const collectionMethods = [];
+
+  const createOp = resourceModel.operations.find((operation) => operation.kind === "create");
+  if (createOp) {
+    const returnType = createOp.hasFlow ? flowStateClassByOperationId[createOp.operationId] : instanceClassName;
+    collectionMethods.push(
+      buildPythonServiceMethod(createOp, returnType, { withLifecycleOptions: false, autoPrerequisitesDefault: false })
+    );
+  }
+
+  const retrieveOp = resourceModel.operations.find((operation) => operation.kind === "retrieve");
+  if (retrieveOp) {
+    collectionMethods.push(
+      buildPythonServiceMethod(retrieveOp, instanceClassName, { withLifecycleOptions: false, autoPrerequisitesDefault: false })
+    );
+  }
+
+  const listOp = resourceModel.operations.find((operation) => operation.kind === "list");
+  if (listOp) {
+    collectionMethods.push(
+      buildPythonServiceMethod(listOp, "Any", { withLifecycleOptions: false, autoPrerequisitesDefault: false })
+    );
+  }
+
+  const helperMethods = [];
+  const seenHelperNames = new Set(collectionMethods.map((code) => code.match(/def\s+([a-zA-Z0-9_]+)/)[1]));
+  for (const operation of flowOperations) {
+    const methodName = toSnakeCase(operation.methodName);
+    if (seenHelperNames.has(methodName)) {
+      continue;
+    }
+    helperMethods.push(
+      buildPythonServiceMethod(operation, flowStateClassByOperationId[operation.operationId], {
+        withLifecycleOptions: true,
+        autoPrerequisitesDefault: true,
+      })
+    );
+    seenHelperNames.add(methodName);
+  }
+
+  const operationCallCases = resourceModel.operations
+    .map((operation, index) => buildPythonOperationCallCase(operation, index === 0))
+    .join("\n");
+
+  const operationPrereqMap = JSON.stringify(resourceModel.prerequisites || {}, null, 4)
+    .split("\n")
+    .map((line, index) => (index === 0 ? line : `        ${line}`))
+    .join("\n");
+
+  const stateFactoryLines = resourceModel.operations
+    .map((operation, index) => {
+      const className = operation.hasFlow ? flowStateClassByOperationId[operation.operationId] : instanceClassName;
+      const keyword = index === 0 ? "if" : "elif";
+      return `        ${keyword} operation_id == "${operation.operationId}":\n            return ${className}(self, instance_id, completed)`;
+    })
+    .join("\n");
+
+  const transitionMethodsByState = new Map(resourceModel.states.map((state) => [state, []]));
+
+  for (const flowOperation of flowOperations) {
+    for (const transition of flowOperation.nextOperations || []) {
+      const targetOperation = operationsById.get(transition.nextOperationId);
+      if (!targetOperation || !targetOperation.hasFlow) {
+        continue;
+      }
+
+      const sourceState = flowOperation.currentState;
+      const targetStateClassName = stateClassNameByState.get(targetOperation.currentState);
+      const targetMethodName = toSnakeCase(targetOperation.methodName);
+      const stateMethods = transitionMethodsByState.get(sourceState) || [];
+
+      if (stateMethods.some((methodCode) => methodCode.includes(`def ${targetMethodName}(`))) {
+        continue;
+      }
+
+      stateMethods.push(buildPythonTransitionMethod(targetOperation, targetStateClassName));
+      transitionMethodsByState.set(sourceState, stateMethods);
+    }
+  }
+
+  const stateClassesCode = [
+    `class ${instanceClassName}:`,
+    `    def __init__(self, service: "${serviceClassName}", id: Optional[str] = None, completed_operations: Optional[Set[str]] = None):`,
+    "        self.service = service",
+    "        self.id = id",
+    "        self.completed_operations = completed_operations or set()",
+    "",
+    "    @property",
+    "    def resource_id(self) -> Optional[str]:",
+    "        return self.id",
+  ];
+
+  for (const stateName of resourceModel.states) {
+    const className = stateClassNameByState.get(stateName);
+    const methods = transitionMethodsByState.get(stateName) || [];
+    stateClassesCode.push("", "", `class ${className}(${instanceClassName}):`);
+    stateClassesCode.push(methods.length > 0 ? methods.join("\n\n") : "    pass");
+  }
+
+  const serviceMethodsCode = [
+    [...collectionMethods, ...helperMethods].join("\n\n"),
+    "",
+    "    def _execute_transition(self, operation_id: str, params: Dict[str, Any], completed_operations: Set[str]) -> Any:",
+    "        return self._execute_operation(operation_id, params, {",
+    '            "auto_prerequisites": False,',
+    '            "prerequisite_params": {},',
+    '            "context": {"executed": set(completed_operations)},',
+    "        })",
+    "",
+    "    def _execute_operation(self, operation_id: str, params: Dict[str, Any], options: Dict[str, Any]) -> Any:",
+    '        context = options.get("context") or {"executed": set()}',
+    "",
+    '        if options.get("auto_prerequisites"):',
+    `            prerequisites_by_operation: Dict[str, Any] = ${operationPrereqMap || "{}"}`,
+    '            required = prerequisites_by_operation.get(operation_id, [])',
+    "            for prerequisite_operation_id in required:",
+    '                if prerequisite_operation_id in context["executed"]:',
+    "                    continue",
+    '                prerequisite_params = options.get("prerequisite_params", {}).get(prerequisite_operation_id, params)',
+    "                self._execute_operation(prerequisite_operation_id, prerequisite_params, {",
+    '                    "auto_prerequisites": True,',
+    '                    "prerequisite_params": options.get("prerequisite_params", {}),',
+    '                    "context": context,',
+    "                })",
+    "",
+    "        response = self._call_operation(operation_id, params)",
+    '        context["executed"].add(operation_id)',
+    '        return self._build_resource_instance(operation_id, response, context["executed"], params)',
+    "",
+    "    def _call_operation(self, operation_id: str, params: Dict[str, Any]) -> Any:",
+    operationCallCases,
+    "        raise ValueError(f\"Unknown operationId '{operation_id}' for resource.\")",
+    "",
+    "    def _build_resource_instance(self, operation_id: str, response: Any, completed_operations: Set[str], params: Dict[str, Any]) -> Any:",
+    '        response_id = response.get("id") if isinstance(response, dict) else None',
+    '        instance_id = response_id if response_id is not None else params.get("id")',
+    "        completed = set(completed_operations)",
+    "        completed.add(operation_id)",
+    "",
+    stateFactoryLines,
+    `        return ${instanceClassName}(self, instance_id, completed)`,
+  ].join("\n");
+
+  return {
+    resourceClassName: resourceModel.resourceClassName,
+    instanceClassName,
+    serviceClassName,
+    stateClassesCode: stateClassesCode.join("\n"),
+    serviceMethodsCode,
+  };
+}
+
 function generateTypeScriptSdk(intermediateModel, outputDir) {
   const templateRoot = path.join(__dirname, "..", "templates", "typescript");
   const srcDir = path.join(outputDir, "src");
@@ -635,13 +894,56 @@ function generateTypeScriptSdk(intermediateModel, outputDir) {
   );
 }
 
+function generatePythonSdk(intermediateModel, outputDir) {
+  const templateRoot = path.join(__dirname, "..", "templates", "python");
+  const srcDir = path.join(outputDir, "src");
+  const resourcesDir = path.join(srcDir, "resources");
+
+  fs.mkdirSync(resourcesDir, { recursive: true });
+  fs.writeFileSync(path.join(resourcesDir, "__init__.py"), "", "utf8");
+
+  const resourcesWithModuleName = intermediateModel.resources.map((resourceModel) => ({
+    ...resourceModel,
+    moduleName: toSnakeCase(resourceModel.resource),
+  }));
+
+  for (const resourceModel of resourcesWithModuleName) {
+    const resourceTemplateData = buildPythonResourceCode(resourceModel);
+    const resourceOutput = renderTemplate(path.join(templateRoot, "resource.hbs"), resourceTemplateData);
+    fs.writeFileSync(
+      path.join(resourcesDir, `${resourceModel.moduleName}.py`),
+      `${resourceOutput.trimEnd()}\n`,
+      "utf8"
+    );
+  }
+
+  const initOutput = renderTemplate(path.join(templateRoot, "init.hbs"), {
+    resources: resourcesWithModuleName,
+  });
+  fs.writeFileSync(path.join(srcDir, "__init__.py"), `${initOutput.trimEnd()}\n`, "utf8");
+
+  const httpClientOutput = renderTemplate(path.join(templateRoot, "http_client.hbs"), {});
+  fs.writeFileSync(path.join(srcDir, "http_client.py"), `${httpClientOutput.trimEnd()}\n`, "utf8");
+
+  const helpersOutput = renderTemplate(path.join(templateRoot, "flow_helpers.hbs"), {});
+  fs.writeFileSync(path.join(srcDir, "flow_helpers.py"), `${helpersOutput.trimEnd()}\n`, "utf8");
+
+  fs.writeFileSync(
+    path.join(outputDir, "flow-model.json"),
+    `${JSON.stringify(intermediateModel, null, 2)}\n`,
+    "utf8"
+  );
+}
+
+const SUPPORTED_SDK_LANGUAGES = ["typescript", "python"];
+
 function generateSdk(options) {
   const apiPath = path.resolve(options.apiPath);
   const outputDir = path.resolve(options.outputDir);
   const language = options.language || "typescript";
 
-  if (language !== "typescript") {
-    throw new Error(`Unsupported language '${language}'. MVP currently supports only 'typescript'.`);
+  if (!SUPPORTED_SDK_LANGUAGES.includes(language)) {
+    throw new Error(`Unsupported language '${language}'. Supported languages: ${SUPPORTED_SDK_LANGUAGES.join(", ")}.`);
   }
 
   const api = loadApi(apiPath);
@@ -651,7 +953,11 @@ function generateSdk(options) {
     throw new Error("No x-openapi-flow operations found. Add x-openapi-flow metadata before generating an SDK.");
   }
 
-  generateTypeScriptSdk(model, outputDir);
+  if (language === "python") {
+    generatePythonSdk(model, outputDir);
+  } else {
+    generateTypeScriptSdk(model, outputDir);
+  }
 
   return {
     language,

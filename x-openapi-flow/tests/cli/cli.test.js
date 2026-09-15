@@ -516,6 +516,122 @@ test("generate-sdk creates collection layer and lifecycle helper methods", () =>
   }
 });
 
+test("generate-sdk python creates flow-aware resource modules", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-generate-sdk-py-"));
+  const outputDir = path.join(tempDir, "sdk");
+
+  try {
+    const result = runCli([
+      "generate-sdk",
+      "examples/order-api.yaml",
+      "--lang",
+      "python",
+      "--output",
+      outputDir,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /SDK language: python/);
+    assert.match(result.stdout, /Resources generated:/);
+
+    const orderResourcePath = path.join(outputDir, "src", "resources", "order.py");
+    const initPath = path.join(outputDir, "src", "__init__.py");
+    const httpClientPath = path.join(outputDir, "src", "http_client.py");
+    const helpersPath = path.join(outputDir, "src", "flow_helpers.py");
+    const modelPath = path.join(outputDir, "flow-model.json");
+
+    assert.equal(fs.existsSync(orderResourcePath), true);
+    assert.equal(fs.existsSync(initPath), true);
+    assert.equal(fs.existsSync(httpClientPath), true);
+    assert.equal(fs.existsSync(helpersPath), true);
+    assert.equal(fs.existsSync(modelPath), true);
+
+    const orderResource = fs.readFileSync(orderResourcePath, "utf8");
+    assert.match(orderResource, /class OrderResource:/);
+    assert.match(orderResource, /class OrderCreated\(OrderResourceInstance\):/);
+    assert.match(orderResource, /def confirm\(self, params: Optional\[Dict\[str, Any\]\] = None\) -> "OrderConfirmed":/);
+    assert.match(orderResource, /def cancel\(self, params: Optional\[Dict\[str, Any\]\] = None\) -> "OrderCancelled":/);
+    assert.doesNotMatch(orderResource, /class OrderCreated\(OrderResourceInstance\):\s*\n\s*def ship\(/);
+
+    const helpers = fs.readFileSync(helpersPath, "utf8");
+    assert.match(helpers, /def run_flow/);
+    assert.match(helpers, /def ensure_prerequisites/);
+
+    const init = fs.readFileSync(initPath, "utf8");
+    assert.match(init, /class FlowApiClient:/);
+    assert.match(init, /from \.resources\.order import OrderResource/);
+
+    const model = JSON.parse(fs.readFileSync(modelPath, "utf8"));
+    assert.equal(Array.isArray(model.resources), true);
+    assert.equal(model.resources.length > 0, true);
+
+    // Every generated .py file must be syntactically valid Python.
+    for (const pyFile of [orderResourcePath, initPath, httpClientPath, helpersPath]) {
+      const compileResult = spawnSync("python3", ["-m", "py_compile", pyFile], { encoding: "utf8" });
+      assert.equal(compileResult.status, 0, `py_compile failed for ${pyFile}:\n${compileResult.stderr}`);
+    }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-sdk python creates collection layer and lifecycle helper methods", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-generate-sdk-py-collection-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const outputDir = path.join(tempDir, "sdk");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Payments API\n  version: "1.0.0"\npaths:\n  /payments:\n    get:\n      operationId: listPayments\n      responses:\n        "200":\n          description: ok\n    post:\n      operationId: createPayment\n      x-openapi-flow:\n        version: "1.0"\n        id: create-payment\n        current_state: AUTHORIZED\n        transitions:\n          - target_state: CAPTURED\n            trigger_type: synchronous\n            next_operation_id: capturePayment\n      responses:\n        "201":\n          description: ok\n  /payments/{id}:\n    get:\n      operationId: retrievePayment\n      responses:\n        "200":\n          description: ok\n  /payments/{id}/capture:\n    post:\n      operationId: capturePayment\n      x-openapi-flow:\n        version: "1.0"\n        id: capture-payment\n        current_state: CAPTURED\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli([
+      "generate-sdk",
+      openapiPath,
+      "--lang",
+      "python",
+      "--output",
+      outputDir,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+
+    const paymentResourcePath = path.join(outputDir, "src", "resources", "payment.py");
+    assert.equal(fs.existsSync(paymentResourcePath), true);
+
+    const paymentResource = fs.readFileSync(paymentResourcePath, "utf8");
+    assert.match(paymentResource, /def create\(self, params: Optional\[Dict\[str, Any\]\] = None\) -> "PaymentAuthorized":/);
+    assert.match(paymentResource, /def retrieve\(self, id: str, params: Optional\[Dict\[str, Any\]\] = None\) -> "PaymentResourceInstance":/);
+    assert.match(paymentResource, /def list\(self, params: Optional\[Dict\[str, Any\]\] = None\) -> "Any":/);
+    assert.match(
+      paymentResource,
+      /def capture\(self, id: str, params: Optional\[Dict\[str, Any\]\] = None, options: Optional\[Dict\[str, Any\]\] = None\) -> "PaymentCaptured":/
+    );
+    assert.match(paymentResource, /def _execute_transition\(self, operation_id: str, params: Dict\[str, Any\], completed_operations: Set\[str\]\)/);
+    assert.match(paymentResource, /class PaymentAuthorized\(PaymentResourceInstance\):[\s\S]*def capture\(self, params: Optional\[Dict\[str, Any\]\] = None\) -> "PaymentCaptured":/);
+
+    const compileResult = spawnSync("python3", ["-m", "py_compile", paymentResourcePath], { encoding: "utf8" });
+    assert.equal(compileResult.status, 0, `py_compile failed:\n${compileResult.stderr}`);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-sdk rejects an unsupported --lang value", () => {
+  const result = runCli([
+    "generate-sdk",
+    "examples/order-api.yaml",
+    "--lang",
+    "rust",
+  ]);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Unsupported --lang 'rust'/);
+  assert.match(result.stderr, /typescript, python/);
+});
+
 test("export-doc-flows generates markdown lifecycle page", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-doc-flows-"));
   const outputPath = path.join(tempDir, "api-flows.md");

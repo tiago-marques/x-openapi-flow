@@ -130,9 +130,10 @@ const COMMAND_SNIPPETS = {
     ],
   },
   "generate-sdk": {
-    usage: "x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]",
+    usage: "x-openapi-flow generate-sdk [openapi-file] --lang typescript|python [--output path]",
     examples: [
       "x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk",
+      "x-openapi-flow generate-sdk openapi.yaml --lang python --output ./sdk",
     ],
   },
   "export-doc-flows": {
@@ -493,7 +494,7 @@ Usage:
   x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]
   x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path] [--confidence-threshold 0..1]
   x-openapi-flow quality-report <openapi-file> [--profile core|relaxed|strict] [--semantic] [--output path]
-  x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]
+  x-openapi-flow generate-sdk [openapi-file] --lang typescript|python [--output path]
   x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
   x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
   x-openapi-flow generate-insomnia [openapi-file] [--output path]
@@ -538,6 +539,7 @@ Examples:
   x-openapi-flow analyze openapi.yaml --merge --flows openapi.x.yaml
   x-openapi-flow analyze openapi.yaml --format json --confidence-threshold 0.75
   x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
+  x-openapi-flow generate-sdk openapi.yaml --lang python --output ./sdk
   x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
   x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
   x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
@@ -1394,7 +1396,7 @@ function parseGenerateSdkArgs(args) {
 
   const langOpt = getOptionValue(args, "--lang");
   if (langOpt.error) {
-    return { error: `${langOpt.error} Use 'typescript'.` };
+    return { error: `${langOpt.error} Use 'typescript' or 'python'.` };
   }
 
   const outputOpt = getOptionValue(args, "--output");
@@ -1403,12 +1405,12 @@ function parseGenerateSdkArgs(args) {
   }
 
   if (!langOpt.found) {
-    return { error: "Missing --lang option. Usage: x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path]" };
+    return { error: "Missing --lang option. Usage: x-openapi-flow generate-sdk [openapi-file] --lang typescript|python [--output path]" };
   }
 
   const language = langOpt.value;
-  if (language !== "typescript") {
-    return { error: `Unsupported --lang '${language}'. MVP currently supports only 'typescript'.` };
+  if (language !== "typescript" && language !== "python") {
+    return { error: `Unsupported --lang '${language}'. Supported languages: typescript, python.` };
   }
 
   const positional = args.filter((token, index) => {

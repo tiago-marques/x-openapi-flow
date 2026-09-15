@@ -247,16 +247,17 @@ CAPTURED --> REFUNDED
 <a id="sdk-generation"></a>
 ## Generate Flow-Aware SDKs
 
-Create a TypeScript SDK that **respects your API’s lifecycle and transition rules**, following best practices seen in leading companies like **Stripe** and **Adyen**:
+Create a TypeScript or Python SDK that **respects your API’s lifecycle and transition rules**, following best practices seen in leading companies like **Stripe** and **Adyen**:
 
 - **Orchestrator by model**: each resource exposes methods that enforce valid transitions
 - **Chainable API calls**: perform sequences naturally and safely
 
 ```bash
 npx x-openapi-flow generate-sdk openapi.flow.yaml --lang typescript --output ./sdk
+npx x-openapi-flow generate-sdk openapi.flow.yaml --lang python --output ./sdk
 ```
 
-Example usage:
+Example usage (TypeScript):
 
 ```ts
 const payment = await sdk.payments.create({ amount: 1000 });
@@ -264,9 +265,21 @@ await payment.authorize();
 await payment.capture();
 ```
 
+Example usage (Python — zero-dependency, stdlib `urllib`-backed client, generated under `./sdk/src`):
+
+```python
+from src import FlowApiClient
+from src.http_client import UrllibHttpClient
+
+client = FlowApiClient(UrllibHttpClient("https://api.example.com"))
+payment = client.payment.create({"body": {"amount": 1000}})
+payment = payment.authorize()
+payment = payment.capture()
+```
+
 > This SDK guides developers through valid transition paths, following patterns used by market leaders to ensure safe and intuitive integrations.
 
-## Runtime Enforcement (Express + Fastify)
+## Runtime Enforcement (Express + Fastify + Hono)
 
 CI validation is important, but production safety needs request-time enforcement.
 
@@ -682,8 +695,8 @@ npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format mar
 ### SDK Generation
 
 ```bash
-# generate flow-aware SDK
-npx x-openapi-flow generate-sdk [openapi-file] --lang typescript [--output path] 
+# generate flow-aware SDK (typescript or python)
+npx x-openapi-flow generate-sdk [openapi-file] --lang typescript|python [--output path] 
 ```
 
 ### Test Generation
