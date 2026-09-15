@@ -3,18 +3,9 @@
 const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
-const { loadApi, extractFlows } = require("../../lib/validator");
+const { loadApi } = require("../../lib/validator");
 const { buildIntermediateModel } = require("../../lib/sdk-generator");
-
-function buildRawFlowByOperationId(api) {
-  const map = new Map();
-  for (const entry of extractFlows(api)) {
-    if (entry.operation_id) {
-      map.set(entry.operation_id, entry.flow);
-    }
-  }
-  return map;
-}
+const { buildRawFlowByOperationId } = require("../shared/helpers");
 
 function buildOperationContract(operation, rawFlowByOperationId) {
   const rawFlow = operation.hasFlow ? rawFlowByOperationId.get(operation.operationId) : null;

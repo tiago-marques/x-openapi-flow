@@ -4,7 +4,43 @@ const fs = require("fs");
 const path = require("path");
 const { loadApi } = require("../../lib/validator");
 const { buildIntermediateModel } = require("../../lib/sdk-generator");
-const { toTitleCase, buildLifecycleSequences } = require("../shared/helpers");
+const { toTitleCase, buildLifecycleSequences, enrichModelWithFlowDetails } = require("../shared/helpers");
+
+function buildTransitionDetailLines(nextOperation) {
+  const lines = [];
+
+  if (nextOperation.decisionRule) {
+    lines.push(`decision: ${nextOperation.decisionRule}`);
+  }
+  if (Array.isArray(nextOperation.evidenceRefs) && nextOperation.evidenceRefs.length) {
+    lines.push(`evidence: ${nextOperation.evidenceRefs.join(", ")}`);
+  }
+  if (Array.isArray(nextOperation.prerequisiteFieldRefs) && nextOperation.prerequisiteFieldRefs.length) {
+    lines.push(`needs fields: ${nextOperation.prerequisiteFieldRefs.join(", ")}`);
+  }
+  if (Array.isArray(nextOperation.propagatedFieldRefs) && nextOperation.propagatedFieldRefs.length) {
+    lines.push(`propagates: ${nextOperation.propagatedFieldRefs.join(", ")}`);
+  }
+  if (nextOperation.asyncContract && typeof nextOperation.asyncContract === "object") {
+    const contract = nextOperation.asyncContract;
+    const parts = [];
+    if (contract.timeout_ms != null) parts.push(`timeout: ${contract.timeout_ms}ms`);
+    if (contract.max_retries != null) parts.push(`max_retries: ${contract.max_retries}`);
+    if (contract.backoff) parts.push(`backoff: ${contract.backoff}`);
+    if (parts.length) lines.push(parts.join(", "));
+  }
+  if (nextOperation.compensationOperationId) {
+    lines.push(`compensation: ${nextOperation.compensationOperationId}`);
+  }
+  if (Array.isArray(nextOperation.failurePaths) && nextOperation.failurePaths.length) {
+    for (const failurePath of nextOperation.failurePaths) {
+      const nextPart = failurePath.next_operation_id ? ` (next: ${failurePath.next_operation_id})` : "";
+      lines.push(`on failure -> ${failurePath.target_state}${nextPart} — ${failurePath.reason}`);
+    }
+  }
+
+  return lines;
+}
 
 function buildResourceMermaid(resource) {
   const flowOperations = resource.operations.filter((operation) => operation.hasFlow);
@@ -81,6 +117,18 @@ function buildDocFlowsMarkdown(model, sourcePath) {
         .map((next) => next.nextOperationId)
         .filter(Boolean);
       lines.push(`- Next operations: ${nextOps.length > 0 ? nextOps.join(", ") : "-"}`);
+
+      const transitions = operation.nextOperations || [];
+      if (transitions.length > 0) {
+        lines.push("- Transitions:");
+        for (const transition of transitions) {
+          const conditionPart = transition.condition ? ` — ${transition.condition}` : "";
+          lines.push(`  - ${transition.triggerType || "-"} → ${transition.targetState || "-"}${conditionPart}`);
+          for (const detailLine of buildTransitionDetailLines(transition)) {
+            lines.push(`    - ${detailLine}`);
+          }
+        }
+      }
       lines.push("");
     }
   }
@@ -98,7 +146,7 @@ function exportDocFlows(options) {
   }
 
   const api = loadApi(apiPath);
-  const model = buildIntermediateModel(api);
+  const model = enrichModelWithFlowDetails(buildIntermediateModel(api), api);
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 

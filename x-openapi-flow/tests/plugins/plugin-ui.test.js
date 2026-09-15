@@ -164,6 +164,47 @@ test("plugin internals parse x-openapi-flow payload from Swagger extension cell"
   });
 });
 
+test("plugin internals render decision_rule, async_contract and failure_paths for a raw transition", () => {
+  const internals = loadUiInternals();
+  const transition = {
+    trigger_type: "synchronous",
+    target_state: "PAID",
+    condition: "Payment is confirmed",
+    next_operation_id: "payOrder",
+    decision_rule: "payOrder:response.200.body.payment_status == 'approved'",
+    evidence_refs: ["payOrder:response.200.body.payment_status"],
+    propagated_field_refs: ["createOrder:response.201.body.order_id"],
+    async_contract: { timeout_ms: 120000, max_retries: 3, backoff: "exponential" },
+    compensation_operation_id: "cancelOrder",
+    failure_paths: [{ reason: "Payment gateway denied authorization", target_state: "PAYMENT_FAILED", next_operation_id: "getOrder" }],
+  };
+
+  const details = internals.renderTransitionDetails(transition);
+  assert.match(details, /decision: payOrder:response\.200\.body\.payment_status/);
+  assert.match(details, /evidence: payOrder:response\.200\.body\.payment_status/);
+  assert.match(details, /propagates: createOrder:response\.201\.body\.order_id/);
+  assert.match(details, /timeout: 120000ms/);
+  assert.match(details, /max_retries: 3/);
+  assert.match(details, /backoff: exponential/);
+  assert.match(details, /compensation: cancelOrder/);
+  assert.match(details, /on failure → PAYMENT_FAILED \(next: getOrder\)/);
+
+  const card = internals.renderCard({
+    version: "1.0",
+    id: "create-order",
+    current_state: "CREATED",
+    transitions: [transition],
+  });
+  assert.match(card, /Payment is confirmed/);
+  assert.match(card, /decision: payOrder/);
+});
+
+test("plugin internals omit the detail list when a raw transition has no extra fields", () => {
+  const internals = loadUiInternals();
+  const details = internals.renderTransitionDetails({ trigger_type: "synchronous", target_state: "PAID" });
+  assert.equal(details, "");
+});
+
 test("plugin internals provide actionable Mermaid fallback message", () => {
   const internals = loadUiInternals();
   const message = internals.getMermaidFallbackMessage();
@@ -357,4 +398,59 @@ test("XOpenApiFlowPlugin returns empty object when React is not available", () =
   vm.runInNewContext(source, context, { filename: "x-openapi-flow-plugin.js" });
   const plugin = context.window.XOpenApiFlowPlugin();
   assert.ok(plugin && typeof plugin === "object" && Object.keys(plugin).length === 0, "plugin should return empty object when React is unavailable");
+});
+
+test("XOpenApiFlowPlugin (React path) surfaces decision_rule, async_contract and failure_paths", () => {
+  const source = fs.readFileSync(PLUGIN_PATH, "utf8");
+  const reactMock = { createElement: () => ({}) };
+
+  const windowMock = {
+    React: reactMock,
+    addEventListener: () => {},
+    requestAnimationFrame: (cb) => cb(),
+    setTimeout,
+    clearTimeout,
+    btoa: (v) => Buffer.from(v, "binary").toString("base64"),
+  };
+
+  const documentMock = {
+    head: { appendChild: () => {} },
+    body: {},
+    getElementById: () => null,
+    createElement: () => ({ style: {}, appendChild: () => {} }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: () => {},
+  };
+
+  const context = {
+    window: windowMock,
+    document: documentMock,
+    MutationObserver: function MutationObserver() { this.observe = () => {}; },
+    console,
+    setTimeout,
+    clearTimeout,
+  };
+
+  vm.runInNewContext(source, context, { filename: "x-openapi-flow-plugin.js" });
+  context.window.XOpenApiFlowPlugin();
+
+  const { transitionDetailLines } = context.window.XOpenApiFlowPlugin.__internals;
+  const lines = transitionDetailLines({
+    trigger_type: "synchronous",
+    target_state: "PAID",
+    decision_rule: "payOrder:response.200.body.payment_status == 'approved'",
+    evidence_refs: ["payOrder:response.200.body.payment_status"],
+    async_contract: { timeout_ms: 120000, max_retries: 3, backoff: "exponential" },
+    compensation_operation_id: "cancelOrder",
+    failure_paths: [{ reason: "Payment gateway denied authorization", target_state: "PAYMENT_FAILED", next_operation_id: "getOrder" }],
+  });
+
+  assert.ok(lines.some((line) => line.includes("decision: payOrder")));
+  assert.ok(lines.some((line) => line.includes("evidence: payOrder")));
+  assert.ok(lines.some((line) => line.includes("timeout: 120000ms")));
+  assert.ok(lines.some((line) => line.includes("max_retries: 3")));
+  assert.ok(lines.some((line) => line.includes("backoff: exponential")));
+  assert.ok(lines.some((line) => line.includes("compensation: cancelOrder")));
+  assert.ok(lines.some((line) => line.includes("on failure → PAYMENT_FAILED (next: getOrder) — Payment gateway denied authorization")));
 });

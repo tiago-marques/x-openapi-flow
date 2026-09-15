@@ -28,6 +28,42 @@ window.XOpenApiFlowPlugin = function () {
     return [];
   }
 
+  function transitionDetailLines(transition) {
+    const lines = [];
+
+    if (transition.decision_rule) {
+      lines.push(`decision: ${text(transition.decision_rule)}`);
+    }
+    if (Array.isArray(transition.evidence_refs) && transition.evidence_refs.length) {
+      lines.push(`evidence: ${text(transition.evidence_refs)}`);
+    }
+    if (Array.isArray(transition.prerequisite_field_refs) && transition.prerequisite_field_refs.length) {
+      lines.push(`needs fields: ${text(transition.prerequisite_field_refs)}`);
+    }
+    if (Array.isArray(transition.propagated_field_refs) && transition.propagated_field_refs.length) {
+      lines.push(`propagates: ${text(transition.propagated_field_refs)}`);
+    }
+    if (transition.async_contract && typeof transition.async_contract === "object") {
+      const contract = transition.async_contract;
+      const parts = [];
+      if (contract.timeout_ms != null) parts.push(`timeout: ${text(contract.timeout_ms)}ms`);
+      if (contract.max_retries != null) parts.push(`max_retries: ${text(contract.max_retries)}`);
+      if (contract.backoff) parts.push(`backoff: ${text(contract.backoff)}`);
+      if (parts.length) lines.push(parts.join(", "));
+    }
+    if (transition.compensation_operation_id) {
+      lines.push(`compensation: ${text(transition.compensation_operation_id)}`);
+    }
+    if (Array.isArray(transition.failure_paths) && transition.failure_paths.length) {
+      transition.failure_paths.forEach((failurePath) => {
+        const nextPart = failurePath.next_operation_id ? ` (next: ${text(failurePath.next_operation_id)})` : "";
+        lines.push(`on failure → ${text(failurePath.target_state)}${nextPart} — ${text(failurePath.reason)}`);
+      });
+    }
+
+    return lines;
+  }
+
   function transitionsList(currentState, transitions) {
     if (!Array.isArray(transitions) || transitions.length === 0) {
       return h("div", { style: { opacity: 0.85, fontStyle: "italic" } }, "No transitions (terminal state)");
@@ -36,17 +72,25 @@ window.XOpenApiFlowPlugin = function () {
     return h(
       "ul",
       { style: { margin: "6px 0 0 18px", padding: 0 } },
-      transitions.map((transition, index) =>
-        h(
+      transitions.map((transition, index) => {
+        const detailLines = transitionDetailLines(transition);
+        return h(
           "li",
           { key: `${currentState}-${index}`, style: { marginBottom: "4px", lineHeight: 1.45 } },
           h("strong", null, text(transition.trigger_type)),
           " → ",
           h("strong", null, text(transition.target_state)),
           transition.condition ? ` — ${text(transition.condition)}` : "",
-          transition.next_operation_id ? ` (next: ${text(transition.next_operation_id)})` : ""
-        )
-      )
+          transition.next_operation_id ? ` (next: ${text(transition.next_operation_id)})` : "",
+          detailLines.length
+            ? h(
+                "ul",
+                { style: { margin: "2px 0 0 16px", padding: 0, opacity: 0.85, fontSize: "11px" } },
+                detailLines.map((line, lineIndex) => h("li", { key: lineIndex }, line))
+              )
+            : null
+        );
+      })
     );
   }
 
@@ -63,6 +107,8 @@ window.XOpenApiFlowPlugin = function () {
       )
     );
   }
+
+  window.XOpenApiFlowPlugin.__internals = { transitionDetailLines, transitionsList };
 
   return {
     wrapComponents: {
@@ -179,6 +225,8 @@ window.XOpenApiFlowPlugin = function () {
       .xof-meta-label { opacity: 0.85; }
       .xof-list { margin: 0; padding-left: 18px; }
       .xof-list li { margin: 6px 0; line-height: 1.45; }
+      .xof-detail-list { margin: 4px 0 0 16px; padding: 0; opacity: 0.85; font-size: 11px; }
+      .xof-detail-list li { margin: 2px 0; line-height: 1.4; }
       .xof-next-link { margin-left: 8px; border: 0; background: none; color: inherit; padding: 0; font-size: 11px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
       .xof-pre-links { margin-left: 8px; }
       .xof-pre-link { margin-left: 4px; border: 0; background: none; color: inherit; padding: 0; font-size: 11px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
@@ -274,6 +322,43 @@ window.XOpenApiFlowPlugin = function () {
       .replace(/'/g, '&#39;');
   }
 
+  function renderTransitionDetails(transition) {
+    const lines = [];
+
+    if (transition.decision_rule) {
+      lines.push(`decision: ${escapeHtml(transition.decision_rule)}`);
+    }
+    if (Array.isArray(transition.evidence_refs) && transition.evidence_refs.length) {
+      lines.push(`evidence: ${escapeHtml(transition.evidence_refs)}`);
+    }
+    if (Array.isArray(transition.prerequisite_field_refs) && transition.prerequisite_field_refs.length) {
+      lines.push(`needs fields: ${escapeHtml(transition.prerequisite_field_refs)}`);
+    }
+    if (Array.isArray(transition.propagated_field_refs) && transition.propagated_field_refs.length) {
+      lines.push(`propagates: ${escapeHtml(transition.propagated_field_refs)}`);
+    }
+    if (transition.async_contract && typeof transition.async_contract === 'object') {
+      const contract = transition.async_contract;
+      const parts = [];
+      if (contract.timeout_ms != null) parts.push(`timeout: ${escapeHtml(contract.timeout_ms)}ms`);
+      if (contract.max_retries != null) parts.push(`max_retries: ${escapeHtml(contract.max_retries)}`);
+      if (contract.backoff) parts.push(`backoff: ${escapeHtml(contract.backoff)}`);
+      if (parts.length) lines.push(parts.join(', '));
+    }
+    if (transition.compensation_operation_id) {
+      lines.push(`compensation: ${escapeHtml(transition.compensation_operation_id)}`);
+    }
+    if (Array.isArray(transition.failure_paths) && transition.failure_paths.length) {
+      transition.failure_paths.forEach((failurePath) => {
+        const nextPart = failurePath.next_operation_id ? ` (next: ${escapeHtml(failurePath.next_operation_id)})` : '';
+        lines.push(`on failure → ${escapeHtml(failurePath.target_state)}${nextPart} — ${escapeHtml(failurePath.reason)}`);
+      });
+    }
+
+    if (!lines.length) return '';
+    return `<ul class="xof-detail-list">${lines.map((line) => `<li>${line}</li>`).join('')}</ul>`;
+  }
+
   function renderTransitions(currentState, transitions) {
     if (!Array.isArray(transitions) || transitions.length === 0) {
       return '<div class="xof-empty">No transitions (terminal state)</div>';
@@ -294,7 +379,8 @@ window.XOpenApiFlowPlugin = function () {
               )
               .join('')}</span>`
           : '';
-        return `<li><strong>${escapeHtml(transition.trigger_type)}</strong> → <strong>${escapeHtml(transition.target_state)}</strong>${condition}${nextOperation}${preOperationLinks}</li>`;
+        const details = renderTransitionDetails(transition);
+        return `<li><strong>${escapeHtml(transition.trigger_type)}</strong> → <strong>${escapeHtml(transition.target_state)}</strong>${condition}${nextOperation}${preOperationLinks}${details}</li>`;
       })
       .join('')}</ul>`;
   }
@@ -940,5 +1026,7 @@ window.XOpenApiFlowPlugin = function () {
     getRenderedOperationPath,
     findRenderedOperation,
     readFlowFromValueCell,
+    renderTransitionDetails,
+    renderCard,
   };
 })();

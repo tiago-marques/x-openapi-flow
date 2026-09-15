@@ -133,3 +133,41 @@ test("redoc plugin internals provide Mermaid fallback guidance", () => {
   assert.match(message, /Could not render Mermaid image/);
   assert.match(message, /ReDoc/);
 });
+
+test("redoc plugin renders decision_rule, async_contract and failure_paths on enriched transitions", () => {
+  const internals = loadRedocInternals();
+  const nextOperation = {
+    targetState: "PAID",
+    triggerType: "synchronous",
+    nextOperationId: "payOrder",
+    prerequisites: ["createOrder"],
+    condition: "Payment is confirmed",
+    decisionRule: "payOrder:response.200.body.payment_status == 'approved'",
+    evidenceRefs: ["payOrder:response.200.body.payment_status"],
+    propagatedFieldRefs: ["createOrder:response.201.body.order_id"],
+    asyncContract: { timeout_ms: 120000, max_retries: 3, backoff: "exponential" },
+    compensationOperationId: "cancelOrder",
+    failurePaths: [{ reason: "Payment gateway denied authorization", target_state: "PAYMENT_FAILED", next_operation_id: "getOrder" }],
+  };
+
+  const details = internals.renderTransitionDetails(nextOperation);
+  assert.match(details, /decision: payOrder:response\.200\.body\.payment_status/);
+  assert.match(details, /evidence: payOrder:response\.200\.body\.payment_status/);
+  assert.match(details, /propagates: createOrder:response\.201\.body\.order_id/);
+  assert.match(details, /timeout: 120000ms/);
+  assert.match(details, /max_retries: 3/);
+  assert.match(details, /backoff: exponential/);
+  assert.match(details, /compensation: cancelOrder/);
+  assert.match(details, /on failure -> PAYMENT_FAILED \(next: getOrder\)/);
+
+  const operation = { currentState: "CREATED", nextOperations: [nextOperation] };
+  const list = internals.renderTransitionList(operation);
+  assert.match(list, /Payment is confirmed/);
+  assert.match(list, /decision: payOrder/);
+});
+
+test("redoc plugin omits the detail list when a transition has no extra fields", () => {
+  const internals = loadRedocInternals();
+  const details = internals.renderTransitionDetails({ targetState: "PAID", triggerType: "synchronous" });
+  assert.equal(details, "");
+});

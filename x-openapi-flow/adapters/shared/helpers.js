@@ -1,5 +1,24 @@
 "use strict";
 
+const { extractFlows } = require("../../lib/validator");
+
+/**
+ * Maps operationId -> the full authored x-openapi-flow object as it appears in
+ * the OpenAPI source, unlike buildIntermediateModel()'s per-operation
+ * nextOperations entries (shared with the SDK generator), which only keep
+ * targetState/triggerType/nextOperationId/prerequisites for codegen and drop
+ * condition/decision_rule/evidence_refs/field_refs/failure_paths/async_contract.
+ */
+function buildRawFlowByOperationId(api) {
+  const map = new Map();
+  for (const entry of extractFlows(api)) {
+    if (entry.operation_id) {
+      map.set(entry.operation_id, entry.flow);
+    }
+  }
+  return map;
+}
+
 function toTitleCase(value) {
   return String(value || "")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -84,4 +103,54 @@ function buildLifecycleSequences(resource) {
   return [...dedup.values()];
 }
 
-module.exports = { toTitleCase, pathToPostmanUrl, buildLifecycleSequences };
+/**
+ * buildIntermediateModel() (shared with the SDK generator) only keeps the fields
+ * needed for codegen on each nextOperations entry: targetState, triggerType,
+ * nextOperationId, prerequisites. Enrich a local copy of the model with the rest
+ * of each authored transition — condition, decision_rule, evidence_refs, field
+ * refs, failure_paths, async_contract, compensation_operation_id — so doc/UI
+ * generators can render them without touching the shared model other
+ * generators (SDK, docs) depend on.
+ */
+function enrichModelWithFlowDetails(model, api) {
+  const rawFlowByOperationId = buildRawFlowByOperationId(api);
+
+  for (const resource of model.resources) {
+    for (const operation of resource.operations) {
+      if (!operation.hasFlow) continue;
+
+      const rawFlow = rawFlowByOperationId.get(operation.operationId);
+      const rawTransitions = (rawFlow && Array.isArray(rawFlow.transitions)) ? rawFlow.transitions.slice() : [];
+
+      operation.nextOperations = (operation.nextOperations || []).map((nextOperation) => {
+        const matchIndex = rawTransitions.findIndex((transition) =>
+          (transition.target_state || null) === (nextOperation.targetState || null)
+          && (transition.next_operation_id || null) === (nextOperation.nextOperationId || null)
+        );
+        const rawTransition = matchIndex >= 0 ? rawTransitions.splice(matchIndex, 1)[0] : null;
+
+        return {
+          ...nextOperation,
+          condition: rawTransition ? rawTransition.condition : undefined,
+          decisionRule: rawTransition ? rawTransition.decision_rule : undefined,
+          evidenceRefs: rawTransition ? rawTransition.evidence_refs : undefined,
+          prerequisiteFieldRefs: rawTransition ? rawTransition.prerequisite_field_refs : undefined,
+          propagatedFieldRefs: rawTransition ? rawTransition.propagated_field_refs : undefined,
+          failurePaths: rawTransition ? rawTransition.failure_paths : undefined,
+          compensationOperationId: rawTransition ? rawTransition.compensation_operation_id : undefined,
+          asyncContract: rawTransition ? rawTransition.async_contract : undefined,
+        };
+      });
+    }
+  }
+
+  return model;
+}
+
+module.exports = {
+  toTitleCase,
+  pathToPostmanUrl,
+  buildLifecycleSequences,
+  buildRawFlowByOperationId,
+  enrichModelWithFlowDetails,
+};

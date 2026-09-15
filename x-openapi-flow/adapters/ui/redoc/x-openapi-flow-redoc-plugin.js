@@ -190,6 +190,8 @@
       + ".xofr-section-title{margin:14px 0 8px;font-size:12px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:.04em;}"
       + ".xofr-list{margin:0;padding-left:18px;}"
       + ".xofr-list li{margin:6px 0;line-height:1.5;}"
+      + ".xofr-detail-list{margin:4px 0 0 16px;padding:0;color:#6b7280;font-size:11px;}"
+      + ".xofr-detail-list li{margin:2px 0;line-height:1.4;}"
       + ".xofr-inline-actions{display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:8px;vertical-align:middle;}"
       + ".xofr-inline-link{border:0;background:none;color:#0f766e;padding:0;font-size:11px;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;}"
       + ".xofr-inline-link:hover{opacity:.9;text-decoration-thickness:2px;}"
@@ -211,6 +213,43 @@
     }).join("") + "</span>";
   }
 
+  function renderTransitionDetails(nextOperation) {
+    var lines = [];
+
+    if (nextOperation.decisionRule) {
+      lines.push("decision: " + escapeHtml(nextOperation.decisionRule));
+    }
+    if (Array.isArray(nextOperation.evidenceRefs) && nextOperation.evidenceRefs.length) {
+      lines.push("evidence: " + escapeHtml(nextOperation.evidenceRefs));
+    }
+    if (Array.isArray(nextOperation.prerequisiteFieldRefs) && nextOperation.prerequisiteFieldRefs.length) {
+      lines.push("needs fields: " + escapeHtml(nextOperation.prerequisiteFieldRefs));
+    }
+    if (Array.isArray(nextOperation.propagatedFieldRefs) && nextOperation.propagatedFieldRefs.length) {
+      lines.push("propagates: " + escapeHtml(nextOperation.propagatedFieldRefs));
+    }
+    if (nextOperation.asyncContract && typeof nextOperation.asyncContract === "object") {
+      var contract = nextOperation.asyncContract;
+      var parts = [];
+      if (contract.timeout_ms != null) parts.push("timeout: " + escapeHtml(contract.timeout_ms) + "ms");
+      if (contract.max_retries != null) parts.push("max_retries: " + escapeHtml(contract.max_retries));
+      if (contract.backoff) parts.push("backoff: " + escapeHtml(contract.backoff));
+      if (parts.length) lines.push(parts.join(", "));
+    }
+    if (nextOperation.compensationOperationId) {
+      lines.push("compensation: " + escapeHtml(nextOperation.compensationOperationId));
+    }
+    if (Array.isArray(nextOperation.failurePaths) && nextOperation.failurePaths.length) {
+      nextOperation.failurePaths.forEach(function (failurePath) {
+        var nextPart = failurePath.next_operation_id ? " (next: " + escapeHtml(failurePath.next_operation_id) + ")" : "";
+        lines.push("on failure -> " + escapeHtml(failurePath.target_state) + nextPart + " — " + escapeHtml(failurePath.reason));
+      });
+    }
+
+    if (!lines.length) return "";
+    return "<ul class=\"xofr-detail-list\">" + lines.map(function (line) { return "<li>" + line + "</li>"; }).join("") + "</ul>";
+  }
+
   function renderTransitionList(operation) {
     var transitions = Array.isArray(operation.nextOperations) ? operation.nextOperations : [];
     if (!transitions.length) {
@@ -220,10 +259,12 @@
     return "<ul class=\"xofr-list\">" + transitions.map(function (nextOperation) {
       var prerequisiteOperationIds = getPrerequisiteOperationIds(nextOperation);
       var nextOperationId = nextOperation.nextOperationId ? [nextOperation.nextOperationId] : [];
-      return "<li><strong>" + escapeHtml(nextOperation.triggerType || "-") + "</strong> -> <strong>" + escapeHtml(nextOperation.targetState || "-") + "</strong>"
+      var condition = nextOperation.condition ? " — " + escapeHtml(nextOperation.condition) : "";
+      return "<li><strong>" + escapeHtml(nextOperation.triggerType || "-") + "</strong> -> <strong>" + escapeHtml(nextOperation.targetState || "-") + "</strong>" + condition
         + (nextOperationId.length ? renderInlineOperationButtons(nextOperationId, "xofr-flow-jump", "xofr-inline-link", "next: ") : "")
         + (nextOperationId.length ? renderInlineOperationButtons(nextOperationId, "xofr-reference", "xofr-inline-link", "ref: ") : "")
         + (prerequisiteOperationIds.length ? renderInlineOperationButtons(prerequisiteOperationIds, "xofr-flow-jump", "xofr-inline-link", "requires: ") : "")
+        + renderTransitionDetails(nextOperation)
         + "</li>";
     }).join("") + "</ul>";
   }
@@ -652,5 +693,7 @@
     findOperationInModel: findOperationInModel,
     hasOverviewTransitions: hasOverviewTransitions,
     getMermaidFallbackMessage: getMermaidFallbackMessage,
+    renderTransitionDetails: renderTransitionDetails,
+    renderTransitionList: renderTransitionList,
   };
 })();

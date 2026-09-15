@@ -659,6 +659,33 @@ test("export-doc-flows generates markdown lifecycle page", () => {
   }
 });
 
+test("export-doc-flows markdown includes decision_rule, async_contract and failure_paths per transition", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-doc-flows-rich-"));
+  const outputPath = path.join(tempDir, "api-flows.md");
+
+  try {
+    const result = runCli([
+      "export-doc-flows",
+      "examples/ai-clarity-order-api.yaml",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+
+    const content = fs.readFileSync(outputPath, "utf8");
+    assert.match(content, /- Transitions:/);
+    assert.match(content, /decision: payOrder:response\.200\.body\.payment_status/);
+    assert.match(content, /evidence: payOrder:response\.200\.body\.payment_status/);
+    assert.match(content, /propagates: createOrder:response\.201\.body\.order_id/);
+    assert.match(content, /timeout: 120000ms/);
+    assert.match(content, /compensation: cancelOrder/);
+    assert.match(content, /on failure -> PAYMENT_FAILED \(next: getOrder\)/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("export-llm-flows generates a yaml flow contract with entry points and rich transition fields", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-llm-flows-"));
   const outputPath = path.join(tempDir, "api-flows.llm.yaml");
@@ -848,6 +875,40 @@ test("generate-redoc creates package with plugin and lifecycle model", () => {
     const model = JSON.parse(fs.readFileSync(modelPath, "utf8"));
     assert.equal(Array.isArray(model.resources), true);
     assert.equal(model.resources.length > 0, true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("generate-redoc embeds decision_rule, async_contract and failure_paths in the lifecycle model", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-redoc-rich-"));
+  const outputDir = path.join(tempDir, "redoc-flow");
+
+  try {
+    const result = runCli([
+      "generate-redoc",
+      "examples/ai-clarity-order-api.yaml",
+      "--output",
+      outputDir,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+
+    const modelPath = path.join(outputDir, "flow-model.json");
+    const model = JSON.parse(fs.readFileSync(modelPath, "utf8"));
+    const createOrder = model.resources[0].operations.find((operation) => operation.operationId === "createOrder");
+    const transition = createOrder.nextOperations.find((next) => next.nextOperationId === "getOrder");
+
+    assert.match(transition.decisionRule, /payOrder:response\.200\.body\.payment_status/);
+    assert.deepEqual(transition.evidenceRefs, ["payOrder:response.200.body.payment_status"]);
+    assert.deepEqual(transition.propagatedFieldRefs, ["createOrder:response.201.body.order_id"]);
+    assert.equal(transition.asyncContract.timeout_ms, 120000);
+    assert.equal(transition.compensationOperationId, "cancelOrder");
+    assert.equal(transition.failurePaths[0].target_state, "PAYMENT_FAILED");
+
+    const index = fs.readFileSync(path.join(outputDir, "index.html"), "utf8");
+    assert.match(index, /"decisionRule":/);
+    assert.match(index, /"asyncContract":/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

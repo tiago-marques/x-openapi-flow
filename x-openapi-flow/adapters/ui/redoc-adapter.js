@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { loadApi } = require("../../lib/validator");
 const { buildIntermediateModel } = require("../../lib/sdk-generator");
+const { enrichModelWithFlowDetails } = require("../shared/helpers");
 
 function buildRedocHtml(model, specFileName) {
   const modelPayload = JSON.stringify(model);
@@ -166,7 +167,7 @@ function generateRedocPackage(options) {
   const outputDir = path.resolve(options.outputDir || path.join(process.cwd(), "redoc-flow"));
 
   const api = loadApi(apiPath);
-  const model = buildIntermediateModel(api);
+  const model = enrichModelWithFlowDetails(buildIntermediateModel(api), api);
   const specFileName = path.extname(apiPath).toLowerCase() === ".json" ? "openapi.json" : "openapi.yaml";
 
   fs.mkdirSync(outputDir, { recursive: true });
