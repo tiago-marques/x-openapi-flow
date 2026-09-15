@@ -3274,6 +3274,7 @@ function buildLintFailureSummary(result) {
     ["decision rule clarity", result.issues.decision_rule_clarity.length],
     ["evidence refs for decisions", result.issues.evidence_refs_for_decisions.length],
     ["transition priority determinism", result.issues.transition_priority_determinism.length],
+    ["async contract for polling", result.issues.async_contract_for_polling.length],
   ];
   return buckets.filter(([, count]) => count > 0).map(([label, count]) => `${label}: ${count}`);
 }
@@ -3314,6 +3315,9 @@ function buildLintRemediationHints(result, context) {
   }
   if (result.issues.transition_priority_determinism.length > 0) {
     hints.push("Assign deterministic transition_priority values to branching transitions.");
+  }
+  if (result.issues.async_contract_for_polling.length > 0) {
+    hints.push("Add async_contract.timeout_ms (and optionally max_retries/backoff) to polling transitions.");
   }
   hints.push('Use "x-openapi-flow graph <file>" to visualize the state machine and trace state paths.');
   return hints;
@@ -3363,6 +3367,7 @@ function runLint(parsed, configData = {}) {
     decision_rule_clarity: semanticEnabled && lintConfig.decision_rule_clarity !== false,
     evidence_refs_for_decisions: semanticEnabled && lintConfig.evidence_refs_for_decisions !== false,
     transition_priority_determinism: semanticEnabled && lintConfig.transition_priority_determinism !== false,
+    async_contract_for_polling: semanticEnabled && lintConfig.async_contract_for_polling !== false,
   };
 
   const operationsById = collectOperationIds(api);
@@ -3378,6 +3383,7 @@ function runLint(parsed, configData = {}) {
       decision_rule_clarity: [],
       evidence_refs_for_decisions: [],
       transition_priority_determinism: [],
+      async_contract_for_polling: [],
     };
 
   const nextOperationIssues = invalidOperationReferences
@@ -3428,6 +3434,12 @@ function runLint(parsed, configData = {}) {
         ...entry,
       }))
       : [],
+    async_contract_for_polling: ruleConfig.async_contract_for_polling
+      ? transitionDeterminismIssues.async_contract_for_polling.map((entry) => ({
+        code: CODES.LINT_ASYNC_CONTRACT_FOR_POLLING.code,
+        ...entry,
+      }))
+      : [],
   };
 
   const errorCount =
@@ -3439,7 +3451,8 @@ function runLint(parsed, configData = {}) {
     issues.semantic_consistency.length +
     issues.decision_rule_clarity.length +
     issues.evidence_refs_for_decisions.length +
-    issues.transition_priority_determinism.length;
+    issues.transition_priority_determinism.length +
+    issues.async_contract_for_polling.length;
 
   const result = {
     ok: errorCount === 0,
@@ -3459,6 +3472,7 @@ function runLint(parsed, configData = {}) {
         decision_rule_clarity: issues.decision_rule_clarity.length,
         evidence_refs_for_decisions: issues.evidence_refs_for_decisions.length,
         transition_priority_determinism: issues.transition_priority_determinism.length,
+        async_contract_for_polling: issues.async_contract_for_polling.length,
       })
         .filter(([, count]) => count > 0)
         .map(([rule]) => rule),
@@ -3590,6 +3604,22 @@ function runLint(parsed, configData = {}) {
           console.error(`  - duplicate transition_priority=${entry.priority} for ${entry.source_state} -> ${target} (${entry.endpoint})`);
         } else {
           console.error(`  - missing transition_priority for ${entry.source_state} -> ${target} (${entry.endpoint})`);
+        }
+      });
+    }
+  }
+
+  if (ruleConfig.async_contract_for_polling) {
+    if (issues.async_contract_for_polling.length === 0) {
+      console.log("✔ async_contract_for_polling: polling transitions declare a timeout.");
+    } else {
+      console.error(`✘ async_contract_for_polling: ${issues.async_contract_for_polling.length} issue(s).`);
+      issues.async_contract_for_polling.forEach((entry) => {
+        const target = entry.target_state || "<unknown-target>";
+        if (entry.reason === "missing_async_contract") {
+          console.error(`  - missing async_contract for polling transition ${entry.source_state} -> ${target} (${entry.endpoint})`);
+        } else {
+          console.error(`  - async_contract without a positive timeout_ms for polling transition ${entry.source_state} -> ${target} (${entry.endpoint})`);
         }
       });
     }

@@ -11,7 +11,8 @@
       "semantic": false,
       "decision_rule_clarity": true,
       "evidence_refs_for_decisions": true,
-      "transition_priority_determinism": true
+      "transition_priority_determinism": true,
+      "async_contract_for_polling": true
     }
   }
 }

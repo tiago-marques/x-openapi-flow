@@ -143,7 +143,8 @@ npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--co
 ```
 
 - Rules (MVP): `next_operation_id_exists`, `prerequisite_operation_ids_exist`, `duplicate_transitions`, `terminal_path`.
-- `--semantic` enables optional semantic checks (state naming consistency, ambiguous variants, ambiguous transition mappings).
+- `--semantic` enables optional semantic checks (state naming consistency, ambiguous variants, ambiguous transition mappings, decision rule clarity, transition priority determinism, and `async_contract_for_polling`).
+- `async_contract_for_polling` flags `trigger_type: polling` transitions that don't declare an `async_contract.timeout_ms` — without it, a polling-based transition has no declared bound on how long a consumer (or SDK) should keep polling before giving up.
 - `json` output is stable for CI parsing (`ok`, `ruleConfig`, `issues`, `summary`).
 - Rules can be enabled/disabled in `x-openapi-flow.config.json`:
 
@@ -158,7 +159,8 @@ npx x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--co
       "semantic": false,
       "decision_rule_clarity": true,
       "evidence_refs_for_decisions": true,
-      "transition_priority_determinism": true
+      "transition_priority_determinism": true,
+      "async_contract_for_polling": true
     }
   }
 }

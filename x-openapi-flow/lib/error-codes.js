@@ -204,6 +204,13 @@ const CODES = {
     severity: "error",
     title: "Duplicate operationId in OpenAPI",
   },
+  /** Polling transitions should declare an async_contract with a timeout, or they can wait forever. */
+  LINT_ASYNC_CONTRACT_FOR_POLLING: {
+    code: "XFLOW_L310",
+    category: "lint",
+    severity: "error",
+    title: "Polling transition missing async_contract timeout",
+  },
 
   // ── Runtime ──────────────────────────────────────────────────────────────
   /** Request blocked because the resource is not in a state that allows this operation. */

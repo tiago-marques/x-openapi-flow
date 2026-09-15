@@ -78,7 +78,7 @@ const TOOLS = [
           type: "boolean",
           description:
             "Enable semantic lint rules: decision_rule_clarity, evidence_refs_for_decisions, " +
-            "transition_priority_determinism. Default: false.",
+            "transition_priority_determinism, async_contract_for_polling. Default: false.",
         },
       },
       required: ["file"],

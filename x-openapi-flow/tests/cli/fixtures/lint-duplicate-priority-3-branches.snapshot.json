@@ -11,7 +11,8 @@
     "semantic_consistency": true,
     "decision_rule_clarity": true,
     "evidence_refs_for_decisions": true,
-    "transition_priority_determinism": true
+    "transition_priority_determinism": true,
+    "async_contract_for_polling": true
   },
   "issues": {
     "duplicate_operation_ids": [],
@@ -60,7 +61,8 @@
         "reason": "duplicate_priority",
         "priority": 1
       }
-    ]
+    ],
+    "async_contract_for_polling": []
   },
   "summary": {
     "errors": 3,

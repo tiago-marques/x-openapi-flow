@@ -2296,6 +2296,73 @@ test("lint --semantic validates decision_rule, evidence_refs and transition_prio
   }
 });
 
+test("lint --semantic flags polling transitions missing async_contract", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-polling-missing-contract-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Polling Missing Contract API\n  version: "1.0.0"\npaths:\n  /jobs:\n    post:\n      operationId: createJob\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-job\n        current_state: PENDING\n        transitions:\n          - target_state: DONE\n            trigger_type: polling\n            next_operation_id: getJob\n  /jobs/{id}:\n    get:\n      operationId: getJob\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: get-job\n        current_state: DONE\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 1);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.issues.async_contract_for_polling.length, 1);
+    assert.equal(payload.issues.async_contract_for_polling[0].code, "XFLOW_L310");
+    assert.equal(payload.issues.async_contract_for_polling[0].reason, "missing_async_contract");
+    assert.equal(payload.summary.violated_rules.includes("async_contract_for_polling"), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint --semantic flags polling transitions with async_contract missing timeout_ms", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-polling-missing-timeout-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Polling Missing Timeout API\n  version: "1.0.0"\npaths:\n  /jobs:\n    post:\n      operationId: createJob\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-job\n        current_state: PENDING\n        transitions:\n          - target_state: DONE\n            trigger_type: polling\n            async_contract:\n              max_retries: 5\n              backoff: exponential\n            next_operation_id: getJob\n  /jobs/{id}:\n    get:\n      operationId: getJob\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: get-job\n        current_state: DONE\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 1);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.issues.async_contract_for_polling.length, 1);
+    assert.equal(payload.issues.async_contract_for_polling[0].reason, "missing_timeout_ms");
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("lint --semantic passes for polling transitions with a valid async_contract timeout", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-polling-valid-contract-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Polling Valid Contract API\n  version: "1.0.0"\npaths:\n  /jobs:\n    post:\n      operationId: createJob\n      responses:\n        "201":\n          description: created\n      x-openapi-flow:\n        version: "1.0"\n        id: create-job\n        current_state: PENDING\n        transitions:\n          - target_state: DONE\n            trigger_type: polling\n            async_contract:\n              timeout_ms: 30000\n              max_retries: 5\n              backoff: exponential\n            next_operation_id: getJob\n  /jobs/{id}:\n    get:\n      operationId: getJob\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n      x-openapi-flow:\n        version: "1.0"\n        id: get-job\n        current_state: DONE\n        transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["lint", openapiPath, "--format", "json", "--semantic"]);
+    assert.equal(result.status, 0, result.stderr);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.issues.async_contract_for_polling.length, 0);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("validate strict succeeds on ai-clarity example with new fields", () => {
   const result = runCli(["validate", "examples/ai-clarity-order-api.yaml", "--profile", "strict"]);
 

@@ -833,6 +833,7 @@ function detectTransitionDeterminismIssues(flows) {
   const decisionRuleIssues = [];
   const evidenceRefIssues = [];
   const transitionPriorityIssues = [];
+  const asyncContractIssues = [];
 
   const groupedBySource = new Map();
 
@@ -874,6 +875,25 @@ function detectTransitionDeterminismIssues(flows) {
             transition_id: transition.transition_id || null,
             transition_index: index,
             decision_rule: decisionRule,
+          });
+        }
+      }
+
+      if (transition.trigger_type === "polling") {
+        const asyncContract = transition.async_contract;
+        const hasTimeout = asyncContract
+          && typeof asyncContract === "object"
+          && Number.isFinite(asyncContract.timeout_ms)
+          && asyncContract.timeout_ms > 0;
+
+        if (!hasTimeout) {
+          asyncContractIssues.push({
+            endpoint,
+            source_state: sourceState,
+            target_state: transition.target_state || null,
+            transition_id: transition.transition_id || null,
+            transition_index: index,
+            reason: asyncContract ? "missing_timeout_ms" : "missing_async_contract",
           });
         }
       }
@@ -945,6 +965,7 @@ function detectTransitionDeterminismIssues(flows) {
     decision_rule_clarity: decisionRuleIssues,
     evidence_refs_for_decisions: evidenceRefIssues,
     transition_priority_determinism: transitionPriorityIssues,
+    async_contract_for_polling: asyncContractIssues,
   };
 }
 

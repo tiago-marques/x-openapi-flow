@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 - **`onDecision` observability example** (`example/runtime-guard/observability/`): wires the runtime guard's `onDecision` hook to Prometheus metrics via `prom-client`, exposing a `Counter` and `Histogram` of guard decisions on a `/metrics` endpoint.
 - **`x-openapi-flow migrate` CLI command**: generates a Markdown (or JSON) migration guide from the same breaking-change detection used by `diff --breaking-only`, with a `Suggested actions` checklist and optional `--out path` to write the guide to a file.
 - **`MongoAdapter` persistence adapter** for the runtime guard (`lib/runtime-guard/adapters.js`): stores resource state in a MongoDB collection (`{ collection, stateField? }`), following the same injected-client pattern as `RedisAdapter`/`GenericSQLAdapter`. Exposes `getCurrentState`, `setState`, `deleteState`, and `forGuard()`.
+- **`async_contract_for_polling` semantic lint rule** (`XFLOW_L310`): flags `trigger_type: polling` transitions that don't declare `async_contract.timeout_ms`, so a polling-based transition always carries a declared bound on how long to keep polling. The `async_contract` schema field (`timeout_ms`, `max_retries`, `backoff`) already existed on the flow schema but was previously unvalidated and unused; this makes it an enforceable, `--semantic`-gated authoring contract like `decision_rule_clarity` and `transition_priority_determinism`. Configurable via `x-openapi-flow.config.json`'s `lint.rules.async_contract_for_polling`.
 
 ## 1.7.4 - 2026-05-02
 
