@@ -285,6 +285,7 @@ Install and use directly in your API server:
 const {
   createExpressFlowGuard,
   createFastifyFlowGuard,
+  createHonoFlowGuard,
 } = require("x-openapi-flow/lib/runtime-guard");
 ```
 
@@ -319,6 +320,28 @@ const openapi = require("./openapi.flow.json");
 fastify.addHook(
   "preHandler",
   createFastifyFlowGuard({
+    openapi,
+    async getCurrentState({ resourceId }) {
+      if (!resourceId) return null;
+      return paymentStore.getState(resourceId);
+    },
+    resolveResourceId: ({ params }) => params.id || null,
+  })
+);
+```
+
+Hono example:
+
+```js
+const { Hono } = require("hono");
+const { createHonoFlowGuard } = require("x-openapi-flow/lib/runtime-guard");
+const openapi = require("./openapi.flow.json");
+
+const app = new Hono();
+
+app.use(
+  "*",
+  createHonoFlowGuard({
     openapi,
     async getCurrentState({ resourceId }) {
       if (!resourceId) return null;

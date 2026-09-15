@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 - **Dual ESM/CJS support**: `x-openapi-flow/package.json` now declares an `exports` map so the root entrypoint and all `lib/*` subpaths (e.g. `x-openapi-flow/lib/runtime-guard`, `x-openapi-flow/lib/state-machine-engine`) can be consumed with native `import` from ESM projects, in addition to the existing `require()` support. No breaking changes — existing CommonJS consumers are unaffected.
+- **Hono adapter for the runtime guard** (`createHonoFlowGuard`, `lib/runtime-guard/hono.js`): enforces lifecycle transitions in Hono apps, following the same pattern as the existing Express/Fastify/NestJS adapters. Exported from `x-openapi-flow/lib/runtime-guard` and typed in `index.d.ts`.
 
 ## 1.7.4 - 2026-05-02
 

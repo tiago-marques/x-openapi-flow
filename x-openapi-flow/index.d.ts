@@ -114,6 +114,7 @@ export declare function toErrorPayload(error: FlowGuardError): FlowGuardErrorPay
 
 export type ExpressMiddleware = (req: object, res: object, next: (err?: unknown) => void) => void;
 export type FastifyPreHandler = (request: object, reply: object) => Promise<void>;
+export type HonoMiddleware = (c: object, next: () => Promise<void>) => Promise<unknown>;
 export type NestMiddlewareFunction = (req: object, res: object, next: (err?: unknown) => void) => void;
 
 export interface NestHttpContextLike {
@@ -129,6 +130,7 @@ export type NestCanActivateFunction = (executionContext: NestExecutionContextLik
 
 export declare function createExpressFlowGuard(options: RuntimeFlowGuardOptions): ExpressMiddleware;
 export declare function createFastifyFlowGuard(options: RuntimeFlowGuardOptions): FastifyPreHandler;
+export declare function createHonoFlowGuard(options: RuntimeFlowGuardOptions): HonoMiddleware;
 export declare function createNestFlowMiddleware(options: RuntimeFlowGuardOptions): NestMiddlewareFunction;
 export declare function createNestFlowCanActivate(options: RuntimeFlowGuardOptions): NestCanActivateFunction;
 

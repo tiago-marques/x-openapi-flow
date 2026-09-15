@@ -6,6 +6,7 @@ const {
   createRuntimeFlowGuard,
   createExpressFlowGuard,
   createFastifyFlowGuard,
+  createHonoFlowGuard,
   createNestFlowMiddleware,
   createNestFlowCanActivate,
 } = require("../../lib/runtime-guard");
@@ -247,6 +248,67 @@ test("fastify guard returns 409 payload when transition is invalid", async () =>
   assert.equal(statusCode, 409);
   assert.equal(payload.error.code, "INVALID_STATE_TRANSITION");
   assert.equal(payload.error.allowed_from_states.includes("AUTHORIZED"), true);
+});
+
+test("hono guard returns 409 payload when transition is invalid", async () => {
+  const guard = createHonoFlowGuard({
+    openapi: OPENAPI,
+    getCurrentState: buildStateResolver({ pay_123: "CREATED" }),
+  });
+
+  const c = {
+    req: {
+      method: "POST",
+      routePath: "/payments/:id/capture",
+      param() {
+        return { id: "pay_123" };
+      },
+    },
+    json(body, status) {
+      return { body, status };
+    },
+  };
+
+  let nextCalled = false;
+  const next = async () => {
+    nextCalled = true;
+  };
+
+  const result = await guard(c, next);
+
+  assert.equal(nextCalled, false);
+  assert.equal(result.status, 409);
+  assert.equal(result.body.error.code, "INVALID_STATE_TRANSITION");
+  assert.equal(result.body.error.operation_id, "capturePayment");
+});
+
+test("hono guard calls next() when transition is valid", async () => {
+  const guard = createHonoFlowGuard({
+    openapi: OPENAPI,
+    getCurrentState: buildStateResolver({ pay_123: "AUTHORIZED" }),
+  });
+
+  const c = {
+    req: {
+      method: "POST",
+      routePath: "/payments/:id/capture",
+      param() {
+        return { id: "pay_123" };
+      },
+    },
+    json() {
+      throw new Error("json() should not be called on the allowed path");
+    },
+  };
+
+  let nextCalled = false;
+  const next = async () => {
+    nextCalled = true;
+  };
+
+  await guard(c, next);
+
+  assert.equal(nextCalled, true);
 });
 
 test("nestjs middleware returns 409 payload when transition is invalid", async () => {

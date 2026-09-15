@@ -1,4 +1,4 @@
-# Runtime Guard (Express + Fastify)
+# Runtime Guard (Express + Fastify + Hono)
 
 `x-openapi-flow` runtime guard enforces lifecycle transitions at request time.
 
@@ -21,6 +21,7 @@ const {
   createRuntimeFlowGuard,
   createExpressFlowGuard,
   createFastifyFlowGuard,
+  createHonoFlowGuard,
 } = require("x-openapi-flow/lib/runtime-guard");
 ```
 
@@ -55,6 +56,28 @@ const openapi = require("./openapi.flow.json");
 fastify.addHook(
   "preHandler",
   createFastifyFlowGuard({
+    openapi,
+    async getCurrentState({ resourceId }) {
+      if (!resourceId) return null;
+      return paymentStore.getState(resourceId);
+    },
+    resolveResourceId: ({ params }) => params.id || null,
+  })
+);
+```
+
+## Hono
+
+```js
+const { Hono } = require("hono");
+const { createHonoFlowGuard } = require("x-openapi-flow/lib/runtime-guard");
+const openapi = require("./openapi.flow.json");
+
+const app = new Hono();
+
+app.use(
+  "*",
+  createHonoFlowGuard({
     openapi,
     async getCurrentState({ resourceId }) {
       if (!resourceId) return null;
