@@ -371,7 +371,7 @@ More details: [Runtime Guard](https://github.com/tiago-marques/x-openapi-flow/bl
 
 ### Built-in Persistence Adapters
 
-No need to write your own `getCurrentState` from scratch. x-openapi-flow ships four ready-made adapters:
+No need to write your own `getCurrentState` from scratch. x-openapi-flow ships five ready-made adapters:
 
 ```js
 const {
@@ -379,6 +379,7 @@ const {
   FileAdapter,     // JSON file on disk — great for demos and local servers
   RedisAdapter,    // ioredis-backed — production-ready, requires: npm install ioredis
   GenericSQLAdapter, // any SQL DB (pg, mysql2, knex…) via query callback
+  MongoAdapter,    // MongoDB Collection-backed, requires: npm install mongodb
 } = require("x-openapi-flow/lib/runtime-guard");
 
 // in-memory (testing / local)
@@ -408,6 +409,17 @@ const sqlStore = new GenericSQLAdapter({
 });
 await sqlStore.ensureTable(); // CREATE TABLE IF NOT EXISTS xflow_state (…)
 app.use(createExpressFlowGuard({ openapi, ...sqlStore.forGuard() }));
+```
+
+**MongoAdapter** example with the official `mongodb` driver:
+
+```js
+const { MongoClient } = require("mongodb");
+const client = await new MongoClient(process.env.MONGO_URL).connect();
+const mongoStore = new MongoAdapter({
+  collection: client.db("orders").collection("xflow_state"),
+});
+app.use(createExpressFlowGuard({ openapi, ...mongoStore.forGuard() }));
 ```
 
 All adapters implement `getCurrentState`, `setState`, `deleteState` and `forGuard()` — a convenience method that returns the exact shape expected by the guard options.

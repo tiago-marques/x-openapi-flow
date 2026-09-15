@@ -9,6 +9,7 @@ All notable changes to this project are documented in this file.
 - **Hono adapter for the runtime guard** (`createHonoFlowGuard`, `lib/runtime-guard/hono.js`): enforces lifecycle transitions in Hono apps, following the same pattern as the existing Express/Fastify/NestJS adapters. Exported from `x-openapi-flow/lib/runtime-guard` and typed in `index.d.ts`.
 - **`onDecision` observability example** (`example/runtime-guard/observability/`): wires the runtime guard's `onDecision` hook to Prometheus metrics via `prom-client`, exposing a `Counter` and `Histogram` of guard decisions on a `/metrics` endpoint.
 - **`x-openapi-flow migrate` CLI command**: generates a Markdown (or JSON) migration guide from the same breaking-change detection used by `diff --breaking-only`, with a `Suggested actions` checklist and optional `--out path` to write the guide to a file.
+- **`MongoAdapter` persistence adapter** for the runtime guard (`lib/runtime-guard/adapters.js`): stores resource state in a MongoDB collection (`{ collection, stateField? }`), following the same injected-client pattern as `RedisAdapter`/`GenericSQLAdapter`. Exposes `getCurrentState`, `setState`, `deleteState`, and `forGuard()`.
 
 ## 1.7.4 - 2026-05-02
 

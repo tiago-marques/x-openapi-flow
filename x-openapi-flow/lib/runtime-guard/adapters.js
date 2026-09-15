@@ -257,9 +257,67 @@ class GenericSQLAdapter {
   }
 }
 
+// ---------------------------------------------------------------------------
+// MongoAdapter – requires a MongoDB Collection instance (`mongodb` driver or
+// Mongoose's `.collection`) as a peer dependency
+// ---------------------------------------------------------------------------
+
+class MongoAdapter {
+  /**
+   * @param {object} options
+   * @param {object} options.collection  - A MongoDB Collection instance, e.g.
+   *   `db.collection("xflow_state")` from the `mongodb` driver, or a
+   *   Mongoose model's `.collection`.
+   * @param {string} [options.stateField] - Document field storing the state (default: "state")
+   *
+   * Document shape (one per resource):
+   *   { _id: resourceId, state: "PAID", updatedAt: Date }
+   *
+   * Install peer dependency: npm install mongodb
+   */
+  constructor(options = {}) {
+    if (!options.collection || typeof options.collection.findOne !== "function") {
+      throw new Error(
+        "MongoAdapter requires a MongoDB Collection instance. Pass { collection: db.collection('xflow_state') }. " +
+        "Install peer dependency: npm install mongodb"
+      );
+    }
+    this._collection = options.collection;
+    this._stateField = options.stateField || "state";
+  }
+
+  async getCurrentState({ resourceId }) {
+    if (!resourceId) return null;
+    const doc = await this._collection.findOne({ _id: String(resourceId) });
+    return (doc && doc[this._stateField]) || null;
+  }
+
+  async setState({ resourceId, state }) {
+    if (!resourceId) return;
+    await this._collection.updateOne(
+      { _id: String(resourceId) },
+      { $set: { [this._stateField]: String(state), updatedAt: new Date() } },
+      { upsert: true }
+    );
+  }
+
+  async deleteState({ resourceId }) {
+    if (!resourceId) return;
+    await this._collection.deleteOne({ _id: String(resourceId) });
+  }
+
+  forGuard() {
+    return {
+      getCurrentState: (ctx) => this.getCurrentState(ctx),
+      setState: (ctx) => this.setState(ctx),
+    };
+  }
+}
+
 module.exports = {
   MemoryAdapter,
   FileAdapter,
   RedisAdapter,
   GenericSQLAdapter,
+  MongoAdapter,
 };

@@ -6,7 +6,7 @@ const { createFastifyFlowGuard } = require("./fastify");
 const { createHonoFlowGuard } = require("./hono");
 const { createNestFlowMiddleware, createNestFlowCanActivate } = require("./nestjs");
 const { FlowGuardError } = require("./errors");
-const { MemoryAdapter, FileAdapter, RedisAdapter, GenericSQLAdapter } = require("./adapters");
+const { MemoryAdapter, FileAdapter, RedisAdapter, GenericSQLAdapter, MongoAdapter } = require("./adapters");
 
 module.exports = {
   createRuntimeFlowGuard,
@@ -22,4 +22,5 @@ module.exports = {
   FileAdapter,
   RedisAdapter,
   GenericSQLAdapter,
+  MongoAdapter,
 };

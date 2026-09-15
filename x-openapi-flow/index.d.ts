@@ -208,6 +208,20 @@ export declare class GenericSQLAdapter {
   ensureTable(): Promise<void>;
 }
 
+export interface MongoAdapterOptions {
+  /** A MongoDB Collection instance, e.g. db.collection("xflow_state") */
+  collection: object;
+  /** Document field storing the state (default: "state") */
+  stateField?: string;
+}
+export declare class MongoAdapter {
+  constructor(options: MongoAdapterOptions);
+  getCurrentState(ctx: AdapterStateContext): Promise<string | null>;
+  setState(ctx: AdapterSetContext): Promise<void>;
+  deleteState(ctx: { resourceId: string | null }): Promise<void>;
+  forGuard(): GuardAdapterMethods;
+}
+
 // ---------------------------------------------------------------------------
 // state-machine-engine
 // ---------------------------------------------------------------------------
