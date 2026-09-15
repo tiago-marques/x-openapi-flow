@@ -5,6 +5,22 @@
   "description": "Enforce, visualize and generate code from OpenAPI resource lifecycles — runtime guard, SDK gen, Postman/Insomnia/Redoc adapters, MCP sidecar for AI agents",
   "main": "lib/validator.js",
   "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./lib/validator.js",
+      "require": "./lib/validator.js"
+    },
+    "./package.json": "./package.json",
+    "./lib/*.js": {
+      "import": "./lib/*.js",
+      "require": "./lib/*.js"
+    },
+    "./lib/*": {
+      "import": "./lib/*.js",
+      "require": "./lib/*.js"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tiago-marques/x-openapi-flow.git"
@@ -37,8 +53,9 @@
   "scripts": {
     "sync:readme": "node ../scripts/sync-package-readme.js",
     "prepack": "npm run sync:readme",
-    "test": "npm run test:cli && npm run test:ui && npm run test:integration && npm run test:runtime && npm run test:engine && npm run test:mcp && npm run test:smoke",
+    "test": "npm run test:cli && npm run test:ui && npm run test:integration && npm run test:runtime && npm run test:engine && npm run test:mcp && npm run test:esm && npm run test:smoke",
     "test:cli": "node --test tests/cli/cli.test.js",
+    "test:esm": "node --test tests/esm/esm-interop.test.mjs",
     "test:ui": "node --test tests/plugins/*.test.js",
     "test:integration": "node --test tests/integration/*.test.js",
     "test:runtime": "node --test tests/runtime/*.test.js",

@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+- **Dual ESM/CJS support**: `x-openapi-flow/package.json` now declares an `exports` map so the root entrypoint and all `lib/*` subpaths (e.g. `x-openapi-flow/lib/runtime-guard`, `x-openapi-flow/lib/state-machine-engine`) can be consumed with native `import` from ESM projects, in addition to the existing `require()` support. No breaking changes — existing CommonJS consumers are unaffected.
+
 ## 1.7.4 - 2026-05-02
 
 ### Added
