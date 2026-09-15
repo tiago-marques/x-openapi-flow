@@ -1,0 +1,15 @@
+{
+  "name": "x-openapi-flow-example-runtime-guard-observability",
+  "private": true,
+  "version": "1.0.0",
+  "description": "onDecision hook wired to Prometheus metrics via prom-client",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "prom-client": "^15.1.3",
+    "x-openapi-flow": "file:../../../x-openapi-flow"
+  }
+}
