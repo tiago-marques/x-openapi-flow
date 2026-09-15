@@ -30,7 +30,7 @@ Yes. Run `x-openapi-flow validate ... --profile strict --strict-quality` in your
 
 ## Does this enforce transitions at runtime?
 
-Yes. Use the official Node.js runtime guard middleware for Express/Fastify.
+Yes. Use the official Node.js runtime guard middleware for Express/Fastify/Hono.
 
 See [Runtime Guard](Runtime-Guard.md).
 

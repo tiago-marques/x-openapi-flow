@@ -119,6 +119,7 @@ Turn your OpenAPI spec into a single source of truth for API behavior:
 - Build [SDKs](#sdk-generation) that understand and respect API workflows
 - Export [Postman](#postman-demo) and [Insomnia](#insomnia-demo) collections organized by lifecycle
 - Create [AI-ready API contracts](https://github.com/tiago-marques/x-openapi-flow/blob/main/docs/wiki/engineering/AI-Sidecar-Authoring.md) for agentic integrations
+- Export a dense, non-prose [flow contract for coding agents](#cli-commands) (`export-llm-flows`) — or call it directly as an MCP tool — so an agent like Claude Code knows the exact call order, decision rules, and field refs to implement an integration, without re-deriving them from human docs
 
 ## Quick Start (without OpenAPI file)
 
@@ -565,10 +566,10 @@ See how **x-openapi-flow extends OpenAPI** to make your API workflows explicit, 
 | --- | --- | --- | --- |
 | **Primary focus** | Resource lifecycle states & runtime enforcement | Multi-step API workflows (orchestration scripts) | Event-driven / async messaging APIs |
 | **Lifecycle states** | ✅ Explicit states per resource | ❌ No state model | ❌ No state model |
-| **Runtime enforcement** | ✅ Express/Fastify middleware (409 on invalid transitions) | ❌ Spec-only, no runtime guard | ❌ Spec-only |
-| **SDK generation** | ✅ TypeScript, Kotlin, Python, Go | ❌ No codegen | Limited |
+| **Runtime enforcement** | ✅ Express/Fastify/Hono middleware (409 on invalid transitions) | ❌ Spec-only, no runtime guard | ❌ Spec-only |
+| **SDK generation** | ✅ TypeScript, Python | ❌ No codegen | Limited |
 | **Postman / Insomnia export** | ✅ Built-in adapters | ❌ No | ❌ No |
-| **AI agent support** | ✅ MCP sidecar + structured sidecar contract | ❌ No | ❌ No |
+| **AI agent support** | ✅ MCP sidecar + machine-oriented flow contract (`export-llm-flows`) | ❌ No | ❌ No |
 | **Breaking change detection** | ✅ `diff --breaking-only --fail-on-breaking` | ❌ No | ❌ No |
 | **CI validation** | ✅ CLI + GitHub Action | ❌ No official CLI | Limited |
 | **OpenAPI compatibility** | ✅ Sidecar extends existing specs | Separate Arazzo spec | Separate AsyncAPI spec |
@@ -690,8 +691,11 @@ npx x-openapi-flow graph [openapi-file] [--format mermaid|json]
 # generate Redoc docs
 npx x-openapi-flow generate-redoc [openapi-file] [--output path]   
 
-# export flows
+# export human-readable flow docs (Mermaid diagrams + prose)
 npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]  
+
+# export a machine-oriented flow contract for coding agents (not for humans)
+npx x-openapi-flow export-llm-flows [openapi-file] [--output path] [--format yaml|json]
 ```
 
 ### SDK Generation

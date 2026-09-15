@@ -21,6 +21,7 @@ const { CODES } = require("../lib/error-codes");
 const { generateSdk } = require("../lib/sdk-generator");
 const {
   exportDocFlows,
+  exportLlmFlows,
   generatePostmanCollection,
   generateInsomniaWorkspace,
   generateRedocPackage,
@@ -42,6 +43,7 @@ const KNOWN_COMMANDS = [
   "quality-report",
   "generate-sdk",
   "export-doc-flows",
+  "export-llm-flows",
   "generate-postman",
   "generate-insomnia",
   "generate-redoc",
@@ -140,6 +142,13 @@ const COMMAND_SNIPPETS = {
     usage: "x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]",
     examples: [
       "x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md",
+    ],
+  },
+  "export-llm-flows": {
+    usage: "x-openapi-flow export-llm-flows [openapi-file] [--output path] [--format yaml|json]",
+    examples: [
+      "x-openapi-flow export-llm-flows openapi.yaml --output api-flows.llm.yaml",
+      "x-openapi-flow export-llm-flows openapi.yaml --format json --output api-flows.llm.json",
     ],
   },
   "generate-postman": {
@@ -261,6 +270,9 @@ _x_openapi_flow() {
     export-doc-flows)
       _values 'options' --output --format --help
       ;;
+    export-llm-flows)
+      _values 'options' --output --format --help
+      ;;
     generate-postman)
       _values 'options' --output --with-scripts --help
       ;;
@@ -333,6 +345,9 @@ compdef _x_openapi_flow x-openapi-flow
       COMPREPLY=( $(compgen -W "--lang --output --help --verbose" -- "\$cur") )
       ;;
     export-doc-flows)
+      COMPREPLY=( $(compgen -W "--output --format --help --verbose" -- "\$cur") )
+      ;;
+    export-llm-flows)
       COMPREPLY=( $(compgen -W "--output --format --help --verbose" -- "\$cur") )
       ;;
     generate-postman)
@@ -496,6 +511,7 @@ Usage:
   x-openapi-flow quality-report <openapi-file> [--profile core|relaxed|strict] [--semantic] [--output path]
   x-openapi-flow generate-sdk [openapi-file] --lang typescript|python [--output path]
   x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format markdown|json]
+  x-openapi-flow export-llm-flows [openapi-file] [--output path] [--format yaml|json]
   x-openapi-flow generate-postman [openapi-file] [--output path] [--with-scripts]
   x-openapi-flow generate-insomnia [openapi-file] [--output path]
   x-openapi-flow generate-redoc [openapi-file] [--output path]
@@ -541,6 +557,7 @@ Examples:
   x-openapi-flow generate-sdk openapi.yaml --lang typescript --output ./sdk
   x-openapi-flow generate-sdk openapi.yaml --lang python --output ./sdk
   x-openapi-flow export-doc-flows openapi.yaml --output ./docs/api-flows.md
+  x-openapi-flow export-llm-flows openapi.yaml --output api-flows.llm.yaml
   x-openapi-flow generate-postman openapi.yaml --output ./x-openapi-flow.postman_collection.json --with-scripts
   x-openapi-flow generate-insomnia openapi.yaml --output ./x-openapi-flow.insomnia.json
   x-openapi-flow generate-redoc openapi.yaml --output ./redoc-flow
@@ -1472,6 +1489,44 @@ function parseExportDocFlowsArgs(args) {
   };
 }
 
+function parseExportLlmFlowsArgs(args) {
+  const unknown = findUnknownOptions(args, ["--output", "--format"], []);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const outputOpt = getOptionValue(args, "--output");
+  if (outputOpt.error) {
+    return { error: outputOpt.error };
+  }
+
+  const formatOpt = getOptionValue(args, "--format");
+  if (formatOpt.error) {
+    return { error: `${formatOpt.error} Use 'yaml' or 'json'.` };
+  }
+
+  const format = formatOpt.found ? formatOpt.value : "yaml";
+  if (!["yaml", "json"].includes(format)) {
+    return { error: `Invalid --format '${format}'. Use 'yaml' or 'json'.` };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--output" || token === "--format") return false;
+    if (index > 0 && (args[index - 1] === "--output" || args[index - 1] === "--format")) return false;
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    outputPath: outputOpt.found ? path.resolve(outputOpt.value) : undefined,
+    format,
+  };
+}
+
 function parseGeneratePostmanArgs(args) {
   const unknown = findUnknownOptions(args, ["--output"], ["--with-scripts"]);
   if (unknown) {
@@ -1697,6 +1752,11 @@ function parseArgs(argv) {
 
   if (command === "export-doc-flows") {
     const parsed = parseExportDocFlowsArgs(commandArgs);
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
+  }
+
+  if (command === "export-llm-flows") {
+    const parsed = parseExportLlmFlowsArgs(commandArgs);
     return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
@@ -4301,6 +4361,34 @@ function runExportDocFlows(parsed) {
   }
 }
 
+function runExportLlmFlows(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  try {
+    const result = exportLlmFlows({
+      apiPath: targetOpenApiFile,
+      outputPath: parsed.outputPath,
+      format: parsed.format,
+    });
+
+    console.log(`OpenAPI source: ${targetOpenApiFile}`);
+    console.log(`Output: ${result.outputPath}`);
+    console.log(`Format: ${result.format}`);
+    console.log(`Resources: ${result.resources}`);
+    console.log(`Flow definitions: ${result.flowCount}`);
+    console.log(`Entry points: ${result.entryPoints}`);
+    return 0;
+  } catch (err) {
+    console.error(`ERROR: Could not export llm flows — ${err.message}`);
+    return 1;
+  }
+}
+
 function runGeneratePostman(parsed) {
   const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
   if (!targetOpenApiFile) {
@@ -4466,6 +4554,10 @@ function main() {
 
   if (parsed.command === "export-doc-flows") {
     process.exit(runExportDocFlows(parsed));
+  }
+
+  if (parsed.command === "export-llm-flows") {
+    process.exit(runExportLlmFlows(parsed));
   }
 
   if (parsed.command === "generate-postman") {

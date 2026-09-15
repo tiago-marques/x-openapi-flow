@@ -15,12 +15,13 @@ With `x-openapi-flow`, current states and transitions become explicit per operat
 - Validation profiles (`core`, `relaxed`, `strict`)
 - Sidecar workflow for regenerated OpenAPI source files (`init` + `apply`)
 - Flow bootstrap with `analyze` (`--merge` and confidence scores in JSON output)
-- SDK generation (`generate-sdk` for TypeScript)
-- Runtime enforcement for Node.js APIs (Express/Fastify middleware)
+- SDK generation (`generate-sdk` for TypeScript or Python)
+- Runtime enforcement for Node.js APIs (Express/Fastify/Hono middleware)
 - Lifecycle documentation export (`export-doc-flows`)
+- Machine-oriented flow contract for coding agents (`export-llm-flows`), also exposed as an MCP tool
 - Graph export (`mermaid`/`json`)
 - Integration adapters for Swagger UI, Redoc, Postman, and Insomnia
-- AI-oriented sidecar authoring guidance (`llm.txt`)
+- AI-oriented sidecar authoring guidance (`llm.txt`) and an MCP sidecar server (`x-openapi-flow-mcp`)
 
 ## Quick start
 

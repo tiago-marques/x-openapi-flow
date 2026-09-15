@@ -12,6 +12,8 @@
  */
 
 const { spawnSync } = require("child_process");
+const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const pkg = require("../package.json");
@@ -133,6 +135,26 @@ const TOOLS = [
         file: {
           type: "string",
           description: "Absolute path to the base OpenAPI file (openapi.yaml/json).",
+        },
+      },
+      required: ["file"],
+    },
+  },
+  {
+    name: "export_llm_flows",
+    description:
+      "Export a machine-oriented flow contract for coding agents implementing an integration against this API — " +
+      "NOT human documentation. Returns, per resource: initial/terminal states, entry-point operations, and for " +
+      "each operation its method/path/path params plus the full authored transitions (trigger_type, target_state, " +
+      "decision_rule, evidence_refs, prerequisite_operation_ids, prerequisite_field_refs, propagated_field_refs, " +
+      "failure_paths, compensation_operation_id, async_contract). Use this before writing integration code against " +
+      "a flow-annotated API, alongside the base OpenAPI file for request/response schemas.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          description: "Absolute path to the OpenAPI or .flow file.",
         },
       },
       required: ["file"],
@@ -280,6 +302,31 @@ function handleAnalyze(args) {
   }
 }
 
+function handleExportLlmFlows(args) {
+  if (!args.file) return errorResult("Missing required argument: file");
+
+  const tmpOutput = path.join(os.tmpdir(), `x-openapi-flow-llm-flows-${process.pid}-${Date.now()}.json`);
+
+  try {
+    const r = runCli(["export-llm-flows", args.file, "--format", "json", "--output", tmpOutput]);
+    if (r.spawnError) return errorResult(`Failed to spawn CLI: ${r.spawnError.message}`);
+    if (r.status !== 0) {
+      return errorResult(`export-llm-flows failed (exit ${r.status}):\n${r.stderr.slice(0, 1000)}`);
+    }
+
+    const content = fs.readFileSync(tmpOutput, "utf8");
+    return okResult(content);
+  } catch (err) {
+    return errorResult(`export-llm-flows produced unexpected output: ${err.message}`);
+  } finally {
+    try {
+      fs.rmSync(tmpOutput, { force: true });
+    } catch {
+      // best-effort cleanup
+    }
+  }
+}
+
 function handleQualityReport(args) {
   if (!args.file) return errorResult("Missing required argument: file");
   const cliArgs = ["quality-report", args.file];
@@ -305,6 +352,7 @@ const TOOL_HANDLERS = {
   graph: handleGraph,
   diff: handleDiff,
   analyze: handleAnalyze,
+  export_llm_flows: handleExportLlmFlows,
   quality_report: handleQualityReport,
 };
 

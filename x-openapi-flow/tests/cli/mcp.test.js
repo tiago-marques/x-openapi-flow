@@ -99,7 +99,7 @@ test("MCP tools/list returns all expected tools", () => {
   const tools = res.result.tools;
   assert.ok(Array.isArray(tools));
   const names = tools.map((t) => t.name);
-  for (const expected of ["validate", "lint", "graph", "diff", "analyze", "quality_report"]) {
+  for (const expected of ["validate", "lint", "graph", "diff", "analyze", "export_llm_flows", "quality_report"]) {
     assert.ok(names.includes(expected), `tool '${expected}' missing from tools/list`);
   }
 });
@@ -256,6 +256,44 @@ test("MCP analyze tool returns sidecar suggestion with operations array", () => 
   assert.ok(parsed.sidecar, "expected sidecar field");
   assert.ok(Array.isArray(parsed.sidecar.operations));
   assert.ok(parsed.analysis, "expected analysis field");
+});
+
+// ---------------------------------------------------------------------------
+// tools/call — export_llm_flows
+// ---------------------------------------------------------------------------
+
+test("MCP export_llm_flows tool returns a flow contract with entry points and resources", () => {
+  const { responses } = sendMessages([
+    INIT_MSG,
+    {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "export_llm_flows", arguments: { file: ORDER_API } },
+    },
+  ]);
+  const res = responses.find((r) => r.id === 2);
+  assert.ok(res, "no response");
+  assert.equal(res.result.isError, false);
+  const parsed = JSON.parse(res.result.content[0].text);
+  assert.equal(parsed.generator, "x-openapi-flow");
+  assert.ok(Array.isArray(parsed.entry_points) && parsed.entry_points.length > 0);
+  assert.ok(parsed.resources.orders, "expected an 'orders' resource");
+  assert.equal(parsed.resources.orders.operations.createOrder.method, "POST");
+});
+
+test("MCP export_llm_flows tool returns isError:true when file arg omitted", () => {
+  const { responses } = sendMessages([
+    INIT_MSG,
+    {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "export_llm_flows", arguments: {} },
+    },
+  ]);
+  const res = responses.find((r) => r.id === 2);
+  assert.equal(res.result.isError, true);
 });
 
 // ---------------------------------------------------------------------------

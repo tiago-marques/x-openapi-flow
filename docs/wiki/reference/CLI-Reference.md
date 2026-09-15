@@ -244,6 +244,27 @@ npx x-openapi-flow export-doc-flows [openapi-file] [--output path] [--format mar
 - `markdown` generates an API Flows page with Mermaid diagrams and operation-level lifecycle metadata.
 - `json` exports the structured flow model for custom doc portals or Redocly-based rendering.
 
+## `export-llm-flows`
+
+Exports a **machine-oriented flow contract**, not human documentation — the intended reader is a coding agent
+(Claude Code or similar) implementing an integration against this API, not a person browsing docs.
+
+```bash
+npx x-openapi-flow export-llm-flows [openapi-file] [--output path] [--format yaml|json]
+```
+
+- Grouped by resource: `initial_states`, `terminal_states`, and every operation's `method`, `path`, `path_params`,
+  `current_state`, and its full authored `transitions` — unlike `export-doc-flows`'s JSON model (built on the SDK
+  generator's intermediate model), transitions here keep every authored field: `decision_rule`, `evidence_refs`,
+  `prerequisite_operation_ids`, `prerequisite_field_refs`, `propagated_field_refs`, `failure_paths`,
+  `compensation_operation_id`, `async_contract`, `transition_priority`, `operation_role`.
+- Top-level `entry_points`: operationIds with no prerequisites — where an agent should start a new resource lifecycle.
+- `yaml` (default) is more token-efficient for LLM context than `markdown`/`json`; no mermaid diagrams or prose.
+  Default output file: `api-flows.llm.yaml` (or `.json` with `--format json`).
+- Pair it with the base OpenAPI file: this contract intentionally omits request/response schemas, which the
+  OpenAPI file already documents — it only adds the orchestration layer OpenAPI doesn't have.
+- Also exposed as the `export_llm_flows` MCP tool (`x-openapi-flow-mcp`) for agents connected over MCP.
+
 ## `generate-postman`
 
 Generates a Postman collection organized by lifecycle journeys.

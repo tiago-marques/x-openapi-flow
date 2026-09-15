@@ -659,6 +659,91 @@ test("export-doc-flows generates markdown lifecycle page", () => {
   }
 });
 
+test("export-llm-flows generates a yaml flow contract with entry points and rich transition fields", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-llm-flows-"));
+  const outputPath = path.join(tempDir, "api-flows.llm.yaml");
+
+  try {
+    const result = runCli([
+      "export-llm-flows",
+      "examples/ai-clarity-order-api.yaml",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Format: yaml/);
+    assert.match(result.stdout, /Entry points: 1/);
+    assert.equal(fs.existsSync(outputPath), true);
+
+    const content = fs.readFileSync(outputPath, "utf8");
+    assert.match(content, /generator: x-openapi-flow/);
+    assert.match(content, /entry_points:/);
+    assert.match(content, /- createOrder/);
+    assert.match(content, /decision_rule: payOrder:response\.200\.body\.payment_status/);
+    assert.match(content, /evidence_refs:/);
+    assert.match(content, /propagated_field_refs:/);
+    assert.match(content, /failure_paths:/);
+    assert.match(content, /compensation_operation_id: cancelOrder/);
+    assert.match(content, /async_contract:/);
+    // Not meant to be prose/human documentation.
+    assert.doesNotMatch(content, /```mermaid/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("export-llm-flows --format json outputs the same contract as structured data", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-llm-flows-json-"));
+  const outputPath = path.join(tempDir, "api-flows.llm.json");
+
+  try {
+    const result = runCli([
+      "export-llm-flows",
+      "examples/order-api.yaml",
+      "--format",
+      "json",
+      "--output",
+      outputPath,
+    ]);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Format: json/);
+
+    const document = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    assert.equal(document.generator, "x-openapi-flow");
+    assert.deepEqual(document.entry_points, ["createOrder"]);
+    assert.ok(document.resources.orders);
+    assert.equal(document.resources.orders.operations.createOrder.method, "POST");
+    assert.equal(document.resources.orders.operations.confirmOrder.path, "/orders/{id}/confirm");
+    assert.deepEqual(document.resources.orders.operations.confirmOrder.path_params, ["id"]);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("export-llm-flows defaults to api-flows.llm.yaml in the current directory", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-llm-flows-default-"));
+
+  try {
+    const openapiPath = path.join(FLOW_SPEC_ROOT, "examples", "order-api.yaml");
+    const result = runCli(["export-llm-flows", openapiPath], { cwd: tempDir });
+
+    assert.equal(result.status, 0, result.stderr);
+    const defaultOutputPath = path.join(tempDir, "api-flows.llm.yaml");
+    assert.equal(fs.existsSync(defaultOutputPath), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("export-llm-flows rejects an invalid --format value", () => {
+  const result = runCli(["export-llm-flows", "examples/order-api.yaml", "--format", "xml"]);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Invalid --format 'xml'/);
+});
+
 test("generate-postman creates flow-oriented collection", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-postman-"));
   const outputPath = path.join(tempDir, "flow.postman_collection.json");
