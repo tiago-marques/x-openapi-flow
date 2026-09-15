@@ -36,6 +36,7 @@ const KNOWN_COMMANDS = [
   "init",
   "apply",
   "diff",
+  "migrate",
   "lint",
   "analyze",
   "quality-report",
@@ -94,6 +95,14 @@ const COMMAND_SNIPPETS = {
       "x-openapi-flow diff openapi.yaml --format json",
       "x-openapi-flow diff openapi.yaml --breaking-only",
       "x-openapi-flow diff openapi.yaml --fail-on-breaking",
+    ],
+  },
+  migrate: {
+    usage: "x-openapi-flow migrate [openapi-file] [--flows path] [--format markdown|json] [--out path]",
+    examples: [
+      "x-openapi-flow migrate openapi.yaml",
+      "x-openapi-flow migrate openapi.yaml --out MIGRATION.md",
+      "x-openapi-flow migrate openapi.yaml --format json",
     ],
   },
   lint: {
@@ -480,6 +489,7 @@ Usage:
   x-openapi-flow init [openapi-file] [--flows path] [--force] [--dry-run] [--suggest-transitions] [--confidence-threshold 0..1]
   x-openapi-flow apply [openapi-file] [--flows path] [--out path] [--in-place]
   x-openapi-flow diff [openapi-file] [--flows path] [--format pretty|json] [--breaking-only] [--fail-on-breaking]
+  x-openapi-flow migrate [openapi-file] [--flows path] [--format markdown|json] [--out path]
   x-openapi-flow lint [openapi-file] [--format pretty|json] [--semantic] [--config path]
   x-openapi-flow analyze [openapi-file] [--format pretty|json] [--out path] [--merge] [--flows path] [--confidence-threshold 0..1]
   x-openapi-flow quality-report <openapi-file> [--profile core|relaxed|strict] [--semantic] [--output path]
@@ -1069,6 +1079,54 @@ function parseDiffArgs(args) {
   };
 }
 
+function parseMigrateArgs(args) {
+  const unknown = findUnknownOptions(args, ["--flows", "--format", "--out"], []);
+  if (unknown) {
+    return { error: `Unknown option: ${unknown}` };
+  }
+
+  const flowsOpt = getOptionValue(args, "--flows");
+  if (flowsOpt.error) {
+    return { error: flowsOpt.error };
+  }
+
+  const formatOpt = getOptionValue(args, "--format");
+  if (formatOpt.error) {
+    return { error: `${formatOpt.error} Use 'markdown' or 'json'.` };
+  }
+
+  const format = formatOpt.found ? formatOpt.value : "markdown";
+  if (!["markdown", "json"].includes(format)) {
+    return { error: `Invalid --format '${format}'. Use 'markdown' or 'json'.` };
+  }
+
+  const outOpt = getOptionValue(args, "--out");
+  if (outOpt.error) {
+    return { error: outOpt.error };
+  }
+
+  const positional = args.filter((token, index) => {
+    if (token === "--flows" || token === "--format" || token === "--out") {
+      return false;
+    }
+    if (index > 0 && ["--flows", "--format", "--out"].includes(args[index - 1])) {
+      return false;
+    }
+    return !token.startsWith("--");
+  });
+
+  if (positional.length > 1) {
+    return { error: `Unexpected argument: ${positional[1]}` };
+  }
+
+  return {
+    openApiFile: positional[0] ? path.resolve(positional[0]) : undefined,
+    flowsPath: flowsOpt.found ? path.resolve(flowsOpt.value) : undefined,
+    format,
+    outPath: outOpt.found ? path.resolve(outOpt.value) : undefined,
+  };
+}
+
 function parseLintArgs(args) {
   const unknown = findUnknownOptions(args, ["--format", "--config"], ["--semantic"]);
   if (unknown) {
@@ -1607,6 +1665,11 @@ function parseArgs(argv) {
 
   if (command === "diff") {
     const parsed = parseDiffArgs(commandArgs);
+    return withVerbose(parsed.error ? parsed : { command, ...parsed });
+  }
+
+  if (command === "migrate") {
+    const parsed = parseMigrateArgs(commandArgs);
     return withVerbose(parsed.error ? parsed : { command, ...parsed });
   }
 
@@ -3008,6 +3071,124 @@ function runDiff(parsed) {
   return 0;
 }
 
+const MIGRATE_SECTION_TITLES = {
+  removed_operation_flow: "Removed operation flows",
+  changed_current_state: "Changed current_state",
+  removed_transition: "Removed transitions",
+};
+
+function buildMigrationMarkdown(breakingChanges, meta) {
+  const lines = [];
+  lines.push("# Migration Guide");
+  lines.push("");
+  lines.push(`OpenAPI source: ${meta.openApiFile}`);
+  lines.push(`Flows sidecar: ${meta.flowsPath}`);
+  lines.push("");
+
+  if (breakingChanges.length === 0) {
+    lines.push("No breaking flow changes detected. No migration steps required.");
+    return `${lines.join("\n")}\n`;
+  }
+
+  lines.push("## Summary");
+  lines.push("");
+  lines.push(`${breakingChanges.length} breaking flow change(s) detected. Review each item below before releasing this API version.`);
+  lines.push("");
+
+  const byType = new Map();
+  for (const change of breakingChanges) {
+    if (!byType.has(change.type)) {
+      byType.set(change.type, []);
+    }
+    byType.get(change.type).push(change);
+  }
+
+  for (const [type, changes] of byType.entries()) {
+    lines.push(`## ${MIGRATE_SECTION_TITLES[type] || type}`);
+    lines.push("");
+    for (const change of changes) {
+      lines.push(`- **${change.operationId}** — ${change.description}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("## Suggested actions");
+  lines.push("");
+  lines.push("- Bump your API's version to signal a breaking lifecycle change to consumers.");
+  lines.push("- Regenerate any SDKs (`x-openapi-flow generate-sdk`) and docs/collections against the updated flows sidecar.");
+  lines.push("- Notify consumers relying on the removed/changed transitions above before deploying.");
+
+  return `${lines.join("\n")}\n`;
+}
+
+function runMigrate(parsed) {
+  const targetOpenApiFile = parsed.openApiFile || findOpenApiFile(process.cwd());
+
+  if (!targetOpenApiFile) {
+    console.error("ERROR: Could not find an existing OpenAPI file in this repository.");
+    console.error("Expected one of: openapi.yaml|yml|json, swagger.yaml|yml|json");
+    return 1;
+  }
+
+  const flowsPath = resolveFlowsPath(targetOpenApiFile, parsed.flowsPath);
+
+  let api;
+  let existingFlows;
+  try {
+    api = loadApi(targetOpenApiFile);
+  } catch (err) {
+    console.error(`ERROR: Could not parse OpenAPI file — ${err.message}`);
+    return 1;
+  }
+
+  try {
+    existingFlows = readFlowsFile(flowsPath);
+  } catch (err) {
+    console.error(`ERROR: Could not parse flows file — ${err.message}`);
+    return 1;
+  }
+
+  const mergedFlows = mergeFlowsWithOpenApi(api, existingFlows);
+  const breakingChanges = detectBreakingFlowChanges(existingFlows, mergedFlows);
+
+  if (parsed.format === "json") {
+    const output = JSON.stringify(
+      {
+        openApiFile: targetOpenApiFile,
+        flowsPath,
+        breaking: {
+          count: breakingChanges.length,
+          changes: breakingChanges,
+        },
+      },
+      null,
+      2
+    );
+
+    if (parsed.outPath) {
+      fs.writeFileSync(parsed.outPath, `${output}\n`, "utf8");
+      console.log(`Migration data written to ${parsed.outPath}`);
+    } else {
+      console.log(output);
+    }
+    return 0;
+  }
+
+  const markdown = buildMigrationMarkdown(breakingChanges, {
+    openApiFile: targetOpenApiFile,
+    flowsPath,
+  });
+
+  if (parsed.outPath) {
+    fs.writeFileSync(parsed.outPath, markdown, "utf8");
+    console.log(`Migration guide written to ${parsed.outPath}`);
+  } else {
+    process.stdout.write(markdown);
+  }
+
+  return 0;
+}
+
 function runDoctor(parsed) {
   const config = loadConfig(parsed.configPath);
   let hasErrors = false;
@@ -4281,6 +4462,10 @@ function main() {
 
   if (parsed.command === "diff") {
     process.exit(runDiff(parsed));
+  }
+
+  if (parsed.command === "migrate") {
+    process.exit(runMigrate(parsed));
   }
 
   if (parsed.command === "lint") {

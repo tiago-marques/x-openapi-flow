@@ -1777,6 +1777,126 @@ test("diff pretty includes changed field-level details", () => {
   }
 });
 
+test("migrate reports no breaking changes when nothing changed", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-migrate-none-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Migrate API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["migrate", openapiPath]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /# Migration Guide/);
+    assert.match(result.stdout, /No breaking flow changes detected\. No migration steps required\./);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("migrate markdown reports a removed operation flow", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-migrate-removed-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Migrate API\n  version: "2.0.0"\npaths:\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: createOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: create-order-flow\n      current_state: CREATED\n      transitions:\n        - target_state: PAID\n          trigger_type: synchronous\n          next_operation_id: payOrder\n`,
+      "utf8"
+    );
+
+    const result = runCli(["migrate", openapiPath]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /## Removed operation flows/);
+    assert.match(result.stdout, /\*\*createOrder\*\* — Operation 'createOrder' had flow metadata but is no longer tracked\./);
+    assert.match(result.stdout, /## Suggested actions/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("migrate --format json outputs breaking changes as structured data", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-migrate-json-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const sidecarPath = path.join(tempDir, "openapi.x.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Migrate API\n  version: "2.0.0"\npaths:\n  /orders/{id}:\n    get:\n      operationId: getOrder\n      parameters:\n        - name: id\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    fs.writeFileSync(
+      sidecarPath,
+      `version: '1.0'\noperations:\n  - operationId: createOrder\n    x-openapi-flow:\n      version: '1.0'\n      id: create-order-flow\n      current_state: CREATED\n      transitions: []\n`,
+      "utf8"
+    );
+
+    const result = runCli(["migrate", openapiPath, "--format", "json"]);
+    assert.equal(result.status, 0);
+
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.breaking.count, 1);
+    assert.equal(payload.breaking.changes[0].type, "removed_operation_flow");
+    assert.equal(payload.breaking.changes[0].operationId, "createOrder");
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("migrate --out writes the migration guide to a file", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-migrate-out-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+  const outPath = path.join(tempDir, "MIGRATION.md");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Migrate API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["migrate", openapiPath, "--out", outPath]);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Migration guide written to/);
+
+    const written = fs.readFileSync(outPath, "utf8");
+    assert.match(written, /# Migration Guide/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("migrate rejects an invalid --format value", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-migrate-bad-format-"));
+  const openapiPath = path.join(tempDir, "openapi.yaml");
+
+  try {
+    fs.writeFileSync(
+      openapiPath,
+      `openapi: "3.0.3"\ninfo:\n  title: Migrate API\n  version: "1.0.0"\npaths:\n  /items:\n    get:\n      operationId: listItems\n      responses:\n        "200":\n          description: ok\n`,
+      "utf8"
+    );
+
+    const result = runCli(["migrate", openapiPath, "--format", "xml"]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Invalid --format 'xml'/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("lint pretty reports semantic issues", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "x-openapi-flow-lint-pretty-"));
   const openapiPath = path.join(tempDir, "openapi.yaml");

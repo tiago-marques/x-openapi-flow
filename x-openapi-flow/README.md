@@ -651,6 +651,9 @@ npx x-openapi-flow diff [openapi-file] [--format pretty|json]
 
 # detect breaking flow changes (use in CI to fail PRs)
 npx x-openapi-flow diff [openapi-file] --breaking-only --fail-on-breaking
+
+# generate a Markdown migration guide for breaking flow changes
+npx x-openapi-flow migrate [openapi-file] [--flows path] [--format markdown|json] [--out path]
 ```
 
 ### Visualization & Documentation

@@ -117,6 +117,23 @@ if (changes > 0) process.exit(1);
 '
 ```
 
+## `migrate`
+
+Generates a migration guide from breaking flow changes between the committed sidecar and the current OpenAPI spec — the same detection `diff --breaking-only` uses, rendered as a document you can hand to API consumers or attach to a release.
+
+```bash
+npx x-openapi-flow migrate [openapi-file] [--flows path] [--format markdown|json] [--out path]
+```
+
+- `markdown` (default) prints a `# Migration Guide` with one section per breaking-change type (`Removed operation flows`, `Changed current_state`, `Removed transitions`) and a `Suggested actions` checklist.
+- `json` prints the same `breaking.changes` structure as `diff --format json`, for scripting.
+- `--out path` writes the guide to a file instead of stdout (for example `--out MIGRATION.md`).
+- Unlike `diff --fail-on-breaking`, `migrate` never exits non-zero on its own — pair it with `diff --breaking-only --fail-on-breaking` in CI, and run `migrate` to produce the accompanying document once a breaking release is confirmed.
+
+```bash
+npx x-openapi-flow migrate openapi.yaml --out MIGRATION.md
+```
+
 ## `lint`
 
 Runs semantic flow lint checks.
