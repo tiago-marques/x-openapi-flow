@@ -4,6 +4,15 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 1.8.1 - 2026-09-15
+
+### Added
+- **Rich transition fields surfaced in Swagger UI, Redoc, and `export-doc-flows`**: `decision_rule`, `evidence_refs`, `prerequisite_field_refs`, `propagated_field_refs`, `failure_paths`, `compensation_operation_id`, and `async_contract` (`timeout_ms`/`max_retries`/`backoff`) were already accepted by the schema and shown by `export-llm-flows`, but were silently dropped by every human-facing renderer — they read `buildIntermediateModel()`'s lossy codegen model (`targetState`/`triggerType`/`nextOperationId`/`prerequisites` only), shared with the SDK generator. Each transition detail now renders as a nested list under its `trigger_type → target_state` line in all three:
+  - **Swagger UI plugin** (`adapters/ui/swagger-ui/x-openapi-flow-plugin.js`): both the React `OperationSummary` wrapper and the vanilla-JS extension-cell renderer.
+  - **Redoc plugin** (`adapters/ui/redoc/x-openapi-flow-redoc-plugin.js`): operation cards in the Flow / Lifecycle view.
+  - **`export-doc-flows`** Markdown output: a new `- Transitions:` block per operation (the existing `- Next operations:` line is unchanged, so existing consumers aren't affected).
+  - New shared helper `enrichModelWithFlowDetails()` in `adapters/shared/helpers.js` builds a local, enriched copy of the intermediate model from the raw OpenAPI `x-openapi-flow` transitions — `buildIntermediateModel()` itself, and the SDK generator that depends on it, are untouched.
+
 ## 1.8.0 - 2026-09-15
 
 ### Added
